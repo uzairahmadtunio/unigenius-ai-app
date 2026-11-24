@@ -1,0 +1,2402 @@
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  Shield, Users, Megaphone, BarChart3, Radio, FolderOpen,
+  Plus, Trash2, Edit2, UserX, Search, AlertTriangle, X,
+  Headset, Send, CheckCircle2, MessageCircle, CreditCard, Eye, XCircle,
+  Tag, ToggleLeft, ToggleRight, Loader2, MessageSquareHeart, Star, Bug, Lightbulb,
+  Mail, RefreshCw, Inbox, KeyRound, FlaskConical, Download, Clock, Activity, CalendarDays
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { useAdmin } from "@/hooks/use-admin";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+
+const categories = ["general", "fee", "exam", "academic", "event"];
+const priorities = ["normal", "high", "urgent"];
+
+type AdminTab = "overview" | "users" | "notices" | "groups" | "alerts" | "support" | "payments" | "promos" | "feedback" | "contact" | "apikeys" | "exams";
+
+const tabItems = [
+  { id: "overview" as AdminTab, label: "Overview", icon: BarChart3 },
+  { id: "users" as AdminTab, label: "Users", icon: Users },
+  { id: "notices" as AdminTab, label: "Notices", icon: Megaphone },
+  { id: "exams" as AdminTab, label: "Exam Dates", icon: CalendarDays },
+  { id: "groups" as AdminTab, label: "Groups", icon: FolderOpen },
+  { id: "alerts" as AdminTab, label: "Global Alerts", icon: Radio },
+  { id: "support" as AdminTab, label: "Support Inbox", icon: Headset },
+  { id: "payments" as AdminTab, label: "Payments", icon: CreditCard },
+  { id: "promos" as AdminTab, label: "Promo Manager", icon: Tag },
+  { id: "apikeys" as AdminTab, label: "API Keys", icon: KeyRound },
+  { id: "feedback" as AdminTab, label: "Feedback", icon: MessageSquareHeart },
+  { id: "contact" as AdminTab, label: "Contact Inbox", icon: Inbox },
+];
+
+const AdminDashboard = () => {
+  const { isAdmin, loading: adminLoading } = useAdmin();
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const [supportUnread, setSupportUnread] = useState(0);
+  const [feedbackUnread, setFeedbackUnread] = useState(0);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
+
+  // Keep the active tab in view inside the horizontally scrollable mobile tab bar
+  useEffect(() => {
+    mobileNavRef.current
+      ?.querySelector('[data-active="true"]')
+      ?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!authLoading && !adminLoading && (!user || !isAdmin)) {
+      navigate("/");
+    }
+  }, [authLoading, adminLoading, user, isAdmin, navigate]);
+
+  // Fetch unread support count
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchUnread = async () => {
+      const { data } = await supabase.rpc("admin_get_support_tickets" as any);
+      const total = (data || []).reduce((sum: number, t: any) => sum + (t.unread_count || 0), 0);
+      setSupportUnread(total);
+    };
+    const fetchFeedbackUnread = async () => {
+      const { data, count } = await supabase
+        .from("feedbacks" as any)
+        .select("id", { count: "exact", head: true })
+        .eq("status", "new");
+      setFeedbackUnread(count || 0);
+    };
+    fetchUnread();
+    fetchFeedbackUnread();
+    const channel = supabase
+      .channel("admin-support-notify")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages" }, () => {
+        fetchUnread();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "feedbacks" }, () => {
+        fetchFeedbackUnread();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isAdmin]);
+
+  if (authLoading || adminLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) return null;
+
+  return (
+    <div className="min-h-screen flex bg-background">
+      {/* Sidebar */}
+      <aside className="w-64 border-r border-border bg-card flex flex-col shrink-0 hidden md:flex">
+        <div className="p-5 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-sm font-display font-bold text-foreground">Admin Panel</h1>
+              <p className="text-[10px] text-muted-foreground">God Mode • UoL</p>
+            </div>
+          </div>
+        </div>
+        <nav className="flex-1 p-3 space-y-1">
+          {tabItems.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors relative ${
+                activeTab === tab.id
+                  ? "bg-primary/10 text-primary font-semibold"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+              {tab.id === "support" && supportUnread > 0 && (
+                <span className="ml-auto w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                  {supportUnread > 9 ? "9+" : supportUnread}
+                </span>
+              )}
+              {tab.id === "feedback" && feedbackUnread > 0 && (
+                <span className="ml-auto w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                  {feedbackUnread > 9 ? "9+" : feedbackUnread}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="p-4 border-t border-border">
+          <Button variant="ghost" size="sm" className="w-full rounded-xl text-xs" onClick={() => navigate("/")}>
+            ← Back to App
+          </Button>
+        </div>
+      </aside>
+
+      {/* Mobile tab bar — horizontally scrollable so all 11 labels stay readable */}
+      <div
+        ref={mobileNavRef}
+        className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border bg-card/95 backdrop-blur flex gap-1 overflow-x-auto px-1.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))" }}
+      >
+        {tabItems.map((tab) => (
+          <button
+            key={tab.id}
+            data-active={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`relative flex-none flex flex-col items-center justify-center gap-0.5 min-w-[64px] px-2.5 py-1.5 rounded-2xl text-[10px] font-medium whitespace-nowrap transition-colors ${
+              activeTab === tab.id ? "bg-primary/10 text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <tab.icon className="w-[18px] h-[18px]" />
+            {tab.label}
+            {tab.id === "support" && supportUnread > 0 && (
+              <span className="absolute top-0.5 right-1.5 w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center">
+                {supportUnread > 9 ? "+" : supportUnread}
+              </span>
+            )}
+            {tab.id === "feedback" && feedbackUnread > 0 && (
+              <span className="absolute top-0.5 right-1.5 w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center">
+                {feedbackUnread > 9 ? "+" : feedbackUnread}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-y-auto pb-24 md:pb-0">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+          {/* Mobile header */}
+          <div className="md:hidden flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" />
+              <h1 className="text-lg font-display font-bold text-foreground">Admin</h1>
+            </div>
+            <Button variant="ghost" size="sm" className="rounded-xl text-xs" onClick={() => navigate("/")}>
+              ← App
+            </Button>
+          </div>
+
+          {activeTab === "overview" && <OverviewTab />}
+          {activeTab === "users" && <UsersTab />}
+          {activeTab === "notices" && <NoticesTab />}
+          {activeTab === "exams" && <ExamDatesTab />}
+          {activeTab === "groups" && <GroupsTab />}
+          {activeTab === "alerts" && <GlobalAlertsTab />}
+          {activeTab === "support" && <SupportTab />}
+          {activeTab === "payments" && <PaymentsTab />}
+          {activeTab === "promos" && <PromoManagerTab />}
+          {activeTab === "feedback" && <FeedbackTab onCountChange={setFeedbackUnread} />}
+          {activeTab === "contact" && <ContactInboxTab />}
+          {activeTab === "apikeys" && <ApiKeysTab />}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+/* ===== OVERVIEW TAB ===== */
+const OverviewTab = () => {
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.rpc("admin_get_stats").then(({ data }) => {
+      if (data && data.length > 0) setStats(data[0]);
+    });
+  }, []);
+
+  const statCards = stats
+    ? [
+        { label: "Total Users", value: stats.total_users, icon: Users, color: "text-blue-400" },
+        { label: "Total Groups", value: stats.total_groups, icon: FolderOpen, color: "text-emerald-400" },
+        { label: "Files Uploaded", value: stats.total_files, icon: BarChart3, color: "text-amber-400" },
+        { label: "Notices Posted", value: stats.total_notices, icon: Megaphone, color: "text-purple-400" },
+        { label: "Quizzes Taken", value: stats.total_quizzes, icon: Shield, color: "text-rose-400" },
+      ]
+    : [];
+
+  // Weekly activity series shown in the chart once the platform has real usage.
+  const weeklyActivity = [65, 40, 85, 55, 70, 90, 45];
+  // "Activity" = real artifacts students/admins have created. A fresh install
+  // (only the founder account, everything else 0) shows a compact empty state.
+  const hasActivity =
+    !!stats &&
+    (stats.total_groups > 0 || stats.total_files > 0 || stats.total_notices > 0 || stats.total_quizzes > 0);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 md:space-y-6">
+      <div>
+        <h2 className="text-xl font-display font-bold text-foreground">System Overview</h2>
+        <p className="text-xs text-muted-foreground">University of Larkana — UniGenius AI Platform</p>
+      </div>
+
+      {stats ? (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 md:gap-3">
+          {statCards.map((s, i) => (
+            <Card
+              key={s.label}
+              className={`border-border/30 bg-card ${
+                i === statCards.length - 1 ? "col-span-2 md:col-span-1" : ""
+              }`}
+            >
+              <CardContent className="p-3 md:p-4 text-center">
+                <s.icon className={`w-5 h-5 md:w-6 md:h-6 mx-auto mb-1.5 md:mb-2 ${s.color}`} />
+                <p className="text-xl md:text-2xl font-bold text-foreground">{s.value}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 text-muted-foreground text-sm">Loading statistics...</div>
+      )}
+
+      <Card className="border-border/30 bg-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-display">Platform Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats && !hasActivity ? (
+            <div className="flex flex-col items-center justify-center text-center py-5 gap-1.5">
+              <div className="w-9 h-9 rounded-full bg-muted/60 flex items-center justify-center mb-0.5">
+                <Activity className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium text-foreground">No activity yet</p>
+              <p className="text-xs text-muted-foreground max-w-[280px]">
+                Platform activity will appear here as students start using UniGenius.
+              </p>
+            </div>
+          ) : (
+            <div className="flex gap-2 h-28 md:h-32">
+              {weeklyActivity.map((h, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                  <div className="flex-1 w-full flex items-end">
+                    <div
+                      className="w-full rounded-t-md bg-primary/60 transition-all"
+                      style={{ height: `${h}%` }}
+                    />
+                  </div>
+                  <span className="text-[9px] text-muted-foreground">
+                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
+
+/* ===== USERS TAB ===== */
+const UsersTab = () => {
+  const [users, setUsers] = useState<any[]>([]);
+  const [userRoles, setUserRoles] = useState<Record<string, string[]>>({});
+  const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState<string | null>(null);
+
+  const fetchUsers = async () => {
+    const { data } = await supabase.rpc("admin_get_all_users");
+    setUsers(data || []);
+    setLoading(false);
+  };
+
+  const fetchRoles = async () => {
+    const { data } = await supabase.from("user_roles" as any).select("user_id, role");
+    const map: Record<string, string[]> = {};
+    (data || []).forEach((r: any) => {
+      if (!map[r.user_id]) map[r.user_id] = [];
+      map[r.user_id].push(r.role);
+    });
+    setUserRoles(map);
+  };
+
+  useEffect(() => { fetchUsers(); fetchRoles(); }, []);
+
+  const handleRoleChange = async (userId: string, action: "add" | "remove") => {
+    setRoleLoading(userId);
+    const { error } = await supabase.rpc("admin_manage_user_role" as any, {
+      _target_user_id: userId,
+      _role: "teacher",
+      _action: action,
+    });
+    if (error) {
+      toast.error("Failed: " + error.message);
+    } else {
+      const newRole = action === "add" ? "Teacher" : "Student";
+      toast.success(`User role updated to ${newRole} successfully`);
+      // Instant UI sync: update local state immediately
+      setUserRoles(prev => {
+        const updated = { ...prev };
+        const current = [...(updated[userId] || [])];
+        if (action === "add") {
+          if (!current.includes("teacher")) current.push("teacher");
+        } else {
+          const idx = current.indexOf("teacher");
+          if (idx !== -1) current.splice(idx, 1);
+        }
+        updated[userId] = current;
+        return updated;
+      });
+    }
+    setRoleLoading(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.rpc("admin_delete_user", { _target_user_id: deleteTarget.user_id });
+    if (error) {
+      toast.error("Failed to delete user: " + error.message);
+    } else {
+      toast.success("User Account Terminated", { description: `${deleteTarget.display_name || deleteTarget.email} has been removed.` });
+      fetchUsers();
+    }
+    setDeleteTarget(null);
+  };
+
+  const filtered = users.filter((u) => {
+    const q = search.toLowerCase();
+    return (
+      (u.display_name || "").toLowerCase().includes(q) ||
+      (u.email || "").toLowerCase().includes(q) ||
+      (u.roll_number || "").toLowerCase().includes(q)
+    );
+  });
+
+  const getUserRole = (userId: string) => {
+    const roles = userRoles[userId] || [];
+    if (roles.includes("admin")) return "admin";
+    if (roles.includes("teacher")) return "teacher";
+    return "student";
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-display font-bold text-foreground">Manage Users</h2>
+          <p className="text-xs text-muted-foreground">{users.length} registered users</p>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search by name, email, or roll number..."
+          className="pl-9 rounded-xl"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">Loading users...</div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((u) => {
+            const role = getUserRole(u.user_id);
+            const isCurrentTeacher = role === "teacher";
+            const isAdminUser = role === "admin";
+            return (
+              <Card key={u.user_id} className="border-border/30 bg-card">
+                <CardContent className="p-3 flex items-center gap-3">
+                  <Avatar className="w-9 h-9 border border-border">
+                    <AvatarImage src={u.avatar_url} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                      {(u.display_name || u.email || "?").charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground truncate">{u.display_name || "No Name"}</p>
+                      <Badge variant={isAdminUser ? "default" : isCurrentTeacher ? "secondary" : "outline"} className="text-[9px] shrink-0">
+                        {role}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <span className="truncate">{u.email}</span>
+                      {u.roll_number && <><span>•</span><span>{u.roll_number}</span></>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!isAdminUser && (
+                      <Button
+                        variant={isCurrentTeacher ? "outline" : "default"}
+                        size="sm"
+                        className="rounded-lg text-[10px] h-7 px-2"
+                        disabled={roleLoading === u.user_id}
+                        onClick={() => handleRoleChange(u.user_id, isCurrentTeacher ? "remove" : "add")}
+                      >
+                        {roleLoading === u.user_id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : isCurrentTeacher ? "Remove Teacher" : "Make Teacher"}
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-lg w-8 h-8 text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteTarget(u)}
+                    >
+                      <UserX className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+          {filtered.length === 0 && (
+            <p className="text-center text-sm text-muted-foreground py-8">No users found.</p>
+          )}
+        </div>
+      )}
+
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> Delete User
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete{" "}
+              <strong>{deleteTarget?.display_name || deleteTarget?.email}</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" className="rounded-xl" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" className="rounded-xl" onClick={handleDelete}>Delete Permanently</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+};
+
+/* ===== NOTICES TAB ===== */
+const NoticesTab = () => {
+  const [notices, setNotices] = useState<any[]>([]);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [category, setCategory] = useState("general");
+  const [priority, setPriority] = useState("normal");
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchNotices = async () => {
+    const { data } = await supabase
+      .from("university_notices")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setNotices(data || []);
+  };
+
+  useEffect(() => { fetchNotices(); }, []);
+
+  const resetForm = () => {
+    setTitle(""); setContent(""); setCategory("general"); setPriority("normal");
+    setEditId(null); setFormOpen(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !content.trim()) return;
+    setSubmitting(true);
+
+    if (editId) {
+      await supabase.from("university_notices").update({ title, content, category, priority } as any).eq("id", editId);
+      toast.success("Notice Updated Successfully");
+    } else {
+      await supabase.from("university_notices").insert({ title, content, category, priority } as any);
+      toast.success("Notice Published Successfully", { description: "Now visible to all students." });
+    }
+
+    setSubmitting(false);
+    resetForm();
+    fetchNotices();
+  };
+
+  const handleEdit = (n: any) => {
+    setEditId(n.id); setTitle(n.title); setContent(n.content);
+    setCategory(n.category); setPriority(n.priority); setFormOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    await supabase.from("university_notices").delete().eq("id", id);
+    toast.success("Notice Removed Successfully");
+    fetchNotices();
+  };
+
+  const priorityColor: Record<string, string> = { urgent: "destructive", high: "secondary", normal: "outline" };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-display font-bold text-foreground">Notice Board Manager</h2>
+          <p className="text-xs text-muted-foreground">{notices.length} notices posted</p>
+        </div>
+        <Button className="rounded-xl gap-2" onClick={() => setFormOpen(true)}>
+          <Plus className="w-4 h-4" /> New Notice
+        </Button>
+      </div>
+
+      <Dialog open={formOpen} onOpenChange={(o) => { if (!o) resetForm(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">{editId ? "Edit Notice" : "Post New Notice"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input placeholder="Notice Title" value={title} onChange={(e) => setTitle(e.target.value)} required className="rounded-xl" />
+            <Textarea placeholder="Notice message..." value={content} onChange={(e) => setContent(e.target.value)} required className="rounded-xl min-h-[100px]" />
+            <div className="grid grid-cols-2 gap-3">
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {priorities.map((p) => <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" className="w-full rounded-xl" disabled={submitting}>
+              {submitting ? "Posting..." : editId ? "Update Notice" : "🚀 Publish Notice"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <div className="space-y-2">
+        {notices.length === 0 ? (
+          <Card className="border-border/30 bg-card">
+            <CardContent className="p-8 text-center">
+              <Megaphone className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">No notices yet. Post your first one!</p>
+            </CardContent>
+          </Card>
+        ) : (
+          notices.map((n: any, i: number) => (
+            <motion.div key={n.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+              <Card className="border-border/30 bg-card">
+                <CardContent className="p-3 flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <p className="font-semibold text-sm text-foreground">{n.title}</p>
+                      <Badge variant={priorityColor[n.priority] as any} className="text-[9px] capitalize">{n.priority}</Badge>
+                      <Badge variant="outline" className="text-[9px] capitalize">{n.category}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{n.content}</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">
+                      {new Date(n.created_at).toLocaleDateString("en-PK", { dateStyle: "medium" })}
+                    </p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="rounded-lg w-7 h-7" onClick={() => handleEdit(n)}>
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="rounded-lg w-7 h-7 text-destructive" onClick={() => handleDelete(n.id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+/* ===== EXAM DATES TAB ===== */
+const examTypes = ["Midterm", "Final", "Quiz", "Viva", "Other"];
+
+const ExamDatesTab = () => {
+  const [exams, setExams] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [subject, setSubject] = useState("");
+  const [examType, setExamType] = useState("Midterm");
+  const [examDate, setExamDate] = useState("");
+  const [semester, setSemester] = useState("2");
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+
+  const fetchExams = async () => {
+    const { data, error } = await supabase
+      .from("exam_schedule")
+      .select("*")
+      .gte("exam_date", new Date().toISOString())
+      .order("exam_date", { ascending: true });
+    if (error) toast.error("Failed to load exams: " + error.message);
+    setExams(data || []);
+    setLoading(false);
+  };
+
+  const fetchSubjects = async () => {
+    const { data } = await supabase
+      .from("subjects_pool" as any)
+      .select("name")
+      .order("name", { ascending: true });
+    setSubjects((data as any[]) || []);
+  };
+
+  useEffect(() => { fetchExams(); fetchSubjects(); }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subject.trim() || !examDate) {
+      toast.error("Please enter a subject and exam date/time");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.from("exam_schedule").insert({
+      subject: subject.trim(),
+      exam_type: examType,
+      exam_date: new Date(examDate).toISOString(),
+      semester: parseInt(semester, 10),
+    } as any);
+    if (error) {
+      toast.error("Failed to add exam: " + error.message);
+    } else {
+      toast.success("Exam Added Successfully", { description: "Student countdowns and exam reminders will pick this up." });
+      setSubject("");
+      setExamDate("");
+      fetchExams();
+    }
+    setSubmitting(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from("exam_schedule").delete().eq("id", deleteTarget.id);
+    if (error) {
+      toast.error("Failed to delete exam: " + error.message);
+    } else {
+      toast.success("Exam Removed Successfully");
+      fetchExams();
+    }
+    setDeleteTarget(null);
+  };
+
+  const formatExamDate = (value: string) => {
+    const d = new Date(value);
+    return `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}, ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div>
+        <h2 className="text-xl font-display font-bold text-foreground">Exam Dates</h2>
+        <p className="text-xs text-muted-foreground">{exams.length} upcoming exams — these drive student countdowns and exam reminders</p>
+      </div>
+
+      <Card className="border-border/30 bg-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-display">Add Exam</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-2">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Subject</label>
+              <Input
+                placeholder="e.g. Object Oriented Programming"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                required
+                className="rounded-xl"
+                list="exam-subject-options"
+              />
+              <datalist id="exam-subject-options">
+                {subjects.map((s: any) => (
+                  <option key={s.name} value={s.name} />
+                ))}
+              </datalist>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Exam Type</label>
+                <Select value={examType} onValueChange={setExamType}>
+                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {examTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Semester</label>
+                <Select value={semester} onValueChange={setSemester}>
+                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                      <SelectItem key={s} value={String(s)}>Semester {s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Date & Time</label>
+              <Input
+                type="datetime-local"
+                value={examDate}
+                onChange={(e) => setExamDate(e.target.value)}
+                required
+                className="rounded-xl"
+              />
+            </div>
+            <Button type="submit" className="w-full rounded-xl gap-2" disabled={submitting}>
+              <Plus className="w-4 h-4" /> {submitting ? "Adding..." : "Add Exam"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground">Upcoming Exams</h3>
+        {loading ? (
+          <div className="text-center py-12 text-muted-foreground text-sm">Loading exams...</div>
+        ) : exams.length === 0 ? (
+          <Card className="border-border/30 bg-card">
+            <CardContent className="p-8 text-center">
+              <CalendarDays className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">No upcoming exams yet. Add the first one above!</p>
+            </CardContent>
+          </Card>
+        ) : (
+          exams.map((exam: any) => (
+            <Card key={exam.id} className="border-border/30 bg-card">
+              <CardContent className="p-3 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-sm text-foreground">{exam.subject}</p>
+                    <Badge variant="outline" className="text-[9px]">{exam.exam_type}</Badge>
+                    <Badge variant="secondary" className="text-[9px]">Semester {exam.semester}</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{formatExamDate(exam.exam_date)}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-lg w-8 h-8 text-destructive hover:bg-destructive/10 shrink-0"
+                  onClick={() => setDeleteTarget(exam)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> Delete Exam
+            </DialogTitle>
+            <DialogDescription>
+              Delete the <strong>{deleteTarget?.exam_type}</strong> exam for{" "}
+              <strong>{deleteTarget?.subject}</strong>
+              {deleteTarget ? <> (Semester {deleteTarget.semester}, {formatExamDate(deleteTarget.exam_date)})</> : null}?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" className="rounded-xl" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" className="rounded-xl" onClick={handleDelete}>Delete Exam</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+};
+
+/* ===== GROUPS TAB ===== */
+const GroupsTab = () => {
+  const [groups, setGroups] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+
+  const fetchGroups = async () => {
+    const { data } = await supabase.rpc("admin_get_all_groups");
+    setGroups(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchGroups(); }, []);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.rpc("admin_delete_group", { _group_id: deleteTarget.group_id });
+    if (error) {
+      toast.error("Failed: " + error.message);
+    } else {
+      toast.success("Group Removed Successfully", { description: `"${deleteTarget.name}" has been deleted.` });
+      fetchGroups();
+    }
+    setDeleteTarget(null);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div>
+        <h2 className="text-xl font-display font-bold text-foreground">Group & Project Control</h2>
+        <p className="text-xs text-muted-foreground">{`${groups.length} groups created`}</p>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">Loading groups...</div>
+      ) : groups.length === 0 ? (
+        <Card className="border-border/30 bg-card">
+          <CardContent className="p-8 text-center">
+            <FolderOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">No groups created yet.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {groups.map((g: any) => (
+            <Card key={g.group_id} className="border-border/30 bg-card">
+              <CardContent className="p-3 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-foreground">{g.name}</p>
+                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-0.5">
+                    <span>Owner: {g.owner_name}</span>
+                    <span>•</span>
+                    <span>{`${g.member_count} members`}</span>
+                    <span>•</span>
+                    <span>{`${g.file_count} files`}</span>
+                  </div>
+                  {g.description && <p className="text-[11px] text-muted-foreground/70 mt-0.5 truncate">{g.description}</p>}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-lg w-8 h-8 text-destructive hover:bg-destructive/10"
+                  onClick={() => setDeleteTarget(g)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> Delete Group
+            </DialogTitle>
+            <DialogDescription>
+              Delete <strong>{deleteTarget?.name}</strong>? All messages, files, and members will be removed permanently.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" className="rounded-xl" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" className="rounded-xl" onClick={handleDelete}>Delete Group</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+};
+
+/* ===== GLOBAL ALERTS TAB ===== */
+const GlobalAlertsTab = () => {
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [message, setMessage] = useState("");
+  const [alertType, setAlertType] = useState("info");
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchAlerts = async () => {
+    const { data } = await supabase
+      .from("global_alerts" as any)
+      .select("*")
+      .order("created_at", { ascending: false });
+    setAlerts(data || []);
+  };
+
+  useEffect(() => { fetchAlerts(); }, []);
+
+  const handlePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim()) return;
+    setSubmitting(true);
+    await (supabase.from("global_alerts" as any) as any).update({ is_active: false }).eq("is_active", true);
+    await (supabase.from("global_alerts" as any) as any).insert({ message, alert_type: alertType, is_active: true });
+    toast.success("Global Alert Published", { description: "All users will see this banner." });
+    setMessage("");
+    setSubmitting(false);
+    fetchAlerts();
+  };
+
+  const handleDeactivate = async (id: string) => {
+    await (supabase.from("global_alerts" as any) as any).update({ is_active: false }).eq("id", id);
+    toast.success("Alert Deactivated Successfully");
+    fetchAlerts();
+  };
+
+  const handleDelete = async (id: string) => {
+    await (supabase.from("global_alerts" as any) as any).delete().eq("id", id);
+    toast.success("Alert Removed Successfully");
+    fetchAlerts();
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div>
+        <h2 className="text-xl font-display font-bold text-foreground">Global Broadcast</h2>
+        <p className="text-xs text-muted-foreground">Send a banner message to every user's screen</p>
+      </div>
+
+      <Card className="border-border/30 bg-card">
+        <CardContent className="p-4">
+          <form onSubmit={handlePost} className="space-y-3">
+            <Textarea
+              placeholder='e.g. "Server Maintenance at 10 PM tonight"'
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              required
+              className="rounded-xl min-h-[80px]"
+            />
+            <div className="flex items-center gap-3">
+              <Select value={alertType} onValueChange={setAlertType}>
+                <SelectTrigger className="rounded-xl w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="info">ℹ️ Info</SelectItem>
+                  <SelectItem value="warning">⚠️ Warning</SelectItem>
+                  <SelectItem value="critical">🚨 Critical</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button type="submit" className="rounded-xl flex-1" disabled={submitting}>
+                {submitting ? "Broadcasting..." : "📡 Broadcast to All Users"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground">Alert History</h3>
+        {alerts.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No alerts sent yet.</p>
+        ) : (
+          alerts.map((a: any) => (
+            <Card key={a.id} className={`border-border/30 ${a.is_active ? "border-l-4 border-l-primary bg-primary/5" : "bg-card"}`}>
+              <CardContent className="p-3 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-foreground">{a.message}</p>
+                    {a.is_active && <Badge className="text-[9px]">LIVE</Badge>}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {new Date(a.created_at).toLocaleString("en-PK")} • {a.alert_type}
+                  </p>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  {a.is_active && (
+                    <Button variant="ghost" size="sm" className="rounded-lg text-xs" onClick={() => handleDeactivate(a.id)}>
+                      Deactivate
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="rounded-lg w-7 h-7 text-destructive" onClick={() => handleDelete(a.id)}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+/* ===== SUPPORT INBOX TAB ===== */
+const SupportTab = () => {
+  const { user } = useAuth();
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const fetchTickets = async () => {
+    const { data } = await supabase.rpc("admin_get_support_tickets" as any);
+    setTickets(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchTickets(); }, []);
+
+  // Realtime for new messages
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-support-messages")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages" }, (payload) => {
+        if (selectedTicket && (payload.new as any).ticket_id === selectedTicket.ticket_id) {
+          setMessages((prev) => [...prev, payload.new]);
+        }
+        fetchTickets();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedTicket]);
+
+  const openTicket = async (ticket: any) => {
+    setSelectedTicket(ticket);
+    const { data } = await supabase
+      .from("support_messages" as any)
+      .select("*")
+      .eq("ticket_id", ticket.ticket_id)
+      .order("created_at", { ascending: true });
+    setMessages(data || []);
+
+    // Mark student messages as read
+    await (supabase.from("support_messages" as any) as any)
+      .update({ is_read: true })
+      .eq("ticket_id", ticket.ticket_id)
+      .eq("sender_role", "student")
+      .eq("is_read", false);
+    fetchTickets();
+  };
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  const handleReply = async () => {
+    if (!reply.trim() || !selectedTicket || !user) return;
+    setSending(true);
+    await (supabase.from("support_messages" as any) as any).insert({
+      ticket_id: selectedTicket.ticket_id,
+      sender_id: user.id,
+      sender_role: "admin",
+      message: reply.trim(),
+    });
+    await (supabase.from("support_tickets" as any) as any)
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", selectedTicket.ticket_id);
+    setReply("");
+    setSending(false);
+  };
+
+  const handleResolve = async (ticketId: string) => {
+    await (supabase.from("support_tickets" as any) as any)
+      .update({ status: "closed", updated_at: new Date().toISOString() })
+      .eq("id", ticketId);
+    toast.success("Support Ticket Resolved");
+    if (selectedTicket?.ticket_id === ticketId) {
+      setSelectedTicket(null);
+      setMessages([]);
+    }
+    fetchTickets();
+  };
+
+  const filteredTickets = tickets.filter((t: any) => {
+    if (filter === "open") return t.status === "open";
+    if (filter === "closed") return t.status === "closed";
+    return true;
+  });
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-display font-bold text-foreground">Support Inbox</h2>
+          <p className="text-xs text-muted-foreground">{`${tickets.filter((t: any) => t.status === "open").length} open tickets`}</p>
+        </div>
+        <Select value={filter} onValueChange={(v) => setFilter(v as any)}>
+          <SelectTrigger className="rounded-xl w-28"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="closed">Closed</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4" style={{ minHeight: "500px" }}>
+        {/* Ticket List */}
+        <div className="lg:col-span-2 space-y-2 overflow-y-auto max-h-[600px]">
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">Loading tickets...</div>
+          ) : filteredTickets.length === 0 ? (
+            <Card className="border-border/30 bg-card">
+              <CardContent className="p-8 text-center">
+                <Headset className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-muted-foreground text-sm">No support tickets yet</p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredTickets.map((t: any) => (
+              <Card
+                key={t.ticket_id}
+                className={`border-border/30 cursor-pointer transition-colors hover:bg-muted/30 ${
+                  selectedTicket?.ticket_id === t.ticket_id ? "border-primary bg-primary/5" : "bg-card"
+                }`}
+                onClick={() => openTicket(t)}
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Avatar className="w-7 h-7 border border-border">
+                      <AvatarImage src={t.user_avatar} />
+                      <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                        {(t.user_name || "?").charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">{t.user_name}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{t.user_email}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {t.unread_count > 0 && (
+                        <span className="w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                          {t.unread_count}
+                        </span>
+                      )}
+                      <Badge variant={t.status === "open" ? "default" : "secondary"} className="text-[9px]">
+                        {t.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  {t.last_message && (
+                    <p className="text-[11px] text-muted-foreground truncate mt-1 pl-9">{t.last_message}</p>
+                  )}
+                  {t.last_message_at && (
+                    <p className="text-[9px] text-muted-foreground/50 mt-0.5 pl-9">
+                      {new Date(t.last_message_at).toLocaleString("en-PK", { dateStyle: "short", timeStyle: "short" })}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Chat Panel */}
+        <div className="lg:col-span-3 border border-border rounded-2xl bg-card flex flex-col overflow-hidden">
+          {!selectedTicket ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageCircle className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Select a ticket to view conversation</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Chat Header */}
+              <div className="p-3 border-b border-border flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2">
+                  <Avatar className="w-8 h-8 border border-border">
+                    <AvatarImage src={selectedTicket.user_avatar} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                      {(selectedTicket.user_name || "?").charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{selectedTicket.user_name}</p>
+                    <p className="text-[10px] text-muted-foreground">{selectedTicket.user_email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedTicket.status === "open" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl text-xs gap-1.5 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10"
+                      onClick={() => handleResolve(selectedTicket.ticket_id)}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Resolve
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="rounded-xl w-8 h-8" onClick={() => { setSelectedTicket(null); setMessages([]); }}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2" style={{ maxHeight: "380px" }}>
+                {messages.map((m: any) => (
+                  <div key={m.id} className={`flex ${m.sender_role === "admin" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs ${
+                        m.sender_role === "admin"
+                          ? "bg-primary text-primary-foreground rounded-br-sm"
+                          : "bg-muted text-foreground rounded-bl-sm"
+                      }`}
+                    >
+                      {m.sender_role === "student" && (
+                        <p className="text-[9px] font-bold text-primary mb-0.5">👤 Student</p>
+                      )}
+                      {m.sender_role === "admin" && (
+                        <p className="text-[9px] font-bold text-primary-foreground/70 mb-0.5">🛡️ You</p>
+                      )}
+                      <p className="whitespace-pre-wrap">{m.message}</p>
+                      <p className={`text-[9px] mt-1 ${m.sender_role === "admin" ? "text-primary-foreground/60" : "text-muted-foreground/60"}`}>
+                        {new Date(m.created_at).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Reply Input */}
+              {selectedTicket.status === "open" && (
+                <div className="p-3 border-t border-border shrink-0">
+                  <div className="flex gap-2">
+                    <Textarea
+                      placeholder="Type your reply..."
+                      value={reply}
+                      onChange={(e) => setReply(e.target.value)}
+                      className="rounded-xl min-h-[40px] max-h-[80px] resize-none text-xs"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleReply();
+                        }
+                      }}
+                    />
+                    <Button onClick={handleReply} disabled={!reply.trim() || sending} size="icon" className="rounded-xl shrink-0 self-end">
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {selectedTicket.status === "closed" && (
+                <div className="p-3 border-t border-border text-center">
+                  <p className="text-xs text-muted-foreground">✅ This ticket has been resolved</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+/* ===== PAYMENTS TAB ===== */
+const PaymentsTab = () => {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const fetchRequests = async () => {
+    const { data } = await supabase.rpc("admin_get_payment_requests" as any);
+    setRequests(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchRequests(); }, []);
+
+  const handleAction = async (id: string, action: "approve" | "reject") => {
+    const note = action === "reject" ? prompt("Rejection reason (optional):") : null;
+    await supabase.rpc("admin_handle_payment" as any, {
+      _request_id: id,
+      _action: action,
+      _note: note || null,
+    });
+    toast.success(action === "approve" ? "Payment Request Approved — User upgraded to Pro." : "Payment Request Rejected");
+    fetchRequests();
+  };
+
+  const filtered = requests.filter((r: any) => {
+    if (filter === "all") return true;
+    return r.status === filter;
+  });
+
+  const pendingCount = requests.filter((r: any) => r.status === "pending").length;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-display font-bold text-foreground">Payment Approvals</h2>
+          <p className="text-xs text-muted-foreground">{`${pendingCount} pending requests`}</p>
+        </div>
+        <Select value={filter} onValueChange={(v) => setFilter(v as any)}>
+          <SelectTrigger className="rounded-xl w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">Loading payment requests...</div>
+      ) : filtered.length === 0 ? (
+        <Card className="border-border/30 bg-card">
+          <CardContent className="p-8 text-center">
+            <CreditCard className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">No {filter !== "all" ? filter : ""} payment requests</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((r: any) => (
+            <Card key={r.id} className={`border-border/30 ${r.status === "pending" ? "border-l-4 border-l-amber-500" : ""}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Avatar className="w-10 h-10 border border-border">
+                    <AvatarImage src={r.user_avatar} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                      {(r.user_name || "?").charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-sm text-foreground">{r.user_name}</p>
+                      <Badge
+                        variant={r.status === "approved" ? "default" : r.status === "rejected" ? "destructive" : "secondary"}
+                        className="text-[9px]"
+                      >
+                        {r.status}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{r.user_email}</p>
+                    <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
+                      <span className="capitalize">{r.payment_method}</span>
+                      <span>•</span>
+                      <span>PKR {r.amount}</span>
+                      {r.promo_code && (
+                        <>
+                          <span>•</span>
+                          <Badge variant="outline" className="text-[9px] text-emerald-500 border-emerald-500/30">
+                            {r.promo_code} ({r.discount_percent}% off)
+                          </Badge>
+                        </>
+                      )}
+                      <span>•</span>
+                      <span>{new Date(r.created_at).toLocaleDateString("en-PK", { dateStyle: "medium" })}</span>
+                    </div>
+                    {r.admin_note && (
+                      <p className="text-[10px] text-muted-foreground/70 mt-1 italic">Note: {r.admin_note}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-lg w-8 h-8"
+                      onClick={async () => {
+                        const path = r.screenshot_url?.includes("payment-screenshots/")
+                          ? r.screenshot_url.split("payment-screenshots/")[1]
+                          : r.screenshot_url;
+                        const { data } = await supabase.storage
+                          .from("payment-screenshots")
+                          .createSignedUrl(path, 300);
+                        setPreviewUrl(data?.signedUrl || r.screenshot_url);
+                      }}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    {r.status === "pending" && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-lg text-xs gap-1 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10"
+                          onClick={() => handleAction(r.id, "approve")}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-lg text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                          onClick={() => handleAction(r.id, "reject")}
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Screenshot Preview Dialog */}
+      <Dialog open={!!previewUrl} onOpenChange={(o) => !o && setPreviewUrl(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display">Payment Screenshot</DialogTitle>
+          </DialogHeader>
+          {previewUrl && (
+            <img
+              src={previewUrl}
+              alt="Payment screenshot"
+              className="w-full rounded-xl border border-border"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+};
+
+/* ===== PROMO MANAGER TAB ===== */
+const PromoManagerTab = () => {
+  const [codes, setCodes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newCode, setNewCode] = useState("");
+  const [newDiscount, setNewDiscount] = useState("50");
+  const [newLimit, setNewLimit] = useState("100");
+  const [creating, setCreating] = useState(false);
+
+  const fetchCodes = async () => {
+    const { data } = await supabase
+      .from("promo_codes" as any)
+      .select("*")
+      .order("created_at", { ascending: false });
+    setCodes(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchCodes(); }, []);
+
+  const handleCreate = async () => {
+    if (!newCode.trim()) { toast.error("Please enter a promo code"); return; }
+    setCreating(true);
+    const { error } = await (supabase.from("promo_codes" as any) as any).insert({
+      code: newCode.trim().toUpperCase(),
+      discount_percent: parseInt(newDiscount),
+      usage_limit: parseInt(newLimit),
+    });
+    if (error) {
+      toast.error(error.message.includes("unique") ? "Promo code already exists" : error.message);
+    } else {
+      toast.success("Promo Code Created Successfully");
+      setNewCode(""); setShowCreate(false);
+      fetchCodes();
+    }
+    setCreating(false);
+  };
+
+  const toggleActive = async (id: string, currentActive: boolean) => {
+    await supabase.from("promo_codes" as any).update({ is_active: !currentActive } as any).eq("id", id);
+    toast.success(currentActive ? "Promo Code Deactivated" : "Promo Code Activated");
+    fetchCodes();
+  };
+
+  const deleteCode = async (id: string) => {
+    await supabase.from("promo_codes" as any).delete().eq("id", id);
+    toast.success("Promo Code Deleted");
+    fetchCodes();
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-display font-bold text-foreground">Promo Manager</h2>
+          <p className="text-xs text-muted-foreground">{codes.length} promo codes</p>
+        </div>
+        <Button className="rounded-xl gap-2" onClick={() => setShowCreate(true)}>
+          <Plus className="w-4 h-4" /> Create Code
+        </Button>
+      </div>
+
+      {/* Create dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display">Create Promo Code</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Code (e.g., WELCOME25)"
+              value={newCode}
+              onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+              className="rounded-xl"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Discount %</label>
+                <Select value={newDiscount} onValueChange={setNewDiscount}>
+                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[10, 15, 20, 25, 30, 40, 50, 75, 100].map((d) => (
+                      <SelectItem key={d} value={String(d)}>{d}%</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Usage Limit</label>
+                <Input
+                  type="number"
+                  value={newLimit}
+                  onChange={(e) => setNewLimit(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+            <Button onClick={handleCreate} disabled={creating} className="w-full rounded-xl gap-2">
+              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Create Code
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Codes list */}
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">Loading promo codes...</div>
+      ) : codes.length === 0 ? (
+        <Card className="border-border/30">
+          <CardContent className="p-8 text-center">
+            <Tag className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">No promo codes yet</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {codes.map((c: any) => (
+            <Card key={c.id} className={`border-border/30 ${c.is_active ? "" : "opacity-60"}`}>
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Tag className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-mono font-bold text-foreground text-sm">{c.code}</p>
+                    <Badge variant={c.is_active ? "default" : "secondary"} className="text-[9px]">
+                      {c.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-0.5">
+                    <span>{c.discount_percent}% off</span>
+                    <span>•</span>
+                    <span>{c.used_count}/{c.usage_limit} used</span>
+                    <span>•</span>
+                    <span>{new Date(c.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {/* Usage bar */}
+                  <div className="mt-1.5 h-1 rounded-full bg-muted/50 overflow-hidden w-32">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${Math.min((c.used_count / c.usage_limit) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-lg w-8 h-8"
+                    onClick={() => toggleActive(c.id, c.is_active)}
+                    title={c.is_active ? "Deactivate" : "Activate"}
+                  >
+                    {c.is_active ? (
+                      <ToggleRight className="w-4 h-4 text-emerald-500" />
+                    ) : (
+                      <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-lg w-8 h-8 text-destructive hover:bg-destructive/10"
+                    onClick={() => deleteCode(c.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+/* ===== FEEDBACK TAB ===== */
+const feedbackTypeConfig: Record<string, { icon: any; label: string; color: string }> = {
+  appreciate: { icon: Star, label: "Customer Appreciation", color: "text-amber-400" },
+  bug: { icon: Bug, label: "Technical Report", color: "text-destructive" },
+  suggestion: { icon: Lightbulb, label: "Feature Request", color: "text-primary" },
+};
+
+const FeedbackTab = ({ onCountChange }: { onCountChange: (n: number) => void }) => {
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+
+  const fetchFeedbacks = async () => {
+    const { data } = await supabase
+      .from("feedbacks" as any)
+      .select("*")
+      .order("created_at", { ascending: false });
+    const list = (data as any[]) || [];
+    setFeedbacks(list);
+    onCountChange(list.filter((f: any) => f.status === "new").length);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchFeedbacks(); }, []);
+
+  const handleMarkReviewed = async (id: string) => {
+    await supabase.from("feedbacks" as any).update({ status: "reviewed" } as any).eq("id", id);
+    toast.success("Feedback Marked as Reviewed");
+    fetchFeedbacks();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    await supabase.from("feedbacks" as any).delete().eq("id", deleteTarget.id);
+    toast.success("Feedback Removed Successfully");
+    setDeleteTarget(null);
+    fetchFeedbacks();
+  };
+
+  const handleExportCSV = () => {
+    if (feedbacks.length === 0) return;
+    const headers = ["Student Name", "Email", "Category", "Message", "Status", "Date"];
+    const rows = feedbacks.map((f: any) => [
+      f.user_name,
+      f.user_email,
+      feedbackTypeConfig[f.feedback_type]?.label || f.feedback_type,
+      `"${(f.message || "").replace(/"/g, '""')}"`,
+      f.status,
+      new Date(f.created_at).toLocaleDateString("en-US"),
+    ]);
+    const csv = [headers.join(","), ...rows.map((r: string[]) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `unigenius-feedback-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Feedback Report Exported");
+  };
+
+  const filtered = feedbacks.filter((f: any) => {
+    if (filter === "all") return true;
+    if (filter === "new" || filter === "reviewed") return f.status === filter;
+    return f.feedback_type === filter;
+  });
+
+  const newCount = feedbacks.filter((f: any) => f.status === "new").length;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl font-display font-bold text-foreground">Customer Insights</h2>
+          <p className="text-xs text-muted-foreground">
+            {`${feedbacks.length} total submissions • ${newCount} pending review`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-40 rounded-xl text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Feedback</SelectItem>
+              <SelectItem value="new">⏳ Pending Review</SelectItem>
+              <SelectItem value="reviewed">✅ Reviewed</SelectItem>
+              <SelectItem value="appreciate">⭐ Appreciation</SelectItem>
+              <SelectItem value="bug">🐞 Technical Reports</SelectItem>
+              <SelectItem value="suggestion">💡 Feature Requests</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl text-xs gap-1.5"
+            onClick={handleExportCSV}
+            disabled={feedbacks.length === 0}
+          >
+            Export CSV
+          </Button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">Loading feedback...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">No feedback found.</div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((f: any) => {
+            const config = feedbackTypeConfig[f.feedback_type] || feedbackTypeConfig.appreciate;
+            const Icon = config.icon;
+            const isNew = f.status === "new";
+            return (
+              <Card key={f.id} className={`border-border/30 bg-card ${isNew ? "border-l-2 border-l-primary" : ""}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 ${config.color}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-foreground">{f.user_name}</span>
+                        <Badge variant="outline" className="text-[9px]">{config.label}</Badge>
+                        <Badge
+                          variant={isNew ? "default" : "secondary"}
+                          className="text-[9px]"
+                        >
+                          {isNew ? "New" : "Reviewed"}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground ml-auto">
+                          {new Date(f.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{f.user_email}</p>
+                      <p className="text-xs text-foreground mt-2 whitespace-pre-wrap">{f.message}</p>
+                      <div className="flex items-center gap-2 mt-3">
+                        {isNew && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl text-[10px] h-7 gap-1"
+                            onClick={() => handleMarkReviewed(f.id)}
+                          >
+                            <CheckCircle2 className="w-3 h-3" />
+                            Mark as Reviewed
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-xl text-[10px] h-7 gap-1 text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteTarget(f)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> Remove Feedback
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently remove this feedback from{" "}
+              <strong>{deleteTarget?.user_name}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" className="rounded-xl" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" className="rounded-xl" onClick={handleDelete}>Remove Permanently</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+};
+
+
+/* ===== CONTACT INBOX TAB ===== */
+const ContactInboxTab = () => {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "pending" | "resolved">("all");
+
+  const fetchMessages = async () => {
+    setLoading(true);
+    let query = supabase
+      .from("contact_messages" as any)
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (filter !== "all") query = query.eq("status", filter);
+    const { data, error } = await query;
+    if (error) {
+      console.error("[ContactInbox] fetch error:", error);
+      toast.error("Could not load messages");
+    } else {
+      setMessages(data || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchMessages(); }, [filter]);
+
+  // Realtime new submissions
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-contact-inbox")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "contact_messages" }, () => {
+        fetchMessages();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [filter]);
+
+  const updateStatus = async (id: string, status: "pending" | "resolved") => {
+    const { error } = await (supabase.from("contact_messages" as any) as any)
+      .update({ status })
+      .eq("id", id);
+    if (error) {
+      toast.error("Could not update status");
+      return;
+    }
+    toast.success(status === "resolved" ? "Marked as resolved" : "Reopened");
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)));
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2">
+            <Inbox className="w-5 h-5 text-primary" /> Contact Inbox
+          </h2>
+          <p className="text-xs text-muted-foreground">Messages submitted through the public Contact page.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
+            <SelectTrigger className="w-36 rounded-xl h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="resolved">Resolved</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" className="rounded-xl" onClick={fetchMessages} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      ) : messages.length === 0 ? (
+        <Card className="glass border-dashed">
+          <CardContent className="py-16 text-center">
+            <Mail className="w-10 h-10 mx-auto text-muted-foreground/40 mb-2" />
+            <p className="text-sm text-muted-foreground">No contact messages yet.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {messages.map((m) => (
+            <Card key={m.id} className="glass">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-foreground truncate">{m.name}</p>
+                      <Badge variant={m.status === "resolved" ? "secondary" : "default"} className="text-[10px]">
+                        {m.status}
+                      </Badge>
+                    </div>
+                    <a href={`mailto:${m.email}`} className="text-xs text-primary hover:underline break-all">{m.email}</a>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground shrink-0">
+                    {new Date(m.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{m.subject}</p>
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap mt-1">{m.message}</p>
+                </div>
+                <div className="flex gap-2 justify-end pt-1">
+                  <Button variant="outline" size="sm" className="rounded-xl text-xs h-8" asChild>
+                    <a href={`mailto:${m.email}?subject=Re: ${encodeURIComponent(m.subject)}`}>
+                      <Send className="w-3.5 h-3.5 mr-1.5" /> Reply
+                    </a>
+                  </Button>
+                  {m.status === "resolved" ? (
+                    <Button variant="ghost" size="sm" className="rounded-xl text-xs h-8" onClick={() => updateStatus(m.id, "pending")}>
+                      Reopen
+                    </Button>
+                  ) : (
+                    <Button size="sm" className="rounded-xl text-xs h-8 gradient-primary" onClick={() => updateStatus(m.id, "resolved")}>
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Mark Resolved
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+/* ===== API KEYS TAB ===== */
+// Presets for the generic OpenAI-compatible tier (base_url + a sensible
+// starter model). "custom" leaves both fields blank for manual entry.
+const OPENAI_COMPAT_PRESETS: Record<string, { label: string; baseUrl: string; model: string }> = {
+  openrouter: {
+    label: "OpenRouter",
+    baseUrl: "https://openrouter.ai/api/v1",
+    model: "openrouter/free",
+  },
+  cloudflare: {
+    label: "Cloudflare Workers AI",
+    baseUrl: "https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1",
+    model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  },
+  github: {
+    label: "GitHub Models",
+    baseUrl: "https://models.github.ai/inference",
+    model: "openai/gpt-4o-mini",
+  },
+  nvidia: {
+    label: "NVIDIA NIM",
+    baseUrl: "https://integrate.api.nvidia.com/v1",
+    model: "meta/llama-3.3-70b-instruct",
+  },
+  sambanova: {
+    label: "SambaNova",
+    baseUrl: "https://api.sambanova.ai/v1",
+    model: "Meta-Llama-3.3-70B-Instruct",
+  },
+  custom: { label: "Custom endpoint", baseUrl: "", model: "" },
+};
+
+const ApiKeysTab = () => {
+  const [keys, setKeys] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newProvider, setNewProvider] = useState("gemini");
+  const [newLabel, setNewLabel] = useState("");
+  const [newKey, setNewKey] = useState("");
+  const [newPreset, setNewPreset] = useState("openrouter");
+  const [newBaseUrl, setNewBaseUrl] = useState(OPENAI_COMPAT_PRESETS.openrouter.baseUrl);
+  const [newModel, setNewModel] = useState(OPENAI_COMPAT_PRESETS.openrouter.model);
+  const [adding, setAdding] = useState(false);
+  const [testingDraft, setTestingDraft] = useState(false);
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [seeding, setSeeding] = useState(false);
+
+  const fetchKeys = async () => {
+    const { data, error } = await supabase.rpc("admin_list_api_keys" as any);
+    if (error) toast.error("Failed to load API keys: " + error.message);
+    setKeys((data as any[]) || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchKeys(); }, []);
+
+  const isCompat = newProvider === "openai_compat";
+
+  const handlePreset = (presetKey: string) => {
+    setNewPreset(presetKey);
+    const p = OPENAI_COMPAT_PRESETS[presetKey];
+    if (p) { setNewBaseUrl(p.baseUrl); setNewModel(p.model); }
+  };
+
+  const handleAdd = async () => {
+    if (!newKey.trim()) { toast.error("Please paste an API key"); return; }
+    if (isCompat && !newBaseUrl.trim()) { toast.error("Please enter the provider Base URL"); return; }
+    if (isCompat && !newModel.trim()) { toast.error("Please enter the model name"); return; }
+    setAdding(true);
+    const { error } = await supabase.rpc("admin_add_api_key" as any, {
+      _provider: newProvider,
+      _label: newLabel.trim(),
+      _key_value: newKey.trim(),
+      _base_url: isCompat ? newBaseUrl.trim() : null,
+      _model: isCompat ? newModel.trim() : null,
+    });
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("API key added to the pool");
+      setNewKey(""); setNewLabel(""); setShowAdd(false);
+      fetchKeys();
+    }
+    setAdding(false);
+  };
+
+  const handleTestDraft = async () => {
+    if (!newKey.trim()) { toast.error("Paste a key first, then test it"); return; }
+    if (isCompat && (!newBaseUrl.trim() || !newModel.trim())) {
+      toast.error("Enter the Base URL and model first, then test");
+      return;
+    }
+    setTestingDraft(true);
+    const { data, error } = await supabase.functions.invoke("admin-api-keys", {
+      body: {
+        action: "test",
+        provider: newProvider,
+        key_value: newKey.trim(),
+        ...(isCompat ? { base_url: newBaseUrl.trim(), model: newModel.trim() } : {}),
+      },
+    });
+    setTestingDraft(false);
+    if (error) { toast.error("Test failed: " + error.message); return; }
+    if ((data as any)?.ok) toast.success("Key works — you can add it now");
+    else toast.error("Key test failed: " + ((data as any)?.message || "unknown error"));
+  };
+
+  const handleTestStored = async (k: any) => {
+    setTestingId(k.id);
+    const { data, error } = await supabase.functions.invoke("admin-api-keys", {
+      body: { action: "test", key_id: k.id },
+    });
+    setTestingId(null);
+    if (error) { toast.error("Test failed: " + error.message); return; }
+    if ((data as any)?.ok) toast.success(`"${k.label}" is working`);
+    else toast.error(`"${k.label}" failed: ` + ((data as any)?.message || "unknown error"));
+    fetchKeys();
+  };
+
+  const toggleEnabled = async (k: any) => {
+    const { error } = await supabase.rpc("admin_set_api_key_enabled" as any, {
+      _key_id: k.id,
+      _enabled: !k.enabled,
+    });
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(k.enabled ? "Key disabled" : "Key enabled — health reset");
+      fetchKeys();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.rpc("admin_delete_api_key" as any, { _key_id: deleteTarget.id });
+    if (error) {
+      toast.error("Failed to delete key: " + error.message);
+    } else {
+      toast.success("Key removed from the pool");
+      fetchKeys();
+    }
+    setDeleteTarget(null);
+  };
+
+  const handleSeed = async () => {
+    setSeeding(true);
+    const { data, error } = await supabase.functions.invoke("admin-api-keys", {
+      body: { action: "seed_env_keys" },
+    });
+    setSeeding(false);
+    if (error) { toast.error("Import failed: " + error.message); return; }
+    toast.success((data as any)?.message || "Import complete");
+    fetchKeys();
+  };
+
+  const counts = {
+    total: keys.length,
+    active: keys.filter((k) => k.effective_status === "active").length,
+    cooldown: keys.filter((k) => k.effective_status === "cooldown").length,
+    invalid: keys.filter((k) => k.effective_status === "invalid").length,
+  };
+
+  const statusBadge = (k: any) => {
+    switch (k.effective_status) {
+      case "active":
+        return <Badge className="text-[9px] bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/15">Active</Badge>;
+      case "cooldown":
+        return <Badge className="text-[9px] bg-amber-500/15 text-amber-600 hover:bg-amber-500/15">Cooldown</Badge>;
+      case "invalid":
+        return <Badge variant="destructive" className="text-[9px]">Invalid</Badge>;
+      default:
+        return <Badge variant="secondary" className="text-[9px]">Disabled</Badge>;
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-xl font-display font-bold text-foreground">API Keys</h2>
+          <p className="text-xs text-muted-foreground">
+            {`${counts.total} keys in pool • ${counts.active} active`}
+            {counts.cooldown > 0 && <> • {counts.cooldown} cooling down</>}
+            {counts.invalid > 0 && <> • {counts.invalid} invalid</>}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="rounded-xl gap-2" onClick={handleSeed} disabled={seeding}>
+            {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Import env keys
+          </Button>
+          <Button className="rounded-xl gap-2" onClick={() => setShowAdd(true)}>
+            <Plus className="w-4 h-4" /> Add Key
+          </Button>
+        </div>
+      </div>
+
+      <Card className="border-border/30">
+        <CardContent className="p-3 flex items-start gap-2">
+          <KeyRound className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+          <p className="text-[11px] text-muted-foreground">
+            The AI auto-routing pool. Requests rotate across active keys automatically — a key that hits
+            its quota is benched until its cooldown ends, and a rejected key is disabled with the reason
+            recorded. Keys are stored server-side only; full values are never shown again after saving.
+            Changes take effect within about a minute, no redeploy needed.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Add dialog */}
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display">Add API Key</DialogTitle>
+            <DialogDescription className="text-xs">
+              The key is stored server-side and never displayed again. Test it before saving if you want.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Provider</label>
+              <Select value={newProvider} onValueChange={setNewProvider}>
+                <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini">Google Gemini</SelectItem>
+                  <SelectItem value="groq">Groq</SelectItem>
+                  <SelectItem value="openai_compat">OpenAI-compatible (custom)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {isCompat && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Preset</label>
+                  <Select value={newPreset} onValueChange={handlePreset}>
+                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(OPENAI_COMPAT_PRESETS).map(([key, p]) => (
+                        <SelectItem key={key} value={key}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Base URL</label>
+                  <Input
+                    placeholder="https://openrouter.ai/api/v1"
+                    value={newBaseUrl}
+                    onChange={(e) => setNewBaseUrl(e.target.value)}
+                    className="rounded-xl font-mono text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground/70">
+                    The endpoint root — /chat/completions is appended automatically.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Model</label>
+                  <Input
+                    placeholder="e.g. openrouter/free"
+                    value={newModel}
+                    onChange={(e) => setNewModel(e.target.value)}
+                    className="rounded-xl font-mono text-xs"
+                  />
+                </div>
+              </>
+            )}
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Label</label>
+              <Input
+                placeholder="e.g. Main account, Backup 3"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">API Key</label>
+              <Input
+                type="password"
+                autoComplete="off"
+                placeholder="Paste the key here"
+                value={newKey}
+                onChange={(e) => setNewKey(e.target.value)}
+                className="rounded-xl font-mono"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleTestDraft} disabled={testingDraft || adding} className="flex-1 rounded-xl gap-2">
+                {testingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
+                Test Key
+              </Button>
+              <Button onClick={handleAdd} disabled={adding || testingDraft} className="flex-1 rounded-xl gap-2">
+                {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Add to Pool
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display">Remove this key?</DialogTitle>
+            <DialogDescription className="text-xs">
+              "{deleteTarget?.label}" ({deleteTarget?.key_masked}) will be permanently removed from the
+              pool and can no longer serve AI requests.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" className="rounded-xl" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" className="rounded-xl" onClick={handleDelete}>Remove</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Keys list */}
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">Loading API keys...</div>
+      ) : keys.length === 0 ? (
+        <Card className="border-border/30">
+          <CardContent className="p-8 text-center">
+            <KeyRound className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">No keys in the pool yet</p>
+            <p className="text-muted-foreground/70 text-xs mt-1">
+              Add a key, or import the existing env-secret keys to get started.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {keys.map((k: any) => (
+            <Card key={k.id} className={`border-border/30 ${k.enabled ? "" : "opacity-60"}`}>
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <KeyRound className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-foreground text-sm">{k.label}</p>
+                    <Badge variant="outline" className="text-[9px] uppercase">{k.provider}</Badge>
+                    {statusBadge(k)}
+                  </div>
+                  <p className="font-mono text-[11px] text-muted-foreground mt-0.5">{k.key_masked}</p>
+                  {k.provider === "openai_compat" && (k.model || k.base_url) && (
+                    <p className="font-mono text-[10px] text-muted-foreground/80 mt-0.5 truncate" title={k.base_url || ""}>
+                      {k.model}{k.base_url ? ` • ${k.base_url}` : ""}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-0.5 flex-wrap">
+                    <span>{k.total_requests} requests</span>
+                    <span>•</span>
+                    <span>{k.total_errors} errors</span>
+                    <span>•</span>
+                    <span>
+                      {k.last_used_at
+                        ? `Last used ${new Date(k.last_used_at).toLocaleString()}`
+                        : "Never used"}
+                    </span>
+                    <span>•</span>
+                    <span>Added {new Date(k.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {k.effective_status === "cooldown" && k.cooldown_until && (
+                    <p className="flex items-center gap-1 text-[10px] text-amber-600 mt-1">
+                      <Clock className="w-3 h-3" />
+                      Back in rotation after {new Date(k.cooldown_until).toLocaleTimeString()}
+                    </p>
+                  )}
+                  {k.last_error && (
+                    <p className="text-[10px] text-destructive/80 mt-1 truncate" title={k.last_error}>
+                      Last error: {k.last_error}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-lg w-8 h-8"
+                    onClick={() => handleTestStored(k)}
+                    disabled={testingId === k.id}
+                    title="Test this key"
+                  >
+                    {testingId === k.id
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <FlaskConical className="w-4 h-4 text-muted-foreground" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-lg w-8 h-8"
+                    onClick={() => toggleEnabled(k)}
+                    title={k.enabled ? "Disable" : "Enable (resets health)"}
+                  >
+                    {k.enabled
+                      ? <ToggleRight className="w-4 h-4 text-emerald-500" />
+                      : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-lg w-8 h-8"
+                    onClick={() => setDeleteTarget(k)}
+                    title="Remove key"
+                  >
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+export default AdminDashboard;

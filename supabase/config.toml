@@ -1,0 +1,32 @@
+project_id = "qcfzwrabcjdpfybleydm"
+
+[functions.chat]
+verify_jwt = false
+
+[functions.generate-quiz]
+verify_jwt = false
+
+[functions.analyze-code]
+verify_jwt = false
+
+[functions.generate-doc]
+verify_jwt = false
+
+[functions.viva-session]
+verify_jwt = false
+
+[functions.generate-flashcards]
+verify_jwt = false
+
+[functions.execute-code]
+verify_jwt = false
+
+[functions.firebase-config]
+verify_jwt = false
+
+[functions.send-push]
+verify_jwt = false
+
+[functions.admin-api-keys]
+verify_jwt = false
+

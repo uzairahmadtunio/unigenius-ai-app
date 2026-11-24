@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="google-site-verification" content="pccNybi1dtFOdYVUTnUB8nZhXn7UEdpojP4yxQyC-6I" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>UniGenius AI:  Master Your Logic</title>
+    <meta name="description" content="Ultimate AI for CS, SE, &amp; AI students. Get instant debugging, viva simulations, and smart study tools to master logic and simplify your tech journey.">
+    <meta name="author" content="Uzair Ahmad" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#7c3aed" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="UniGenius" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+
+
+    
+    
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/8c810407-2175-4ad5-8d76-2fb3bdc6172b?Expires=1773155744&amp;GoogleAccessId=go-api-on-aws%40gpt-engineer-390607.iam.gserviceaccount.com&amp;Signature=lj%2By%2B6EQzE5jWHX%2BhHFXd2KnnNcCOXYNYnRCBrqUMbl2cyLDHFmKBYnv6ysjEk4tKNpcaAfB9wiNSdBmlX2AJvuJkm7EhHcrE%2BVvob2AkzFbgYsaAHbiZIWjg%2FsYrbdSCsMa6CocUKHV7zcXqUjCjoWF73Y6Syx%2FhukJgyhc7AKPhQCQRgLLxq6Lg411PhceFexHI3V%2B9l15LnUWXAGfynYaYhk%2B5987X826z6WcUr5tbxUwTeH1n4KP85XbuVciHGD77jBbkgJTa%2BR7402CfMNz9pTIl7ApGSqxEXlE9h12%2FEbpCfiKkv6yqPGSHw2xxNmQ9DrUUt7gqmgJbQl%2BVQ%3D%3D">
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@Lovable" />
+    <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/8c810407-2175-4ad5-8d76-2fb3bdc6172b?Expires=1773155744&amp;GoogleAccessId=go-api-on-aws%40gpt-engineer-390607.iam.gserviceaccount.com&amp;Signature=lj%2By%2B6EQzE5jWHX%2BhHFXd2KnnNcCOXYNYnRCBrqUMbl2cyLDHFmKBYnv6ysjEk4tKNpcaAfB9wiNSdBmlX2AJvuJkm7EhHcrE%2BVvob2AkzFbgYsaAHbiZIWjg%2FsYrbdSCsMa6CocUKHV7zcXqUjCjoWF73Y6Syx%2FhukJgyhc7AKPhQCQRgLLxq6Lg411PhceFexHI3V%2B9l15LnUWXAGfynYaYhk%2B5987X826z6WcUr5tbxUwTeH1n4KP85XbuVciHGD77jBbkgJTa%2BR7402CfMNz9pTIl7ApGSqxEXlE9h12%2FEbpCfiKkv6yqPGSHw2xxNmQ9DrUUt7gqmgJbQl%2BVQ%3D%3D">
+    <meta property="og:title" content="UniGenius AI:  Master Your Logic">
+  <meta name="twitter:title" content="UniGenius AI:  Master Your Logic">
+  <meta property="og:description" content="Ultimate AI for CS, SE, &amp; AI students. Get instant debugging, viva simulations, and smart study tools to master logic and simplify your tech journey.">
+  <meta name="twitter:description" content="Ultimate AI for CS, SE, &amp; AI students. Get instant debugging, viva simulations, and smart study tools to master logic and simplify your tech journey.">
+    <!-- Self-heal watchdog: if the app bundle fails to boot (stale/broken
+         service-worker state in the browser profile), the splash stays on
+         screen. After 25s, purge service workers + caches once and reload,
+         which restores a clean direct load. Guarded to once per session. -->
+    <script>
+      (function () {
+        try {
+          setTimeout(function () {
+            if (!document.getElementById("ug-splash")) return;
+            try { if (sessionStorage.getItem("ug-heal-v1")) return; sessionStorage.setItem("ug-heal-v1", "1"); } catch (e) { return; }
+            var jobs = [];
+            if ("serviceWorker" in navigator) {
+              jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+                return Promise.all(rs.map(function (r) { return r.unregister().catch(function () {}); }));
+              }).catch(function () {}));
+            }
+            if (window.caches) {
+              jobs.push(caches.keys().then(function (ks) {
+                return Promise.all(ks.map(function (k) { return caches.delete(k).catch(function () {}); }));
+              }).catch(function () {}));
+            }
+            Promise.all(jobs).then(function () { location.reload(); });
+          }, 25000);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+
+  <body>
+    <div id="root">
+      <!-- Instant boot splash: paints with the HTML itself so a slow network
+           never shows a dead white screen while the app bundle downloads.
+           React replaces this content when it mounts. -->
+      <div id="ug-splash" style="position:fixed;inset:0;background:#0b0b14;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#f4f2ff;">
+        <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;letter-spacing:-1px;">U</div>
+        <div style="font-size:20px;font-weight:700;">UniGenius AI</div>
+        <div style="width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.18);border-top-color:#8b5cf6;animation:ugspin 0.9s linear infinite;"></div>
+        <div style="font-size:13px;color:#a5a3c0;">Loading… on a slow connection, this may take a moment</div>
+        <style>@keyframes ugspin{to{transform:rotate(360deg)}}</style>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
