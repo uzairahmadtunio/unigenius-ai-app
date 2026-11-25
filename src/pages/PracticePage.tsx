@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import { Brain, ListChecks, Trophy, ArrowRight, ArrowLeft, CheckCircle, XCircle, Loader2, BarChart3, ChevronDown, ChevronUp, Upload, X, FileText, PenLine, Layers, ListOrdered, Sparkles, AlertCircle, Timer, Target, Zap, Cpu, Code2, Sigma, Landmark, BookOpen, Atom, FlaskConical, Leaf, Network, Database, AppWindow, Globe, Gauge, type LucideIcon } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Brain, ListChecks, Trophy, ArrowRight, ArrowLeft, CheckCircle, XCircle, Loader2, BarChart3, ChevronDown, ChevronUp, Upload, X, FileText, PenLine, Layers, ListOrdered, Sparkles, AlertCircle, Timer, Target, Zap, Cpu, Code2, Sigma, Landmark, BookOpen, Atom, FlaskConical, Leaf, Network, Database, AppWindow, Globe, Gauge, GraduationCap, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -170,6 +170,7 @@ const getSubjectVisual = (name: string): { Icon: LucideIcon; tile: string } => {
 const ALLOWED_QUIZ_EXTENSIONS = ".pdf,.png,.jpg,.jpeg,.webp,.docx,.doc,.txt,.pptx,.ppt";
 
 const PracticePage = () => {
+  const navigate = useNavigate();
   const { isAdmin } = useAdmin();
   const { department } = useDepartment();
   const { user } = useAuth();
@@ -236,7 +237,27 @@ const PracticePage = () => {
   const fillFiredRef = useRef(false);
   const fillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { subjects } = useMySubjects(semester);
+  const { subjects, resolved: subjectsResolved } = useMySubjects(semester);
+
+  // Setup gate: Practice is built around the student's department
+  // subjects, which only exist once a department has been chosen.
+  // A visitor who has not completed that setup (fresh device, a
+  // shared link straight to /practice, an account created elsewhere)
+  // used to land on a dead setup screen — mode cards and semester
+  // chips but zero subjects and no way forward. When the subject
+  // list has settled empty and STAYS empty (the grace period covers
+  // the profile-department sync still landing on a new device), show
+  // a friendly gate into the setup flow instead of the dead page.
+  const subjectsEmpty = subjectsResolved && subjects.length === 0;
+  const [showSetupGate, setShowSetupGate] = useState(false);
+  useEffect(() => {
+    if (!subjectsEmpty) {
+      setShowSetupGate(false);
+      return;
+    }
+    const t = setTimeout(() => setShowSetupGate(true), 1200);
+    return () => clearTimeout(t);
+  }, [subjectsEmpty]);
 
   // Load the real per-subject bank counts (selected semester) and the
   // student's quiz history, and derive each subject's adaptive level.
@@ -1349,6 +1370,19 @@ const PracticePage = () => {
             onClick={() => { genAbortRef.current?.abort(); setLoading(false); setSelectedSubject(null); }}
           >
             Cancel
+          </Button>
+        </div>
+      ) : showSetupGate ? (
+        <div className="glass rounded-3xl p-8 sm:p-10 text-center space-y-4 border border-primary/20">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+            <GraduationCap className="w-7 h-7 text-primary-foreground" />
+          </div>
+          <h2 className="font-display text-xl font-semibold text-foreground">Complete your setup first</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+            Practice questions are built around your department's subjects. Choose your department once, and your subjects will appear here right away.
+          </p>
+          <Button onClick={() => navigate("/")} className="rounded-xl gradient-primary text-primary-foreground gap-1.5">
+            Choose Your Department <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
       ) : (
