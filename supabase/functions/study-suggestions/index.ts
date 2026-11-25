@@ -74,6 +74,7 @@ RULES:
         tool_config: { function_calling_config: { mode: "ANY", allowed_function_names: ["return_suggestions"] } },
       },
       corsHeaders,
+      meter: { userId: auth.userId, feature: "study-suggestions" },
     });
     if (result instanceof Response) return result;
 

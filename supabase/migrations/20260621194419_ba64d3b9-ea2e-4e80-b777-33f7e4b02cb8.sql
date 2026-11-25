@@ -10,7 +10,10 @@ SET search_path = public, extensions
 AS $$
 DECLARE
   _category TEXT;
-  _url TEXT := 'https://tvazcfwsnjjbwvzvxghx.supabase.co/functions/v1/send-push';
+  -- HYGIENE (2026-11-25): URL repointed from the retired Lovable-era project
+  -- (tvazcfwsnjjbwvzvxghx) to the current production project, matching the live
+  -- function definition. Cosmetic edit to an already-applied migration — do not re-run.
+  _url TEXT := 'https://qcfzwrabcjdpfybleydm.supabase.co/functions/v1/send-push';
   _service_key TEXT;
 BEGIN
   -- Map notification type to push category

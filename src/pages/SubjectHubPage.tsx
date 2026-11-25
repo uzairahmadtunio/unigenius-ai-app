@@ -115,7 +115,7 @@ const SubjectHubPage = () => {
       });
       setHubLectures(mine);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [subjectName]);
 
   // Per-subject toolkit anchor: the tools/language every example must use,
@@ -198,7 +198,7 @@ TEACHING STYLE:
         setInput(pre);
       }
     } catch { /* storage unavailable */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const handleExport = (content: string, format: "pdf" | "docx") => {
@@ -450,7 +450,7 @@ TEACHING STYLE:
       try {
         return await Promise.race([reader.read(), timeout]);
       } catch (e) {
-        try { await reader.cancel(); } catch {}
+        try { await reader.cancel(); } catch { /* ignore cancel errors */ }
         controller.abort();
         throw e;
       } finally {
@@ -549,7 +549,7 @@ TEACHING STYLE:
         }
 
         for (let i = 0; i < attachedFiles.length; i++) {
-          parts.push(...buildFileContentParts(attachedFiles[i], i, attachedFiles.length, subjectName));
+          parts.push(...(await buildFileContentParts(attachedFiles[i], i, attachedFiles.length, subjectName)));
         }
         apiContent = parts;
       } else {

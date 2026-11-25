@@ -171,7 +171,7 @@ const PlannerPage = () => {
             try {
               const c = JSON.parse(json).choices?.[0]?.delta?.content;
               if (c) text += c;
-            } catch {}
+            } catch { /* skip malformed SSE chunk */ }
           }
         }
       } else {
@@ -257,7 +257,7 @@ const PlannerPage = () => {
     if (resolved && subjects.length && !selectionTouchedRef.current) {
       setSelected(subjects.map((s) => s.name));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [semester, resolved, subjects]);
 
   const toggle = (name: string) => {
@@ -334,7 +334,7 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
           try {
             const c = JSON.parse(json).choices?.[0]?.delta?.content;
             if (c) { text += c; setSchedule(text); }
-          } catch {}
+          } catch { /* skip malformed SSE chunk */ }
         }
       }
       console.log("[Planner] Stream complete, chars:", text.length);

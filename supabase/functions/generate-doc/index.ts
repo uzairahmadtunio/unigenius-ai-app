@@ -23,6 +23,7 @@ async function extractBriefTasks(media: Array<{ mimeType: string; data: string }
       generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
     },
     corsHeaders,
+    meter: { feature: "generate-doc" },
   });
 
   if (result instanceof Response) return "";
@@ -93,7 +94,7 @@ STRUCTURE — start directly with:
 A short paragraph (2-3 sentences) describing what the student will learn${hasMedia ? " (paraphrase the objectives from the attached brief)" : ""}.
 
 ${hasMedia
-  ? `Then generate ONE \"## Task N: ...\" section for EVERY task in the attached brief — if the brief has 6 tasks, output 6 task sections. Do not stop early.`
+  ? `Then generate ONE "## Task N: ..." section for EVERY task in the attached brief — if the brief has 6 tasks, output 6 task sections. Do not stop early.`
   : `Then generate 3 to 5 tasks.`} Each task in this EXACT format:
 
 ## Task 1: <short descriptive title>
@@ -184,6 +185,7 @@ A short numbered list of 3-5 plausible academic references.${extra}`;
       systemText,
       contents,
       corsHeaders,
+      meter: { userId: auth.userId, feature: "generate-doc" },
     });
   } catch (e) {
     console.error("generate-doc error:", e);

@@ -370,12 +370,12 @@ function renderContent(doc: jsPDF, markdown: string): Map<number, number> {
       let line = rawLine;
 
       // Bullet points
-      if (line.match(/^[\-\*]\s/)) {
+      if (line.match(/^[-*]\s/)) {
         y = checkPageBreak(doc, y, LINE_H);
         doc.setFont("times", "normal");
         doc.setFontSize(BODY_FONT_SIZE);
         doc.setTextColor(30, 30, 30);
-        const bulletText = line.replace(/^[\-\*]\s/, "").replace(/\*\*/g, "");
+        const bulletText = line.replace(/^[-*]\s/, "").replace(/\*\*/g, "");
         const wrapped = doc.splitTextToSize(`•   ${bulletText}`, CONTENT_W - 10);
         for (const wl of wrapped) {
           y = checkPageBreak(doc, y, LINE_H);
@@ -614,7 +614,7 @@ function markdownToDocxChildren(markdown: string) {
     const labeled = line.match(/^\*\*(.+?):\*\*\s*(.*)$/) || line.match(/^(.{2,35}?):\s+(.+)$/);
     if (labeled) { children.push(labeledPara(cleanMd(labeled[1]), labeled[2] || "")); continue; }
 
-    const bullet = line.match(/^[\-*]\s+(.+)/);
+    const bullet = line.match(/^[-*]\s+(.+)/);
     if (bullet) {
       children.push(new Paragraph({ numbering: { reference: "doc-bullets", level: 0 }, spacing: { after: 80, line: 360 }, children: [new TextRun({ text: cleanMd(bullet[1]), size: 24, font: "Times New Roman" })] }));
       continue;

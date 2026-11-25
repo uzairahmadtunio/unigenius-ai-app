@@ -11,9 +11,16 @@ CREATE TABLE IF NOT EXISTS private.app_secrets (
 REVOKE ALL ON private.app_secrets FROM anon, authenticated;
 GRANT ALL ON private.app_secrets TO service_role;
 
-INSERT INTO private.app_secrets (key, value)
-VALUES ('send_push_secret', 'c3314f9cc4aea4800f10fcd4794d13ef156aed16bbd9228a7661718c53a9ad37')
-ON CONFLICT (key) DO NOTHING;
+-- HYGIENE SCRUB (2026-11-25): the original seed INSERT for 'send_push_secret' carried
+-- the secret value as a plaintext literal in this file. That value was ROTATED on
+-- 2026-11-25 as part of the SEC-01 fix and is no longer valid (verified: the live
+-- value in private.app_secrets does not match the removed literal). The live secret
+-- exists only in private.app_secrets on the production project.
+-- This edit is cosmetic history hygiene ONLY: this migration was already applied
+-- long ago and must NOT be re-run. The removed statement was:
+--   INSERT INTO private.app_secrets (key, value)
+--   VALUES ('send_push_secret', '<value removed 2026-11-25 — rotated, no longer valid>')
+--   ON CONFLICT (key) DO NOTHING;
 
 -- 2. Update notification trigger to include shared secret header
 CREATE OR REPLACE FUNCTION public.trigger_send_push_on_notification()
@@ -24,7 +31,12 @@ SET search_path = public, extensions, private
 AS $function$
 DECLARE
   _category TEXT;
-  _url TEXT := 'https://tvazcfwsnjjbwvzvxghx.supabase.co/functions/v1/send-push';
+  -- HYGIENE (2026-11-25): URL repointed from the retired Lovable-era project
+  -- (tvazcfwsnjjbwvzvxghx) to the current production project. The LIVE function on
+  -- the production project already pointed at the current project (verified via
+  -- pg_get_functiondef on 2026-11-25); this edit only stops a future migration
+  -- replay from recreating the stale URL. Cosmetic — do not re-run this migration.
+  _url TEXT := 'https://qcfzwrabcjdpfybleydm.supabase.co/functions/v1/send-push';
   _secret TEXT;
 BEGIN
   _category := CASE NEW.type

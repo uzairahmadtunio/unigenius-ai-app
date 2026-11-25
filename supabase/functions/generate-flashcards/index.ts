@@ -76,6 +76,7 @@ ${content ? `Use the following uploaded material as the ONLY source — every ca
         tool_config: { function_calling_config: { mode: "ANY", allowed_function_names: ["suggest_flashcards"] } },
       },
       corsHeaders,
+      meter: { userId: auth.userId, feature: "generate-flashcards" },
     });
     if (result instanceof Response) return result;
 

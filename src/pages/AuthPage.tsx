@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuestionCount, formatCount } from "@/hooks/use-question-count";
 import { motion } from "framer-motion";
 import {
   GraduationCap,
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 import confetti from "canvas-confetti";
 
 const AuthPage = () => {
+  const questionCount = useQuestionCount();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -211,7 +213,7 @@ const AuthPage = () => {
                 <p className="mt-1 text-sm text-white/45">Topic pages</p>
               </div>
               <div className="px-6">
-                <p className="font-display text-2xl font-bold text-white">2,410</p>
+                <p className="font-display text-2xl font-bold text-white">{formatCount(questionCount)}</p>
                 <p className="mt-1 text-sm text-white/45">Practice questions</p>
               </div>
             </div>
@@ -351,7 +353,7 @@ const AuthPage = () => {
                   <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-white/40">Topic Pages</p>
                 </div>
                 <div className="px-2">
-                  <p className="font-display text-xl font-bold text-white">2,410</p>
+                  <p className="font-display text-xl font-bold text-white">{formatCount(questionCount)}</p>
                   <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-white/40">Questions</p>
                 </div>
               </div>

@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { GraduationCap, Code2, BookOpen, Award, Briefcase, FlaskConical } from "lucide-react";
+import { useQuestionCount, formatCount } from "@/hooks/use-question-count";
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -24,6 +25,7 @@ const floatingIcons = [
 ];
 
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
+  const questionCount = useQuestionCount();
   const [stage, setStage] = useState(0);
   const [subtitleIdx, setSubtitleIdx] = useState(0);
   const navigate = useNavigate();
@@ -277,7 +279,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
               <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">Topic Pages</p>
             </div>
             <div className="px-4 sm:px-6">
-              <p className="font-display text-lg sm:text-xl font-bold text-white">2,410</p>
+              <p className="font-display text-lg sm:text-xl font-bold text-white">{formatCount(questionCount)}</p>
               <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">Questions</p>
             </div>
           </div>

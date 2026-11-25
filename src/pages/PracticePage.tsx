@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Brain, ListChecks, Trophy, ArrowRight, ArrowLeft, CheckCircle, XCircle, Loader2, BarChart3, ChevronDown, ChevronUp, Upload, X, FileText, PenLine, Layers, ListOrdered, Sparkles, AlertCircle, Timer, Target, Zap, Cpu, Code2, Sigma, Landmark, BookOpen, Atom, FlaskConical, Leaf, Network, Database, AppWindow, Globe, Gauge, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -1255,6 +1256,80 @@ const PracticePage = () => {
     );
   }
 
+  // ─── Deep links (Quiz of the Day F-19 + Exam Prep weak topics) ────
+  // The dashboard's Quiz of the Day card now passes the EXACT question
+  // id it displayed; Exam Prep passes a subject/topic to practise.
+  const startDailyQuestion = async (questionId: string, subjectName: string) => {
+    const session = ++quizSessionRef.current;
+    setLoading(true);
+    setSelectedSubject(subjectName);
+    setQuizTopic(null);
+    setQuestions([]);
+    setCurrentQ(0);
+    setScore(0);
+    setQuizDone(false);
+    setAnswers([]);
+    setShowBreakdown(false);
+    setSaQuestions([]);
+    setSaAnswers([]);
+    setSaIndex(0);
+    setSaStage("idle");
+    setSaGrades([]);
+    setFinalTotals(null);
+    setBankMeta(null);
+    setPendingFill(false);
+    setTimeLeft(null);
+    setTimeLimitSec(0);
+    mcqTimesRef.current = [];
+    saTimesRef.current = [];
+    answersRef.current = [];
+    fillRef.current = null;
+    fillFiredRef.current = false;
+    if (fillTimerRef.current) { clearTimeout(fillTimerRef.current); fillTimerRef.current = null; }
+    timeUpHandledRef.current = false;
+    try {
+      const data = await callGenerateQuiz({
+        mode: "question",
+        questionId,
+        subject: subjectName,
+        department: department ? departmentInfo[department].fullName : "Software Engineering",
+        semester,
+      });
+      const qs: MCQ[] = data.questions ?? [];
+      if (quizSessionRef.current !== session) return;
+      if (!qs.length) throw new Error("That question is no longer available");
+      setQuestions(qs);
+      setQuizTopic(qs[0].topic || null);
+      setBankMeta({ bank: qs.length, ai: 0 });
+      startTimer(qs.length * MCQ_TIME_SEC);
+    } catch (e: any) {
+      toast.error(e.message || "Could not load the Quiz of the Day");
+      setSelectedSubject(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const location = useLocation();
+  const deepLinkRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkRef.current) return;
+    const st = (location.state || {}) as {
+      dailyQuestionId?: string;
+      dailySubject?: string;
+      subject?: string;
+      topic?: string;
+    };
+    if (!st.dailyQuestionId && !st.subject) return;
+    deepLinkRef.current = true;
+    if (st.dailyQuestionId) {
+      void startDailyQuestion(st.dailyQuestionId, st.dailySubject || "Quiz of the Day");
+    } else if (st.subject) {
+      void startQuiz(st.subject, st.topic ?? null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Subject selection (setup)
   return (
     <PageShell
@@ -1315,7 +1390,7 @@ const PracticePage = () => {
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-foreground leading-snug">
-                Difficulty adapts to you — starts Easy, rises as you improve, with extra questions on your weak areas.
+                AI-generated questions adapt to you — they start Easy, get harder as you improve, and focus extra on your weak areas.
               </p>
               <span className="inline-flex items-center gap-1 mt-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-muted/50 border border-border/40 text-muted-foreground">
                 <Timer className="w-3 h-3" /> ~1 min per question

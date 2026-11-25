@@ -103,6 +103,7 @@ GRADING RULES:
         tool_config: { function_calling_config: { mode: "ANY", allowed_function_names: ["return_grades"] } },
       },
       corsHeaders,
+      meter: { userId: auth.userId, feature: "grade-answers" },
     });
     if (result instanceof Response) return result;
 

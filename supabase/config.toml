@@ -1,21 +1,20 @@
 project_id = "qcfzwrabcjdpfybleydm"
 
-[functions.chat]
-verify_jwt = false
+# verify_jwt values below were reconciled with the LIVE project on
+# 2026-11-25 (audit SEC-10: config.toml had drifted — it claimed
+# generate-quiz was false when live is true, and 7 deployed functions
+# were missing entirely). Functions with verify_jwt = false are NOT
+# unauthenticated: they call requireAuth() in code (the only exception
+# is firebase-config, which serves the public-by-design Firebase web
+# config — see audit SEC-05).
 
-[functions.generate-quiz]
+[functions.admin-api-keys]
 verify_jwt = false
 
 [functions.analyze-code]
 verify_jwt = false
 
-[functions.generate-doc]
-verify_jwt = false
-
-[functions.viva-session]
-verify_jwt = false
-
-[functions.generate-flashcards]
+[functions.chat]
 verify_jwt = false
 
 [functions.execute-code]
@@ -24,9 +23,38 @@ verify_jwt = false
 [functions.firebase-config]
 verify_jwt = false
 
+[functions.generate-doc]
+verify_jwt = false
+
+[functions.generate-flashcards]
+verify_jwt = false
+
+[functions.generate-quiz]
+verify_jwt = true
+
+[functions.generate-slide-image]
+verify_jwt = true
+
+[functions.generate-slides]
+verify_jwt = true
+
+[functions.generate-title]
+verify_jwt = true
+
+[functions.grade-answers]
+verify_jwt = false
+
+[functions.mcp]
+verify_jwt = true
+
+[functions.push-reminders]
+verify_jwt = false
+
 [functions.send-push]
 verify_jwt = false
 
-[functions.admin-api-keys]
+[functions.study-suggestions]
 verify_jwt = false
 
+[functions.viva-session]
+verify_jwt = false

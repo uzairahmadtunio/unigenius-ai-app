@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { DepartmentProvider } from "@/contexts/DepartmentContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -51,6 +52,17 @@ const AboutPage = lazyWithRetry(() => import("./pages/AboutPage"));
 const ContactPage = lazyWithRetry(() => import("./pages/ContactPage"));
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
+
+// F-06: central route guard for purely personal pages. Before this,
+// only /admin and /teacher-dashboard checked auth; every other personal
+// page relied on per-page handling. Guests now land on /auth instead.
+const RequireAuth = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return <PageFallback />;
+  if (!user) return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
+  return <>{children}</>;
+};
 
 const PageFallback = () => (
   <div className="min-h-[60vh] flex items-center justify-center">
@@ -101,22 +113,22 @@ const App = () => (
                 <Route path="/exam-prep" element={<ExamPrepPage />} />
                 <Route path="/viva-prep" element={<VivaPage />} />
                 <Route path="/past-papers" element={<PastPapersPage />} />
-                <Route path="/flashcards" element={<FlashcardsPage />} />
+                <Route path="/flashcards" element={<RequireAuth><FlashcardsPage /></RequireAuth>} />
                 <Route path="/career" element={<CareerPage />} />
                 <Route path="/subject/:subjectId" element={<SubjectHubPage />} />
                 <Route path="/subject/:subjectId/topic/:topicSlug" element={<TopicPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/my-subjects" element={<MySubjectsPage />} />
-                <Route path="/attendance" element={<AttendancePage />} />
+                <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+                <Route path="/my-subjects" element={<RequireAuth><MySubjectsPage /></RequireAuth>} />
+                <Route path="/attendance" element={<RequireAuth><AttendancePage /></RequireAuth>} />
                 <Route path="/leaderboard" element={<LeaderboardPage />} />
-                <Route path="/groups" element={<GroupsPage />} />
-                <Route path="/groups/:groupId" element={<GroupDetailPage />} />
+                <Route path="/groups" element={<RequireAuth><GroupsPage /></RequireAuth>} />
+                <Route path="/groups/:groupId" element={<RequireAuth><GroupDetailPage /></RequireAuth>} />
                 <Route path="/u/:rollNumber" element={<PublicProfilePage />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/premium" element={<PremiumPage />} />
-                <Route path="/planner" element={<PlannerPage />} />
-                <Route path="/progress" element={<ProgressPage />} />
-                <Route path="/calendar" element={<CalendarPage />} />
+                <Route path="/planner" element={<RequireAuth><PlannerPage /></RequireAuth>} />
+                <Route path="/progress" element={<RequireAuth><ProgressPage /></RequireAuth>} />
+                <Route path="/calendar" element={<RequireAuth><CalendarPage /></RequireAuth>} />
                 <Route path="/notes" element={<NotesPage />} />
                 <Route path="/presentations" element={<PresentationPage />} />
                 <Route path="/study-materials" element={<StudyMaterialsPage />} />

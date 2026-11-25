@@ -29,6 +29,7 @@ serve(async (req) => {
         contents,
       },
       corsHeaders,
+      meter: { userId: auth.userId, feature: "generate-title" },
     });
     if (result instanceof Response) {
       // Graceful fallback: never block the UI on title generation

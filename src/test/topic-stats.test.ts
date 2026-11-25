@@ -21,11 +21,11 @@ describe("computeTopicStats", () => {
 
     expect(byTopic["Loops"].verdict).toBe("strong");
     expect(byTopic["Loops"].accuracy).toBe(1);
-    expect(byTopic["Loops"].note).toContain("speed barhao");
+    expect(byTopic["Loops"].note).toContain("increase your speed");
 
     expect(byTopic["Arrays"].verdict).toBe("weak");
     expect(byTopic["Arrays"].accuracy).toBe(0);
-    expect(byTopic["Arrays"].note).toContain("jaldi");
+    expect(byTopic["Arrays"].note).toContain("guessed too quickly");
 
     // Pointers: (1 + 0 + 0.6) / 3 = 0.533 -> average
     expect(byTopic["Pointers"].verdict).toBe("average");

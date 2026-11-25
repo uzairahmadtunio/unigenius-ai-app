@@ -30,12 +30,12 @@ const QuizOfDayCard = () => {
       const idx = dayOfYear % count;
       const { data: row, error } = await supabase
         .from("question_bank")
-        .select("subject, topic, question")
+        .select("id, subject, topic, question")
         .order("created_at", { ascending: true })
         .range(idx, idx)
         .single();
       if (error) return null;
-      return row as { subject: string | null; topic: string | null; question: string };
+      return row as { id: string; subject: string | null; topic: string | null; question: string };
     },
   });
 
@@ -82,7 +82,11 @@ const QuizOfDayCard = () => {
 
       <div className="flex items-center gap-3 flex-wrap mt-auto pt-4">
         <button
-          onClick={() => navigate("/practice")}
+          onClick={() =>
+            navigate("/practice", {
+              state: { dailyQuestionId: data.id, dailySubject: data.subject || "Quiz of the Day" },
+            })
+          }
           className="gradient-button text-white rounded-full px-4 h-9 text-sm font-semibold inline-flex items-center gap-1.5 transition-transform duration-200 hover:scale-[1.03] active:scale-95"
         >
           <Play className="w-4 h-4" /> Play now

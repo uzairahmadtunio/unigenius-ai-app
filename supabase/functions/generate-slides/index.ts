@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireAuth } from "../_shared/auth.ts";
 import { generateContentWithFailover } from "../_shared/ai-failover.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +18,23 @@ serve(async (req) => {
   try {
     const { topic, slideCount } = await req.json();
 
+    // F-10: the title slide used to stamp EVERY user's deck with the
+    // founder's name. Use the requesting user's own display name.
+    let presenterName = "UniGenius Student";
+    try {
+      const sb = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: prof } = await sb
+        .from("profiles")
+        .select("display_name")
+        .eq("user_id", auth.userId)
+        .maybeSingle();
+      const dn = (prof?.display_name || "").replace(/["\n\r]/g, "").trim().slice(0, 80);
+      if (dn) presenterName = dn;
+    } catch { /* fall back to the generic presenter name */ }
+
     const count = Math.min(Math.max(slideCount || 8, 3), 20);
 
     const prompt = `Create a rich, Gamma-style university-level presentation on: "${topic}"
@@ -24,7 +42,7 @@ serve(async (req) => {
 Generate exactly ${count} slides. Output ONLY a valid JSON array, no markdown fences.
 
 STRUCTURE:
-- SLIDE 1: title slide. Set "title" to the main topic, "subtitle" to "Presented by: Uzair Ahmad & Group", empty "bullets" array, short "paragraph" (1 sentence hook).
+- SLIDE 1: title slide. Set "title" to the main topic, "subtitle" to "Presented by: ${presenterName}", empty "bullets" array, short "paragraph" (1 sentence hook).
 - SLIDES 2..${count - 1}: content slides. Each MUST contain:
     - "title": punchy 2-5 word section title
     - "paragraph": 1-2 sentence intro/context (25-45 words) that frames the topic of the slide
@@ -48,6 +66,7 @@ Each object schema: { "title": string, "subtitle"?: string, "paragraph": string,
         generationConfig: { temperature: 0.8, maxOutputTokens: 8192 },
       },
       corsHeaders,
+      meter: { userId: auth.userId, feature: "generate-slides" },
     });
     if (result instanceof Response) return result;
 

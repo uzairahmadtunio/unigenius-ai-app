@@ -57,6 +57,7 @@ FORMAT: Use markdown. Bold key terms. Use emojis for feedback.`;
       systemText,
       contents,
       corsHeaders,
+      meter: { userId: auth.userId, feature: "viva-session" },
     });
   } catch (e) {
     console.error("viva error:", e);

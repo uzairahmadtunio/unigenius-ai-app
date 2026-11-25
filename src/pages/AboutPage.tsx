@@ -4,7 +4,7 @@ import PageShell from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 
 const FOUNDER_AVATAR_URL =
-  "https://qcfzwrabcjdpfybleydm.supabase.co/storage/v1/object/public/avatars/d75e89ba-2aec-4ff7-a137-47c7c4777617/founder-avatar-violet.png";
+  `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/avatars/d75e89ba-2aec-4ff7-a137-47c7c4777617/founder-avatar-violet.png`;
 
 const highlights = [
   "AI Study Chat",

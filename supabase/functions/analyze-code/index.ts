@@ -169,6 +169,7 @@ serve(async (req) => {
       corsHeaders,
       attemptTimeoutMs: 40_000,
       deadlineMs: 60_000,
+      meter: { userId: auth.userId, feature: "analyze-code" },
     });
 
     if (result instanceof Response) return result;

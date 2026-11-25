@@ -201,7 +201,7 @@ serve(async (req) => {
   if (action === "test") {
     let provider: string = body?.provider;
     let keyValue: string = body?.key_value;
-    let keyId: string | null = body?.key_id ?? null;
+    const keyId: string | null = body?.key_id ?? null;
     let baseUrl: string | null = body?.base_url ?? null;
     let model: string | null = body?.model ?? null;
 

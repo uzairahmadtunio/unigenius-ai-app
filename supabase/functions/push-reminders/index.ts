@@ -46,6 +46,43 @@ function pktDayStartIso(dateStr: string): string {
   return new Date(`${dateStr}T00:00:00+05:00`).toISOString();
 }
 
+
+// ─── chat-uploads retention (audit F-03) ──────────────────────────
+// Chat attachment objects are kept for 30 days, then deleted by this
+// hourly job (throttled per worker). Before this, uploaded chat files
+// accumulated in the private bucket forever. Best-effort: a cleanup
+// failure never affects reminder sending.
+const RETENTION_DAYS = 30;
+let lastCleanupMs = 0;
+async function cleanupOldChatUploads(): Promise<void> {
+  const nowMs = Date.now();
+  if (nowMs - lastCleanupMs < 6 * 3600_000) return;
+  lastCleanupMs = nowMs;
+  try {
+    const cutoff = nowMs - RETENTION_DAYS * 86400_000;
+    const { data: root } = await supabase.storage.from('chat-uploads').list('', { limit: 200 });
+    if (!root) return;
+    const stale: string[] = [];
+    for (const entry of root) {
+      if (entry.id) {
+        // file stored at bucket root
+        if (new Date(entry.created_at).getTime() < cutoff) stale.push(entry.name);
+        continue;
+      }
+      const { data: files } = await supabase.storage.from('chat-uploads').list(entry.name, { limit: 200 });
+      for (const f of files ?? []) {
+        if (f.id && new Date(f.created_at).getTime() < cutoff) stale.push(`${entry.name}/${f.name}`);
+      }
+    }
+    for (let i = 0; i < stale.length; i += 100) {
+      await supabase.storage.from('chat-uploads').remove(stale.slice(i, i + 100));
+    }
+    if (stale.length) console.log(`chat-uploads retention: deleted ${stale.length} object(s) older than ${RETENTION_DAYS}d`);
+  } catch (e) {
+    console.warn('chat-uploads retention cleanup failed:', e);
+  }
+}
+
 type Slot = 'midday' | 'evening' | 'late' | 'hourly';
 type Phase = 'midday' | 'evening' | 'late' | 'none';
 
@@ -108,6 +145,7 @@ Deno.serve(async (req) => {
     const reqBody = await req.json().catch(() => ({})) as { slot?: Slot; dry_run?: boolean };
     const slot: Slot = (['midday', 'evening', 'late', 'hourly'].includes(reqBody.slot || '') ? reqBody.slot : 'hourly') as Slot;
     const dryRun = reqBody.dry_run === true;
+    await cleanupOldChatUploads();
 
     const now = new Date();
     const { date: today, hour: pktHour } = pktParts(now);

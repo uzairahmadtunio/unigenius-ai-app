@@ -42,6 +42,7 @@ function supabasePublishableKey() {
         if (key) return key;
       }
     } catch {
+      /* best-effort keyset parse — fall through to the next source */
     }
   }
   const legacy = configuredEnv(["SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY"]);

@@ -47,9 +47,8 @@ async function findBankSubject(sb: any, subject: string): Promise<string | null>
   const { data, error } = await sb.from("question_bank").select("subject");
   if (error || !data) return null;
   const target = norm(subject);
-  const hit = [...new Set(data.map((r: any) => r.subject as string))].find(
-    (s) => norm(s) === target,
-  );
+  const subjects: string[] = [...new Set((data as any[]).map((r: any) => String(r.subject)))];
+  const hit = subjects.find((s) => norm(s) === target);
   return hit ?? null;
 }
 
@@ -132,7 +131,7 @@ serve(async (req) => {
     const {
       subject, department, count = 30, fileData, fileType, fileName, mode,
       topic, bankOnly = false, bankFirst = true, semester,
-      difficulty, weakTopics,
+      difficulty, weakTopics, questionId,
     } = await req.json();
 
     // ─── Adaptive level guidance (optional, backward compatible) ──────
@@ -180,6 +179,28 @@ serve(async (req) => {
         .map(([t, c]) => ({ topic: t, count: c }))
         .sort((a, b) => b.count - a.count);
       return json({ topics });
+    }
+
+    // ─── Single bank question by id (Quiz of the Day, F-19) ───────────
+    // The dashboard card picks one deterministic question per day; this
+    // mode serves exactly that question so the card and Practice agree.
+    if (mode === "question") {
+      if (!sb || typeof questionId !== "string") return json({ questions: [] });
+      const { data } = await sb
+        .from("question_bank")
+        .select("topic, question, option_a, option_b, option_c, option_d, correct_answer, explanation")
+        .eq("id", questionId)
+        .maybeSingle();
+      if (!data) return json({ questions: [] });
+      const q = {
+        question: data.question,
+        options: { A: data.option_a, B: data.option_b, C: data.option_c, D: data.option_d },
+        correct: data.correct_answer,
+        explanation: data.explanation ?? "",
+        topic: data.topic ?? "",
+        source: "bank" as const,
+      };
+      return json({ questions: [q], bankCount: 1, aiCount: 0 }, { "x-ai-tier": "bank" });
     }
 
     // ─── Subjective (short-answer) mode ───────────────────────────────
@@ -246,6 +267,7 @@ serve(async (req) => {
           tool_config: { function_calling_config: { mode: "ANY", allowed_function_names: ["return_subjective_questions"] } },
         },
         corsHeaders,
+        meter: { userId: auth.userId, feature: "generate-quiz" },
       });
       if (saResult instanceof Response) return saResult;
 
@@ -374,6 +396,7 @@ STRICT ANSWER-VALIDITY RULES:
         tool_config: { function_calling_config: { mode: "ANY", allowed_function_names: ["return_mcqs"] } },
       },
       corsHeaders,
+      meter: { userId: auth.userId, feature: "generate-quiz" },
     });
     if (result instanceof Response) return result;
 

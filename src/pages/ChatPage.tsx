@@ -58,7 +58,7 @@ const WELCOME_MESSAGE: Message = {
   id: "welcome",
   role: "assistant",
   content:
-    "Assalam-o-Alaikum! 👋 I'm your **Senior SE Professor AI**. I can help you with:\n\n• Solving assignments & lab tasks\n• Debugging C++ code\n• Math & Discrete logic\n• Viva preparation\n• Generating study notes\n• **Analyzing uploaded files** — PDFs, Images, Word, PPT, Audio, Video (up to 20 at once)\n• **OCR** — extracting text from photos & diagrams\n\nWhat would you like to learn today?",
+    "Assalam-o-Alaikum! 👋 I'm your **Senior SE Professor AI**. I can help you with:\n\n• Solving assignments & lab tasks\n• Debugging C++ code\n• Math & Discrete logic\n• Viva preparation\n• Generating study notes\n• **Analyzing uploaded files** — PDFs, Images, Word (DOCX), PowerPoint (PPTX), Text files, Audio, Video (up to 20 at once)\n• **OCR** — extracting text from photos & diagrams\n\nWhat would you like to learn today?",
 };
 
 // Quick prompts FILL the input box (they do not send) — the student adds
@@ -343,7 +343,7 @@ const ChatPage = () => {
       // few seconds would reset it forever and never finish or fail.
       const totalLeft = STREAM_TOTAL_MS - (Date.now() - streamStartedAt);
       if (totalLeft <= 0) {
-        try { await reader.cancel(); } catch {}
+        try { await reader.cancel(); } catch { /* ignore cancel errors */ }
         controller.abort();
         throw new Error("The AI took too long to respond — it may be busy or cooling down. Please try again.");
       }
@@ -354,7 +354,7 @@ const ChatPage = () => {
       try {
         return await Promise.race([reader.read(), timeout]);
       } catch (e) {
-        try { await reader.cancel(); } catch {}
+        try { await reader.cancel(); } catch { /* ignore cancel errors */ }
         controller.abort();
         throw e;
       } finally {
@@ -432,7 +432,7 @@ const ChatPage = () => {
           parts.push({ type: "text", text: `The student has uploaded ${attachedFiles.length} files simultaneously. Analyze ALL of them together. Provide a structured response addressing each file.` });
         }
         for (let i = 0; i < attachedFiles.length; i++) {
-          parts.push(...buildFileContentParts(attachedFiles[i], i, attachedFiles.length));
+          parts.push(...(await buildFileContentParts(attachedFiles[i], i, attachedFiles.length)));
         }
         apiContent = parts;
       } else {
@@ -524,7 +524,7 @@ const ChatPage = () => {
               </Button>
               <div className="min-w-0">
                 <h1 className="font-display font-bold text-base text-foreground truncate">AI Tutor Chat</h1>
-                <p className="text-[11px] text-muted-foreground hidden sm:block">PDFs, Images, Word, PPT, Audio & Video</p>
+                <p className="text-[11px] text-muted-foreground hidden sm:block">PDF, Images, DOCX, PPTX, Text, Audio & Video</p>
               </div>
             </div>
             {/* Persona strip: logo tile + persona name + violet online dot.

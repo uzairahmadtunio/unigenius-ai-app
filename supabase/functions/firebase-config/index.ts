@@ -21,7 +21,7 @@ Deno.serve((req) => {
     // Extract object literal and normalize JS-object form -> JSON
     const m = cfg.match(/\{[\s\S]*\}/);
     if (m) {
-      let s = m[0]
+      const s = m[0]
         .replace(/\/\/.*$/gm, "")                  // strip line comments
         .replace(/'/g, '"')                         // single -> double quotes
         .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":') // quote unquoted keys

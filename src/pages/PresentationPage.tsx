@@ -231,7 +231,7 @@ const PresentationPage = () => {
 
   const scrollToTop = () => topRef.current?.scrollIntoView({ behavior: "smooth" });
   const toggleNotes = (idx: number) => {
-    setExpandedNotes(prev => { const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return n; });
+    setExpandedNotes(prev => { const n = new Set(prev); if (n.has(idx)) { n.delete(idx); } else { n.add(idx); } return n; });
   };
 
   // File import — read text from .txt/.md/.csv/.json/.rtf/.html and feed into paste mode

@@ -7,6 +7,7 @@ import {
   Lightbulb, ArrowRight, RefreshCw, Copy, Sparkles, List, Zap, TrendingUp, Medal
 } from "lucide-react";
 import SkillAnalyzer from "@/components/SkillAnalyzer";
+import { extractTextFromFile } from "@/lib/extract-text";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,6 @@ const InterviewPrep = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [input, setInput] = useState("");
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -47,36 +47,23 @@ const InterviewPrep = () => {
   };
 
   const startInterview = async () => {
-    const topics = semesterTopics[semester] || "general SE topics";
-    const systemMsg = {
-      role: "system",
-      content: `You are a strict but encouraging technical interviewer for Software Engineering positions. 
-The candidate is in Semester ${semester}, so focus on these topics: ${topics}.
-
-RULES:
-- Ask ONE technical question at a time
-- Wait for the candidate's response before asking the next
-- Start with easier questions, then increase difficulty
-- After each answer, give brief feedback (correct/partially correct/incorrect) with explanation
-- Mix theoretical questions with practical/coding questions
-- Use a professional but friendly tone
-- After 5-6 questions, give a final assessment with score out of 10 and areas to improve
-
-Start by greeting the candidate and asking your first question.`
-    };
-
     setMessages([]);
     setIsLoading(true);
 
     try {
-      const apiMessages = [systemMsg];
+      // Server-owned interviewer prompt (audit F-04): the client sends
+      // only the mode + semester; the chat function builds the prompt.
       const resp = await fetchWithRetry(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({
+          mode: "interview",
+          params: { semester },
+          messages: [{ role: "user", content: "Start the interview." }],
+        }),
       });
 
       if (!resp.ok) {
@@ -106,7 +93,7 @@ Start by greeting the candidate and asking your first question.`
           try {
             const c = JSON.parse(json).choices?.[0]?.delta?.content;
             if (c) assistantText += c;
-          } catch {}
+          } catch { /* skip malformed SSE chunk */ }
         }
       }
 
@@ -129,22 +116,17 @@ Start by greeting the candidate and asking your first question.`
     setIsLoading(true);
 
     try {
-      const topics = semesterTopics[semester] || "general SE topics";
-      const apiMessages = [
-        {
-          role: "system",
-          content: `You are a technical interviewer for SE roles. Candidate is in Semester ${semester}, topics: ${topics}. Ask ONE question at a time, give feedback on answers, increase difficulty gradually. After 5-6 questions, give a final assessment with score out of 10. End with "INTERVIEW_COMPLETE" on its own line.`
-        },
-        ...newMsgs,
-      ];
-
       const resp = await fetchWithRetry(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({
+          mode: "interview",
+          params: { semester },
+          messages: newMsgs,
+        }),
       });
 
       if (!resp.ok) {
@@ -178,7 +160,7 @@ Start by greeting the candidate and asking your first question.`
               const snap = assistantText;
               setMessages(prev => prev.map((m, i) => i === prev.length - 1 ? { ...m, content: snap } : m));
             }
-          } catch {}
+          } catch { /* skip malformed SSE chunk */ }
         }
       }
 
@@ -196,31 +178,48 @@ Start by greeting the candidate and asking your first question.`
     }
   };
 
-  const toggleRecording = async () => {
-    if (isRecording && mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
+  // Real voice answers via the Web Speech API (browser speech
+  // recognition). The previous implementation only RECORDED audio and
+  // inserted a placeholder — it never transcribed anything.
+  const recognitionRef = useRef<any>(null);
+  const speechSupported =
+    typeof window !== "undefined" &&
+    !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
       setIsRecording(false);
       return;
     }
-
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Voice input is not supported in this browser — please type your answer.");
+      return;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-
-      recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        toast.success("Voice recorded! (Transcription simulated)");
-        setInput(prev => prev + " [Voice response recorded]");
+      const rec = new SR();
+      rec.lang = "en-US";
+      rec.interimResults = true;
+      rec.continuous = true;
+      rec.onresult = (e: any) => {
+        let finalText = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+        }
+        if (finalText) setInput(prev => (prev ? prev + " " : "") + finalText.trim());
       };
-
-      recorder.start();
-      mediaRecorderRef.current = recorder;
+      rec.onend = () => setIsRecording(false);
+      rec.onerror = () => {
+        setIsRecording(false);
+        toast.error("Voice input stopped — check microphone permission.");
+      };
+      recognitionRef.current = rec;
+      rec.start();
       setIsRecording(true);
-      toast.info("Recording... Click again to stop");
+      toast.info("Listening… speak your answer, click the mic again to stop.");
     } catch {
-      toast.error("Microphone access denied");
+      toast.error("Voice input could not start in this browser.");
     }
   };
 
@@ -281,14 +280,16 @@ Start by greeting the candidate and asking your first question.`
 
       {messages.length > 0 && (
         <div className="glass rounded-2xl p-2 flex gap-2 items-end">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`rounded-xl flex-shrink-0 ${isRecording ? "bg-destructive/20 text-destructive" : ""}`}
-            onClick={toggleRecording}
-          >
-            {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          </Button>
+          {speechSupported && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`rounded-xl flex-shrink-0 ${isRecording ? "bg-destructive/20 text-destructive" : ""}`}
+              onClick={toggleRecording}
+            >
+              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
+          )}
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -354,30 +355,9 @@ const DSAPractice = () => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
+          mode: "dsa_problem",
+          params: { difficulty },
           messages: [
-            {
-              role: "system",
-              content: `You are a DSA problem generator for Software Engineering students. Generate a ${difficulty} difficulty Data Structures or Algorithms problem.
-
-FORMAT:
-## Problem Title
-**Difficulty:** ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
-**Category:** [Array/LinkedList/Tree/Graph/DP/etc.]
-
-### Problem Statement
-[Clear problem description]
-
-### Examples
-**Input:** ...
-**Output:** ...
-
-### Constraints
-- ...
-
-### Hints
-1. [First hint]
-2. [Second hint]`
-            },
             { role: "user", content: `Generate a ${difficulty} DSA problem. Make it unique and practical.` }
           ],
         }),
@@ -402,7 +382,7 @@ FORMAT:
           if (!line.startsWith("data: ")) continue;
           const json = line.slice(6).trim();
           if (json === "[DONE]") break;
-          try { const c = JSON.parse(json).choices?.[0]?.delta?.content; if (c) text += c; } catch {}
+          try { const c = JSON.parse(json).choices?.[0]?.delta?.content; if (c) text += c; } catch { /* skip malformed SSE chunk */ }
         }
       }
       setAiProblem(text);
@@ -433,20 +413,8 @@ FORMAT:
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
+          mode: "dsa_review",
           messages: [
-            {
-              role: "system",
-              content: `You are a DSA expert and code reviewer. Analyze the given C++ solution for the problem. Provide:
-
-1. **Correctness**: Is the solution correct? Does it handle edge cases? Say "CORRECT: yes" or "CORRECT: no".
-2. **Time Complexity**: Explain with LaTeX: $O(n)$, $O(n \\log n)$, etc.
-3. **Space Complexity**: Same detailed analysis.
-4. **Optimization**: Can it be improved?
-5. **Code Quality**: Comments on style, naming, readability.
-6. **Optimized**: At the end, add "OPTIMIZED: yes" if optimal, or "OPTIMIZED: no".
-
-Be encouraging but honest. Use markdown formatting.`
-            },
             { role: "user", content: `**Problem:**\n${problemText}\n\n**My Solution:**\n\`\`\`cpp\n${code}\n\`\`\`` }
           ],
         }),
@@ -474,7 +442,7 @@ Be encouraging but honest. Use markdown formatting.`
           try {
             const c = JSON.parse(json).choices?.[0]?.delta?.content;
             if (c) { text += c; setAnalysis(text); }
-          } catch {}
+          } catch { /* skip malformed SSE chunk */ }
         }
       }
 
@@ -706,46 +674,35 @@ const CVOptimizer = () => {
   };
 
   const analyzeCV = async () => {
-    if (!fileDataUrl) { toast.error("Upload a CV first"); return; }
+    if (!file || !fileDataUrl) { toast.error("Upload a CV first"); return; }
     setIsAnalyzing(true);
     setAnalysis("");
 
     try {
+      // Read the CV for real (audit F-03): PDF goes to the model
+      // natively, images as images, and DOCX/TXT are read through the
+      // browser extraction layer — previously DOCX was not accepted
+      // at all and the prompt was supplied by the client (F-04).
       const parts: any[] = [];
+      const lowerName = file.name.toLowerCase();
 
-      if (file?.type === "application/pdf") {
+      if (lowerName.endsWith(".pdf")) {
+        parts.push({ type: "file", file: { name: file.name, mime_type: "application/pdf", data: fileDataUrl.split(",")[1] } });
+      } else if (file.type.startsWith("image/")) {
         parts.push({ type: "image_url", image_url: { url: fileDataUrl } });
-      } else if (file?.type.startsWith("image/")) {
-        parts.push({ type: "image_url", image_url: { url: fileDataUrl } });
+      } else {
+        const extracted = await extractTextFromFile(file);
+        if (!extracted || !extracted.text) {
+          toast.error("This file could not be read. Please upload a PDF, DOCX or TXT file.");
+          setIsAnalyzing(false);
+          return;
+        }
+        parts.push({ type: "text", text: `----- CV TEXT (${file.name}) -----\n${extracted.text}\n----- END CV TEXT -----` });
       }
 
       parts.push({
         type: "text",
-        text: `Analyze this CV/Resume for a Software Engineering student at the University of Larkana. Score based on SE standards.
-
-## CV Score: [X/100]
-
-### ✅ Strengths
-- ...
-
-### ❌ Weaknesses  
-- ...
-
-### 🔧 Improvement Tips
-1. ...
-2. ...
-3. ...
-
-### 📋 SE-Specific Recommendations (University of Larkana Standards)
-- Technical skills relevant to SE curriculum
-- Projects to highlight for campus placement
-- Keywords for ATS optimization
-- Format and layout feedback
-
-### 🎯 Overall Assessment
-Brief summary of the CV quality and next steps.
-
-Be specific, actionable, and encouraging. Use the actual content from the CV.`
+        text: "Analyze this CV/Resume for a Software Engineering student and score it out of 100 using your CV review format."
       });
 
       const resp = await fetchWithRetry(CHAT_URL, {
@@ -755,13 +712,8 @@ Be specific, actionable, and encouraging. Use the actual content from the CV.`
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content: "You are an expert CV reviewer specializing in Software Engineering careers at the University of Larkana. Analyze uploaded resumes thoroughly and provide actionable feedback with a numerical score out of 100."
-            },
-            { role: "user", content: parts }
-          ],
+          mode: "cv_review",
+          messages: [{ role: "user", content: parts }],
         }),
       });
 
@@ -786,13 +738,13 @@ Be specific, actionable, and encouraging. Use the actual content from the CV.`
           try {
             const c = JSON.parse(json).choices?.[0]?.delta?.content;
             if (c) { text += c; setAnalysis(text); }
-          } catch {}
+          } catch { /* skip malformed SSE chunk */ }
         }
       }
 
       // Extract score and record activity — also awards CV Ready badge
       if (user && text.length > 50) {
-        const scoreMatch = text.match(/CV Score:\s*(\d+)\s*\/\s*100/i);
+        const scoreMatch = text.match(/CV Score:\s*\[?\s*(\d+)\s*\/\s*100/i);
         const score = scoreMatch ? parseInt(scoreMatch[1]) : 50;
         const saved = await recordCareerActivity(user.id, "cv_score", score >= 80 ? 25 : 15, { score });
         if (saved) {
@@ -819,7 +771,7 @@ Be specific, actionable, and encouraging. Use the actual content from the CV.`
           type="file"
           ref={fileInputRef}
           onChange={handleFileSelect}
-          accept=".pdf,.png,.jpg,.jpeg"
+          accept=".pdf,.docx,.txt,.png,.jpg,.jpeg"
           className="hidden"
         />
         <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mx-auto">
@@ -833,7 +785,7 @@ Be specific, actionable, and encouraging. Use the actual content from the CV.`
         ) : (
           <>
             <p className="font-display font-semibold text-foreground">Drop your CV here</p>
-            <p className="text-xs text-muted-foreground">Supports PDF, PNG, JPG • Max 10MB</p>
+            <p className="text-xs text-muted-foreground">Supports PDF, DOCX, TXT, PNG, JPG • Max 10MB</p>
             <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
               <Award className="w-3 h-3 text-primary" /> Uploading earns you the <strong>CV Ready</strong> badge!
             </p>

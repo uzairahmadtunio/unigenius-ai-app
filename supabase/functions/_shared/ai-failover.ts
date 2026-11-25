@@ -156,6 +156,42 @@ function getServiceClient(): any | null {
   return serviceClient;
 }
 
+// ─── AI usage metering (F-15) ─────────────────────────────────────
+// Callers may pass `meter: { userId, feature }`; the exported wrappers
+// below then write one row per completed call to public.ai_usage_events
+// (service role). Best-effort only: metering must never affect the AI
+// response, so it is scheduled via EdgeRuntime.waitUntil and swallows
+// all errors.
+export interface AiMeter { userId?: string; feature: string }
+
+async function recordAiUsage(meter: AiMeter | undefined, tier: string | null, success: boolean): Promise<void> {
+  if (!meter?.feature) return;
+  try {
+    const sb = getServiceClient();
+    if (!sb) return;
+    await sb.from("ai_usage_events").insert({
+      user_id: meter.userId ?? null,
+      feature: meter.feature,
+      tier,
+      success,
+    });
+  } catch { /* best-effort only */ }
+}
+
+function scheduleMeter(meter: AiMeter | undefined, tier: string | null, success: boolean): void {
+  if (!meter?.feature) return;
+  const p = recordAiUsage(meter, tier, success);
+  try {
+    // @ts-ignore EdgeRuntime is provided by the Supabase edge runtime
+    if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime.waitUntil === "function") {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(p);
+      return;
+    }
+  } catch { /* fall through to plain await-less call */ }
+  void p;
+}
+
 async function ensurePoolLoaded(): Promise<void> {
   if (poolCache && Date.now() - poolCache.fetchedAt < POOL_CACHE_TTL_MS) return;
   if (poolLoadInFlight) {
@@ -889,7 +925,7 @@ async function confirmStreamContent(
  * Returns an SSE-compatible Response in OpenAI delta format,
  * tagged with x-ai-tier and x-ai-key-index headers.
  */
-export async function streamChatWithFailover({
+async function streamChatWithFailoverImpl({
   modelPath,
   geminiBody,
   systemText,
@@ -907,6 +943,7 @@ export async function streamChatWithFailover({
   allowGroq?: boolean;
   allowOpenAICompat?: boolean;
   corsHeaders: Record<string, string>;
+  meter?: AiMeter;
 }): Promise<Response> {
   const multimodal = hasMultimodal(contents);
 
@@ -1204,7 +1241,15 @@ async function callLovableGatewayAsGemini(
  * an open-model fallback it never had; the Lovable fallback remains
  * critical when Gemini keys are revoked/leaked.
  */
-export async function generateContentWithFailover({
+export async function streamChatWithFailover(
+  args: Parameters<typeof streamChatWithFailoverImpl>[0],
+): Promise<Response> {
+  const resp = await streamChatWithFailoverImpl(args);
+  scheduleMeter(args.meter, resp.headers.get("x-ai-tier"), resp.ok);
+  return resp;
+}
+
+async function generateContentWithFailoverImpl({
   modelPath,
   geminiBody,
   corsHeaders,
@@ -1216,6 +1261,7 @@ export async function generateContentWithFailover({
   corsHeaders: Record<string, string>;
   attemptTimeoutMs?: number;
   deadlineMs?: number;
+  meter?: AiMeter;
 }): Promise<
   { data: any; tier: "gemini" | "lovable" | "openai_compat"; keyIndex: number } | Response
 > {
@@ -1265,6 +1311,18 @@ export async function generateContentWithFailover({
   );
 }
 
+export async function generateContentWithFailover(
+  args: Parameters<typeof generateContentWithFailoverImpl>[0],
+): Promise<{ data: any; tier: "gemini" | "lovable" | "openai_compat"; keyIndex: number } | Response> {
+  const result = await generateContentWithFailoverImpl(args);
+  if (result instanceof Response) {
+    scheduleMeter(args.meter, null, false);
+  } else {
+    scheduleMeter(args.meter, result.tier, true);
+  }
+  return result;
+}
+
 /**
  * Pipe Gemini SSE stream → OpenAI-compatible delta stream.
  */
@@ -1299,7 +1357,7 @@ function transformGeminiSSEToOpenAI(geminiResp: Response): ReadableStream<Uint8A
                 ),
               );
             }
-          } catch {}
+          } catch { /* best-effort: ignore stream errors */ }
         }
       }
       await writer.write(encoder.encode("data: [DONE]\n\n"));
