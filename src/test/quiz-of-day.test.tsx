@@ -14,17 +14,19 @@ const h = vi.hoisted(() => ({
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: () => ({
-      select: () => {
-        const p: any = Promise.resolve({ count: h.count });
-        p.order = () => ({
-          range: () => ({
-            single: () => Promise.resolve({ data: h.row, error: null }),
+    rpc: (fn: string) => {
+      if (fn === "get_question_bank_count") {
+        return Promise.resolve({ data: h.count, error: null });
+      }
+      // list_question_bank_safe: ranged fetch of safe columns
+      return {
+        range: (from: number, to: number) =>
+          Promise.resolve({
+            data: h.row && from <= 0 && to >= 0 ? [h.row] : h.row ? [h.row] : [],
+            error: null,
           }),
-        });
-        return p;
-      },
-    }),
+      };
+    },
   },
 }));
 

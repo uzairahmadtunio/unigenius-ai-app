@@ -23,19 +23,26 @@ const QuizOfDayCard = () => {
     queryKey: ["quiz-of-day", todayStr],
     staleTime: 60 * 60 * 1000,
     queryFn: async () => {
-      const { count } = await supabase
-        .from("question_bank")
-        .select("id", { count: "exact", head: true });
-      if (!count) return null;
-      const idx = dayOfYear % count;
-      const { data: row, error } = await supabase
-        .from("question_bank")
-        .select("id, subject, topic, question")
-        .order("created_at", { ascending: true })
-        .range(idx, idx)
-        .single();
-      if (error) return null;
-      return row as { id: string; subject: string | null; topic: string | null; question: string };
+      // Students cannot read question_bank directly — its only SELECT
+      // policy is teachers/admins — so the card goes through the
+      // SECURITY DEFINER RPCs that expose safe columns (never the
+      // correct answer) to signed-in users, same as QuestionBankPage.
+      const rpc = supabase.rpc.bind(supabase) as unknown as (
+        fn: string,
+      ) => Promise<{ data: unknown; error: unknown }>;
+      const { data: countData, error: countError } = await rpc("get_question_bank_count");
+      if (countError || typeof countData !== "number" || !countData) return null;
+      const idx = dayOfYear % countData;
+      const { data: rows, error } = await (supabase.rpc("list_question_bank_safe" as any) as any)
+        .range(idx, idx);
+      if (error || !rows?.length) return null;
+      const row = rows[0];
+      return { id: row.id, subject: row.subject, topic: row.topic, question: row.question } as {
+        id: string;
+        subject: string | null;
+        topic: string | null;
+        question: string;
+      };
     },
   });
 

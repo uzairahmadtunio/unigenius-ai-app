@@ -1,5 +1,35 @@
 # Changes
 
+## 2026-11-26 — Real-use persona run: Quiz of the Day restored for students (RPC instead of RLS-blocked direct read)
+
+Deployed: frontend entry index-DAY5ECTS.js (was index-2EoxJg6g.js); google-site-verification meta verified intact on the live page.
+
+**Finding (full-depth real-use persona run, 26 Nov):** the Quiz of the Day card NEVER rendered for students — the dashboard showed no trace of it, while teachers could see it. Root cause (proven at API level with a student JWT): `QuizOfDayCard` read `question_bank` directly (count + one ranged row), but the table's only SELECT policy is "Teachers and admins view questions", so both student queries returned HTTP 200 with zero rows and the card returned null. The Question Bank page already had the student-safe path; this card was missed.
+
+**Fix (`src/components/QuizOfDayCard.tsx` only):** the card now fetches the bank size via the `get_question_bank_count()` SECURITY DEFINER RPC (same typed shim as `use-question-count.ts`) and the daily row via `list_question_bank_safe()` with `.range(idx, idx)` (same pattern as QuestionBankPage) — safe columns only, the correct answer is never exposed to students. The pick stays deterministic by day-of-year (the safe RPC orders newest-first instead of oldest-first, so the specific question a given day maps to changes; every student still sees the same question on the same day). The card's unit test mock was moved from the old `.from()` chain to the RPC transport; all four behavioural assertions are unchanged.
+
+**Gates:** `npx tsc -p tsconfig.app.json` = 0 errors; vitest **207/207 green (21 files)**.
+
+**Live verification (fresh student account, mobile viewport):** dashboard now renders "QUIZ OF THE DAY — Q. A set A is a subset of a set B (written A subset of B) if:" with the Sets tag; Play now deep-links into Practice, which serves that exact bank question as a 1-question instant session with a timer. Teacher/admin direct-read paths untouched; Practice answer-checking still goes through `check_question_answer`.
+
+## 2026-11-26 — Free-voice quality pass (TTS ranking + naturalness tuning; no paid TTS)
+
+Deployed: frontend entry index-2EoxJg6g.js (was index-AaATBcGX.js); google-site-verification meta verified intact on the live page. Uzair's decision (26 Nov): NO paid TTS — squeeze the best possible naturalness out of the free Web Speech voices.
+
+**Ranking (`src/lib/tts.ts`, architecture unchanged):** the old logic sorted by language only and took the first "quality-substring" voice in OS list order — arbitrary per device. Replaced with a deterministic score (`voiceScore` = qualityTier × 10 + language sub-rank, exported with `qualityTier` for tests):
+- Tier 0: Google voices (the most natural free voices on Android Chrome — ~90% of the audience — and desktop Chrome).
+- Tier 1: Natural / Neural / Premium / Enhanced (Microsoft Natural, Apple enhanced).
+- Tier 2: standard named voices (legacy Microsoft David/Zira, Samantha, Samsung/OEM engine voices).
+- Tier 3 (last resort): known robotic / novelty / compact voices — eSpeak, Eloquence, "Compact" variants, macOS novelty voices (Fred, Zarvox, Whisper, …). A robotic voice is now only ever used when nothing else exists.
+- Language sub-rank within a tier: en-US → en-GB → other English → Urdu → Hindi; Android's underscore locales ("en_US") are normalised before ranking.
+- Gender fallback refined: robotic gender-neutral voices no longer count as "usable neutral" — if the only neutral voice is a novelty voice, a real opposite-gender voice (pitch-shifted) is preferred over it.
+
+**Utterance tuning:** pitch for a gender-MATCHED voice moved from 0.9/1.1 to a near-natural 0.95/1.05 (a real male/female voice needs no acting; ±10% only added resampling artefacts). The unmatched-gender differentiator stays 0.85/1.15. Rate unchanged (0.97); ~180-char sentence chunking unchanged; persisted gender (`ug-voice-gender`) unchanged. `waitForVoices` default timeout 1000 → 1500 ms so slow Android devices are more likely to hand over the real voice list instead of falling back to the engine default.
+
+**Tests:** tts.test.ts +9 ranking tests (tier order, Google > Natural regardless of OS list order, Natural > legacy, en-US > en-GB within a tier, underscore locales, Compact never beats a standard voice, novelty-voice fallback, robotic-only device, Android-style list) and pitch expectations updated. Suite: **207/207 green (21 files)**; `npx tsc -p tsconfig.app.json` exits 0.
+
+**Honest ceiling:** free Web Speech voices are device voices — final naturalness can only be judged on Uzair's phone. Devices whose only TTS engine is a low-end OEM/eSpeak engine will still sound robotic; nothing in the Web Speech API can upgrade the installed engine.
+
 ## 2026-11-25 (post-submission follow-up) — Practice setup gate for un-onboarded users + audit-account cleanup
 
 Deployed: frontend entry index-AaATBcGX.js (was index-CSCvJPPQ.js); google-site-verification meta verified intact on the live page.
