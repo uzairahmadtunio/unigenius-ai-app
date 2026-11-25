@@ -13,8 +13,32 @@ import PageShell from "@/components/PageShell";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import ThinkingAnimation from "@/components/ThinkingAnimation";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+
+/* One subject-naming standard everywhere (the plan form's canonical
+ * names). The old names still live in src/data/subjects.ts defaults
+ * and in stored user data — stored data is never rewritten; labels
+ * derived in code (form, prompts, task rows) are mapped at the source. */
+const CANONICAL_SUBJECT_NAMES: Record<string, string> = {
+  "Multivariable Calculus": "Applied Calculus",
+  "Communication Skills": "Expository Writing",
+};
+const canonicalSubject = (name?: string | null): string =>
+  name ? (CANONICAL_SUBJECT_NAMES[name.trim()] ?? name) : "";
+
+/** "2026-11-23" / ISO timestamp -> "23 Nov 2026" */
+const fmtDate = (value?: string | null): string => {
+  if (!value) return "";
+  const d = new Date(value.length === 10 ? `${value}T12:00:00` : value);
+  return Number.isNaN(d.getTime()) ? value : format(d, "d MMM yyyy");
+};
+/** "2026-11-24" -> "Tue, 24 Nov 2026" */
+const fmtDayHeading = (dateStr: string): string => {
+  const d = new Date(`${dateStr}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? dateStr : format(d, "EEE, d MMM yyyy");
+};
 
 // Asia/Karachi date helpers for Daily Tasks (YYYY-MM-DD strings).
 const pktTodayStr = (): string =>
@@ -113,7 +137,7 @@ const PlannerPage = () => {
             },
             {
               role: "user",
-              content: `Today is ${todayStr}. Subjects: ${selected.join(", ") || "general study"}.\n\nWeekly schedule:\n${schedule}\n\nBreak this week into daily tasks for ${todayStr} to ${endStr}.`,
+              content: `Today is ${todayStr}. Subjects: ${selected.map((s) => canonicalSubject(s)).join(", ") || "general study"}.\n\nWeekly schedule:\n${schedule}\n\nBreak this week into daily tasks for ${todayStr} to ${endStr}.`,
             },
           ],
         }),
@@ -165,7 +189,7 @@ const PlannerPage = () => {
         .filter((r: any) => r && typeof r.title === "string" && r.title.trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(r.date || "")) && String(r.date) >= todayStr && String(r.date) <= endStr)
         .map((r: any) => ({
           user_id: user.id, plan_id: currentPlanId, task_date: String(r.date),
-          subject: typeof r.subject === "string" && r.subject.trim() ? r.subject.trim() : null,
+          subject: typeof r.subject === "string" && r.subject.trim() ? canonicalSubject(r.subject.trim()) : null,
           title: String(r.title).trim(), done: false,
         }));
       if (!rows.length) { toast.error("AI returned no valid tasks — please retry"); return; }
@@ -255,7 +279,7 @@ const PlannerPage = () => {
 
     const subjectList = subjects
       .filter((s) => selected.includes(s.name))
-      .map((s) => `${s.icon} ${s.name}${s.hasLab ? " (has Lab)" : ""}`)
+      .map((s) => `${s.icon} ${canonicalSubject(s.name)}${s.hasLab ? " (has Lab)" : ""}`)
       .join("\n");
 
     try {
@@ -354,7 +378,7 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
     g.tasks.push(t);
   }
   groupedTasks.sort((a, b) => (a.date < b.date ? -1 : 1));
-  const subjectOptions = Array.from(new Set([...(selected || []), ...subjects.map((s) => s.name)]));
+  const subjectOptions = Array.from(new Set([...(selected || []), ...subjects.map((s) => s.name)].map((s) => canonicalSubject(s))));
 
   return (
     <PageShell
@@ -395,13 +419,25 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
           <div>
             <label className="text-xs text-muted-foreground">Subjects ({selected.length}/{subjects.length})</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-              {subjects.map((s) => (
-                <label key={s.id} className="flex items-center gap-2 glass rounded-xl px-3 py-2 cursor-pointer hover:bg-muted/30">
-                  <Checkbox checked={selected.includes(s.name)} onCheckedChange={() => toggle(s.name)} />
-                  <span className="text-sm text-foreground">{s.icon} {s.name}</span>
-                  {s.hasLab && <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">Lab</span>}
-                </label>
-              ))}
+              {subjects.map((s) => {
+                const isSelected = selected.includes(s.name);
+                return (
+                  <label
+                    key={s.id}
+                    className={`flex items-center gap-2 glass rounded-xl px-3 py-2 cursor-pointer transition-colors ${
+                      isSelected ? "border-primary/50 bg-primary/10" : "hover:bg-muted/30"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggle(s.name)}
+                      className="h-5 w-5 rounded-md border-2 border-primary/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-primary-foreground [&_svg]:h-4 [&_svg]:w-4 [&_svg]:stroke-[3]"
+                    />
+                    <span className="text-sm text-foreground">{s.icon} {canonicalSubject(s.name)}</span>
+                    {s.hasLab && <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">Lab</span>}
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -432,11 +468,11 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
             {savedPlans.map((p) => (
               <div key={p.id} className="flex items-center gap-3 bg-muted/40 rounded-xl px-3 py-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p className="text-sm font-medium text-foreground">
                     {`Semester ${p.semester} • ${(p.subjects || []).length} subjects • ${p.weekly_hours}h/week`}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(p.created_at).toLocaleDateString()}{p.exam_date ? ` • Exam: ${p.exam_date}` : ""}
+                    {fmtDate(p.created_at)}{p.exam_date ? ` • Exam: ${fmtDate(p.exam_date)}` : ""}
                   </p>
                 </div>
                 <Button size="sm" variant="outline" className="rounded-xl gap-1.5 shrink-0" onClick={() => loadPlan(p)}>
@@ -519,9 +555,11 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
                 const isToday = g.date === todayStr;
                 return (
                   <div key={g.date} className="space-y-1.5">
-                    <p className={`text-xs font-semibold ${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
-                      {isToday ? "Today" : new Date(`${g.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
-                      {` • ${g.date}`}
+                    <p className={`text-xs font-semibold flex items-center gap-2 flex-wrap ${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
+                      {fmtDayHeading(g.date)}
+                      {isToday && (
+                        <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-full gradient-primary text-primary-foreground">TODAY</span>
+                      )}
                       {isOverdue ? " • Overdue" : ""}
                     </p>
                     {g.tasks.map((t) => (
@@ -529,10 +567,14 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
                         key={t.id}
                         className={`flex items-center gap-3 rounded-xl px-3 py-2 ${isOverdue && !t.done ? "bg-destructive/10 border border-destructive/30" : "bg-muted/40"}`}
                       >
-                        <Checkbox checked={!!t.done} onCheckedChange={() => toggleTask(t)} />
+                        <Checkbox
+                          checked={!!t.done}
+                          onCheckedChange={() => toggleTask(t)}
+                          className="h-5 w-5 rounded-full border-2 border-primary/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-primary-foreground [&_svg]:h-3.5 [&_svg]:w-3.5 [&_svg]:stroke-[3]"
+                        />
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium truncate ${t.done ? "line-through text-muted-foreground" : "text-foreground"}`}>{t.title}</p>
-                          {t.subject ? <p className="text-xs text-muted-foreground truncate">{t.subject}</p> : null}
+                          {t.subject ? <p className="text-xs text-muted-foreground truncate">{canonicalSubject(t.subject)}</p> : null}
                         </div>
                         {isOverdue && !t.done && (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-destructive/15 text-destructive shrink-0">Overdue</span>

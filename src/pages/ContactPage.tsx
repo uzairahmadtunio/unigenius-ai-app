@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Mail, Send, MessageCircle } from "lucide-react";
+import { Mail, Send, MessageCircle, User, PenLine } from "lucide-react";
 import { z } from "zod";
 import PageShell from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
@@ -49,7 +49,7 @@ const ContactPage = () => {
 
   return (
     <PageShell title="Contact Us" subtitle="We'd love to hear from you" icon={<MessageCircle className="w-5 h-5 text-primary" />}>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6 pb-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -64,61 +64,77 @@ const ContactPage = () => {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="glass p-6 md:p-8 border-primary/20">
+          <Card className="glass p-6 md:p-8 border-primary/20 shadow-elevated">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-xs">Full Name</Label>
-                  <Input
-                    id="name"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Uzair Ahmad"
-                    maxLength={100}
-                    required
-                  />
+                  <div className="relative">
+                    <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" />
+                    <Input
+                      id="name"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="Uzair Ahmad"
+                      maxLength={100}
+                      required
+                      className="h-11 rounded-xl border-border/70 bg-background/50 pl-10 focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/60"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-xs">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="you@example.com"
-                    maxLength={255}
-                    required
-                  />
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="you@example.com"
+                      maxLength={255}
+                      required
+                      className="h-11 rounded-xl border-border/70 bg-background/50 pl-10 focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/60"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="subject" className="text-xs">Subject</Label>
-                <Input
-                  id="subject"
-                  value={form.subject}
-                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                  placeholder="How can we help?"
-                  maxLength={200}
-                  required
-                />
+                <div className="relative">
+                  <MessageCircle className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" />
+                  <Input
+                    id="subject"
+                    value={form.subject}
+                    onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                    placeholder="How can we help?"
+                    maxLength={200}
+                    required
+                    className="h-11 rounded-xl border-border/70 bg-background/50 pl-10 focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/60"
+                  />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="message" className="text-xs">Message</Label>
-                <Textarea
-                  id="message"
-                  value={form.message}
-                  onChange={(e) => setForm({ ...form, message: e.target.value })}
-                  placeholder="Your message..."
-                  rows={6}
-                  maxLength={2000}
-                  required
-                />
+                <div className="relative">
+                  <PenLine className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-primary/70" />
+                  <Textarea
+                    id="message"
+                    value={form.message}
+                    onChange={(e) => setForm({ ...form, message: e.target.value })}
+                    placeholder="Your message..."
+                    rows={6}
+                    maxLength={2000}
+                    required
+                    className="rounded-xl border-border/70 bg-background/50 pl-10 focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/60"
+                  />
+                </div>
                 <p className="text-[10px] text-muted-foreground text-right">{form.message.length} / 2000</p>
               </div>
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full gradient-primary text-primary-foreground rounded-xl shadow-[0_0_18px_hsl(var(--primary)/0.4)]"
+                className="w-full gradient-button text-white rounded-xl shadow-[0_12px_32px_-10px_rgba(124,92,255,0.65)] hover:brightness-110"
               >
                 <Send className="w-4 h-4 mr-2" />
                 {loading ? "Sending..." : "Send Message"}

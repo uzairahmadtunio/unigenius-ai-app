@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Brain, ListChecks, Trophy, ArrowRight, ArrowLeft, CheckCircle, XCircle, Loader2, BarChart3, ChevronDown, ChevronUp, Upload, X, FileText, PenLine, Layers, ListOrdered, Sparkles, AlertCircle, Timer, Target, Zap } from "lucide-react";
+import { Brain, ListChecks, Trophy, ArrowRight, ArrowLeft, CheckCircle, XCircle, Loader2, BarChart3, ChevronDown, ChevronUp, Upload, X, FileText, PenLine, Layers, ListOrdered, Sparkles, AlertCircle, Timer, Target, Zap, Cpu, Code2, Sigma, Landmark, BookOpen, Atom, FlaskConical, Leaf, Network, Database, AppWindow, Globe, Gauge, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useDepartment, departmentInfo } from "@/contexts/DepartmentContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMySubjects } from "@/hooks/use-my-subjects";
+import { useCurrentSemester } from "@/hooks/use-current-semester";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { authHeader } from "@/lib/auth-header";
@@ -123,13 +124,90 @@ export function computeTopicStats(items: any[]): TopicStat[] {
   return stats.sort((a, b) => rank[a.verdict] - rank[b.verdict] || a.accuracy - b.accuracy);
 }
 
+/* ─── Adaptive level system ──────────────────────────────────────────
+ * The student's level for a subject is derived from their real
+ * quiz_results history: accuracy over the last 5 attempts decides the
+ * difficulty sent to generate-quiz (no history or <50% → Easy,
+ * 50–75% → Medium, >75% → Hard). Weak topics come from the topicStats
+ * saved with each attempt's results. */
+type Difficulty = "Easy" | "Medium" | "Hard";
+
+interface SubjectAdaptive {
+  /** Attempts in the selected semester (card history line). */
+  semAttempts: number;
+  /** Best score % in the selected semester. */
+  semBestPct: number;
+  /** Derived level, or null when the student has no history at all. */
+  level: Difficulty | null;
+  weakTopics: string[];
+}
+
+/** "Object-Oriented Programming (OOP)" -> "objectorientedprogramming" */
+const normSubject = (s: string) =>
+  (s || "").toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9]+/g, "");
+
+const deriveLevel = (rows: { score: number; total: number }[]): Difficulty => {
+  const last5 = rows.slice(0, 5);
+  const totalScore = last5.reduce((a, r) => a + (r.score || 0), 0);
+  const totalMax = last5.reduce((a, r) => a + (r.total || 0), 0);
+  if (!last5.length || totalMax <= 0) return "Easy";
+  const accuracy = totalScore / totalMax;
+  if (accuracy < 0.5) return "Easy";
+  if (accuracy <= 0.75) return "Medium";
+  return "Hard";
+};
+
+/** Weak topics from the most recent attempts that carry topicStats
+ *  (latest first, merged across attempts, at most 3). */
+const extractWeakTopics = (rows: any[]): string[] => {
+  const out: string[] = [];
+  for (const row of rows) {
+    const stats = Array.isArray(row?.details?.topicStats) ? row.details.topicStats : [];
+    for (const st of stats) {
+      if (st?.verdict === "weak" && st?.topic && !out.includes(st.topic)) {
+        out.push(st.topic);
+        if (out.length >= 3) return out;
+      }
+    }
+  }
+  return out;
+};
+
+const bumpLevel = (level: Difficulty, dir: 1 | -1): Difficulty => {
+  const order: Difficulty[] = ["Easy", "Medium", "Hard"];
+  const i = order.indexOf(level);
+  return order[Math.min(2, Math.max(0, i + dir))];
+};
+
+/** Keyword-matched line icon + soft tinted tile for a subject — mirrors
+ *  the mapping used in src/components/SubjectGrid.tsx. */
+const getSubjectVisual = (name: string): { Icon: LucideIcon; tile: string } => {
+  const n = name.toLowerCase();
+  if (n.includes("logic") || n.includes("digital")) return { Icon: Cpu, tile: "bg-violet-500/10 text-violet-400 border-violet-500/20" };
+  if (n.includes("programming") || n.includes("oop") || n.includes("object")) return { Icon: Code2, tile: "bg-blue-500/10 text-blue-400 border-blue-500/20" };
+  if (n.includes("calculus") || n.includes("math")) return { Icon: Sigma, tile: "bg-amber-500/10 text-amber-400 border-amber-500/20" };
+  if (n.includes("writing") || n.includes("english") || n.includes("composition")) return { Icon: PenLine, tile: "bg-rose-500/10 text-rose-400 border-rose-500/20" };
+  if (n.includes("pakistan")) return { Icon: Landmark, tile: "bg-teal-500/10 text-teal-400 border-teal-500/20" };
+  if (n.includes("quran") || n.includes("islam")) return { Icon: BookOpen, tile: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" };
+  if (n.includes("physics")) return { Icon: Atom, tile: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" };
+  if (n.includes("chemistry")) return { Icon: FlaskConical, tile: "bg-pink-500/10 text-pink-400 border-pink-500/20" };
+  if (n.includes("biolog")) return { Icon: Leaf, tile: "bg-lime-500/10 text-lime-400 border-lime-500/20" };
+  if (n.includes("data structure") || n.includes("algorithm")) return { Icon: Network, tile: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" };
+  if (n.includes("database")) return { Icon: Database, tile: "bg-sky-500/10 text-sky-400 border-sky-500/20" };
+  if (n.includes("operating")) return { Icon: AppWindow, tile: "bg-slate-500/10 text-slate-400 border-slate-500/20" };
+  if (n.includes("network")) return { Icon: Globe, tile: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" };
+  return { Icon: BookOpen, tile: "bg-primary/10 text-primary border-primary/20" };
+};
+
 const ALLOWED_QUIZ_EXTENSIONS = ".pdf,.png,.jpg,.jpeg,.webp,.docx,.doc,.txt,.pptx,.ppt";
 
 const PracticePage = () => {
   const { isAdmin } = useAdmin();
   const { department } = useDepartment();
   const { user } = useAuth();
-  const [semester, setSemester] = useState(1);
+  // Shared profile-first semester (same hook as Dashboard) — Practice
+  // used to open on a hardcoded Sem 1 local state.
+  const { semester, setSemester } = useCurrentSemester();
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [quizType, setQuizType] = useState<QuizType>("objective");
   const [questions, setQuestions] = useState<MCQ[]>([]);
@@ -168,7 +246,127 @@ const PracticePage = () => {
   const timeUpHandledRef = useRef(false);
   const autoSubmitRef = useRef<() => void>(() => {});
 
+  // Adaptive level data: real question-bank counts + quiz history,
+  // keyed by subject name. The ref mirror lets startQuiz read the
+  // derived level/weak topics without waiting on state.
+  const [bankCounts, setBankCounts] = useState<Record<string, number>>({});
+  const [adaptiveMap, setAdaptiveMap] = useState<Record<string, SubjectAdaptive>>({});
+  const adaptiveRef = useRef<Record<string, SubjectAdaptive>>({});
+  const answersRef = useRef<AnswerRecord[]>([]);
+  // Deferred phase-2 AI fill: bank questions start the quiz instantly;
+  // the fill fires once the student has answered a few bank questions
+  // (so its difficulty can adapt to this session), with a timer
+  // fallback so it always fires. Session-guarded like before.
+  const fillRef = useRef<{
+    session: number;
+    base: any;
+    want: number;
+    bankCount: number;
+    baseDifficulty: Difficulty;
+    weakTopics: string[];
+  } | null>(null);
+  const fillFiredRef = useRef(false);
+  const fillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { subjects } = useMySubjects(semester);
+
+  // Load the real per-subject bank counts (selected semester) and the
+  // student's quiz history, and derive each subject's adaptive level.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Bank counts: rows in question_bank for this semester, counted
+      // per subject with the same name normalisation the edge function
+      // uses, so "Digital Logic Design (DLD)" style variants still hit.
+      try {
+        const { data } = await supabase
+          .from("question_bank")
+          .select("subject")
+          .eq("semester", semester);
+        if (!cancelled) {
+          const byNorm = new Map<string, number>();
+          (data ?? []).forEach((r: any) => {
+            const key = normSubject(String(r.subject || ""));
+            if (key) byNorm.set(key, (byNorm.get(key) || 0) + 1);
+          });
+          const counts: Record<string, number> = {};
+          subjects.forEach((s) => {
+            counts[s.name] = byNorm.get(normSubject(s.name)) || 0;
+          });
+          setBankCounts(counts);
+        }
+      } catch { /* bank counts are display-only; quiz flow is unaffected */ }
+
+      if (!user) return;
+      try {
+        const { data } = await supabase
+          .from("quiz_results")
+          .select("subject, score, total, semester, details, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (cancelled) return;
+        const rows = (data ?? []) as any[];
+        const map: Record<string, SubjectAdaptive> = {};
+        subjects.forEach((s) => {
+          const mine = rows.filter((r) => normSubject(String(r.subject || "")) === normSubject(s.name));
+          const semRows = mine.filter((r) => r.semester === semester);
+          map[s.name] = {
+            semAttempts: semRows.length,
+            semBestPct: semRows.length
+              ? Math.max(...semRows.map((r) => (r.total > 0 ? Math.round((r.score / r.total) * 100) : 0)))
+              : 0,
+            level: mine.length ? deriveLevel(mine) : null,
+            weakTopics: extractWeakTopics(mine),
+          };
+        });
+        adaptiveRef.current = map;
+        setAdaptiveMap(map);
+      } catch { /* history is a bonus; quizzes still start at Easy */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, semester, subjects.map((s) => s.name).join("|")]);
+
+  // Fire the deferred phase-2 AI fill exactly once per session. The
+  // difficulty adapts to this session so far: with ≥3 bank answers,
+  // ≥80% accuracy bumps one level up, <40% drops one level.
+  const fireFill = () => {
+    const f = fillRef.current;
+    if (!f || fillFiredRef.current) return;
+    fillFiredRef.current = true;
+    if (fillTimerRef.current) { clearTimeout(fillTimerRef.current); fillTimerRef.current = null; }
+    const answered = answersRef.current;
+    let difficulty = f.baseDifficulty;
+    if (answered.length >= 3) {
+      const acc = answered.filter((a) => a.isCorrect).length / answered.length;
+      if (acc >= 0.8) difficulty = bumpLevel(difficulty, 1);
+      else if (acc < 0.4) difficulty = bumpLevel(difficulty, -1);
+    }
+    callGenerateQuiz({ ...f.base, count: f.want, bankFirst: false, difficulty, weakTopics: f.weakTopics })
+      .then((aiData) => {
+        if (quizSessionRef.current !== f.session) return;
+        const aiQs: MCQ[] = aiData.questions ?? [];
+        if (aiQs.length) {
+          setQuestions((prev) => [...prev, ...aiQs]);
+          setBankMeta({ bank: f.bankCount, ai: aiQs.length });
+        }
+        setPendingFill(false);
+      })
+      .catch(() => {
+        if (quizSessionRef.current !== f.session) return;
+        setPendingFill(false);
+        toast.info("AI is busy right now — quiz continues with the bank questions.");
+      });
+  };
+
+  // Trigger the fill once enough bank answers exist to judge the
+  // session (3 answers, or the last bank question when fewer exist).
+  const maybeFireFill = () => {
+    const f = fillRef.current;
+    if (!f || fillFiredRef.current) return;
+    if (answersRef.current.length >= Math.min(3, f.bankCount)) fireFill();
+  };
 
   // Add the elapsed time on the currently visible question to its slot.
   const bankCurrentTime = () => {
@@ -302,7 +500,17 @@ const PracticePage = () => {
     setTimeLimitSec(0);
     mcqTimesRef.current = [];
     saTimesRef.current = [];
+    answersRef.current = [];
+    fillRef.current = null;
+    fillFiredRef.current = false;
+    if (fillTimerRef.current) { clearTimeout(fillTimerRef.current); fillTimerRef.current = null; }
     timeUpHandledRef.current = false;
+
+    // Adaptive level for this subject from the student's real history
+    // (defaults to Easy when there is no history yet).
+    const adaptive = adaptiveRef.current[subjectName];
+    const baseDifficulty: Difficulty = adaptive?.level ?? "Easy";
+    const weakTopics = adaptive?.weakTopics ?? [];
 
     const base: any = {
       subject: subjectName,
@@ -318,7 +526,7 @@ const PracticePage = () => {
 
     try {
       if (quizType === "subjective") {
-        const data = await callGenerateQuiz({ ...base, mode: "subjective", count: SA_COUNT.subjective });
+        const data = await callGenerateQuiz({ ...base, mode: "subjective", count: SA_COUNT.subjective, difficulty: baseDifficulty, weakTopics });
         if (data.questions?.length) {
           setSaQuestions(data.questions);
           setSaAnswers(new Array(data.questions.length).fill(""));
@@ -334,7 +542,7 @@ const PracticePage = () => {
       // Written questions (mixed mode) generate in the background of the
       // MCQ flow, exactly as before.
       const saPromise = wantSa
-        ? callGenerateQuiz({ ...base, mode: "subjective", count: wantSa })
+        ? callGenerateQuiz({ ...base, mode: "subjective", count: wantSa, difficulty: baseDifficulty, weakTopics })
         : Promise.resolve(null);
 
       if (!uploadedFile) {
@@ -348,23 +556,20 @@ const PracticePage = () => {
           setLoading(false);
           if (bankQs.length < wantMcq) {
             // Phase 2 — AI fills the remainder while the student is
-            // already answering; new questions append at the end.
+            // already answering; new questions append at the end. The
+            // fill is deferred until the student has answered a few
+            // bank questions so its difficulty can adapt to this
+            // session (see fireFill); a timer guarantees it fires.
             setPendingFill(true);
-            callGenerateQuiz({ ...base, count: wantMcq - bankQs.length, bankFirst: false })
-              .then((aiData) => {
-                if (quizSessionRef.current !== session) return;
-                const aiQs: MCQ[] = aiData.questions ?? [];
-                if (aiQs.length) {
-                  setQuestions((prev) => [...prev, ...aiQs]);
-                  setBankMeta({ bank: bankQs.length, ai: aiQs.length });
-                }
-                setPendingFill(false);
-              })
-              .catch(() => {
-                if (quizSessionRef.current !== session) return;
-                setPendingFill(false);
-                toast.info("AI is busy right now — quiz continues with the bank questions.");
-              });
+            fillRef.current = {
+              session,
+              base,
+              want: wantMcq - bankQs.length,
+              bankCount: bankQs.length,
+              baseDifficulty,
+              weakTopics,
+            };
+            fillTimerRef.current = setTimeout(() => fireFill(), 20000);
           }
           if (wantSa) {
             try {
@@ -383,7 +588,7 @@ const PracticePage = () => {
         // No bank coverage for this subject/topic — classic single call
         // (server still merges any bank questions it finds).
         const [mcqData, saData] = await Promise.all([
-          callGenerateQuiz({ ...base, count: wantMcq }),
+          callGenerateQuiz({ ...base, count: wantMcq, difficulty: baseDifficulty, weakTopics }),
           saPromise,
         ]);
         if (!mcqData.questions?.length) throw new Error("No questions generated");
@@ -400,14 +605,14 @@ const PracticePage = () => {
 
       // File-based quiz: questions come only from the uploaded file.
       if (quizType === "objective") {
-        const data = await callGenerateQuiz({ ...base, count: wantMcq });
+        const data = await callGenerateQuiz({ ...base, count: wantMcq, difficulty: baseDifficulty, weakTopics });
         if (data.questions?.length) {
           setQuestions(data.questions);
           startTimer(data.questions.length * MCQ_TIME_SEC);
         } else throw new Error("No questions generated");
       } else {
         const [mcqData, saData] = await Promise.all([
-          callGenerateQuiz({ ...base, count: wantMcq }),
+          callGenerateQuiz({ ...base, count: wantMcq, difficulty: baseDifficulty, weakTopics }),
           saPromise,
         ]);
         if (!mcqData.questions?.length || !saData?.questions?.length) throw new Error("No questions generated");
@@ -440,12 +645,17 @@ const PracticePage = () => {
     setShowResult(true);
     const isCorrect = key === questions[currentQ].correct;
     if (isCorrect) setScore((s) => s + 1);
-    setAnswers((prev) => [...prev, {
+    const record: AnswerRecord = {
       questionIndex: currentQ,
       selected: key,
       correct: questions[currentQ].correct,
       isCorrect,
-    }]);
+    };
+    answersRef.current = [...answersRef.current, record];
+    setAnswers((prev) => [...prev, record]);
+    // Enough bank answers to judge this session? Fire the AI fill
+    // with the session-adjusted difficulty.
+    maybeFireFill();
   };
 
   // Persist the finished attempt (summary + per-answer details) and show
@@ -608,6 +818,10 @@ const PracticePage = () => {
     setTimeLimitSec(0);
     mcqTimesRef.current = [];
     saTimesRef.current = [];
+    answersRef.current = [];
+    fillRef.current = null;
+    fillFiredRef.current = false;
+    if (fillTimerRef.current) { clearTimeout(fillTimerRef.current); fillTimerRef.current = null; }
   };
 
   const displayScore = finalTotals?.score ?? score;
@@ -1064,23 +1278,49 @@ const PracticePage = () => {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Level pill — quizzes are matched to the student's real
+              current semester (shared useCurrentSemester hook). */}
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/25 px-3 py-1 text-xs font-medium text-primary">
+              <Target className="w-3.5 h-3.5" />
+              Matched to your level · Semester {semester}
+            </span>
+          </div>
+
           {/* Quiz type choice */}
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {([
-              { value: "objective", label: "Objective", desc: "30 MCQs", icon: ListOrdered },
-              { value: "subjective", label: "Subjective", desc: "5 written, AI-graded", icon: PenLine },
-              { value: "mixed", label: "Mixed", desc: "10 MCQs + 3 written", icon: Layers },
+              { value: "objective", label: "Objective", desc: "30 MCQs", icon: ListOrdered, tile: "bg-violet-500/10 text-violet-400 border-violet-500/20" },
+              { value: "subjective", label: "Subjective", desc: "5 written, AI-graded", icon: PenLine, tile: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+              { value: "mixed", label: "Mixed", desc: "10 MCQs + 3 written", icon: Layers, tile: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
             ] as const).map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setQuizType(opt.value)}
                 className={`glass rounded-2xl p-3 sm:p-4 text-left border-2 transition-all ${quizType === opt.value ? "border-primary bg-primary/5" : "border-transparent hover:border-primary/40"}`}
               >
-                <opt.icon className={`w-5 h-5 mb-1.5 ${quizType === opt.value ? "text-primary" : "text-muted-foreground"}`} />
+                <span className={`w-9 h-9 rounded-lg border flex items-center justify-center mb-2 ${opt.tile}`}>
+                  <opt.icon className="w-[18px] h-[18px]" />
+                </span>
                 <p className="text-sm font-semibold text-foreground">{opt.label}</p>
                 <p className="text-[11px] text-muted-foreground">{opt.desc}</p>
               </button>
             ))}
+          </div>
+
+          {/* Adaptive rule strip */}
+          <div className="glass rounded-2xl px-4 py-3 flex items-start gap-3">
+            <span className="w-9 h-9 rounded-lg border bg-primary/10 text-primary border-primary/20 flex items-center justify-center flex-shrink-0">
+              <Gauge className="w-[18px] h-[18px]" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-foreground leading-snug">
+                Difficulty adapts to you — starts Easy, rises as you improve, with extra questions on your weak areas.
+              </p>
+              <span className="inline-flex items-center gap-1 mt-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-muted/50 border border-border/40 text-muted-foreground">
+                <Timer className="w-3 h-3" /> ~1 min per question
+              </span>
+            </div>
           </div>
 
           {/* File Upload for Vision questions */}
@@ -1146,26 +1386,49 @@ const PracticePage = () => {
             {subjects.map((sub) => {
               const expanded = expandedSubject === sub.name;
               const topics = topicOptions[sub.name] ?? [];
+              const { Icon: SubIcon, tile: subTile } = getSubjectVisual(sub.name);
+              const bankCount = bankCounts[sub.name] || 0;
+              const adaptive = adaptiveMap[sub.name];
               return (
                 <motion.div
                   key={sub.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.15 }}
-                  className="glass rounded-2xl p-6 text-left space-y-3 border-2 border-transparent hover:border-primary/50 transition-all hover:shadow-elevated flex flex-col"
+                  className="glass rounded-2xl p-4 sm:p-5 text-left space-y-3 border-2 border-transparent hover:border-primary/50 transition-all hover:shadow-elevated flex flex-col"
                 >
                   <div className="cursor-pointer space-y-3" onClick={() => startQuiz(sub.name)}>
-                    <span className="text-2xl">{sub.icon}</span>
-                    <h3 className="font-display font-semibold text-foreground text-sm">{sub.name}</h3>
+                    <div className="flex items-start gap-3">
+                      <span className={`w-11 h-11 rounded-xl border flex items-center justify-center flex-shrink-0 ${subTile}`}>
+                        <SubIcon className="w-5 h-5" />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-display font-semibold text-foreground text-sm leading-snug">{sub.name}</h3>
+                        {sub.hasLab && (
+                          <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">Lab</span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Real bank coverage for this subject + semester —
+                        replaces the old fabricated uniform counts. */}
                     <div className="flex items-center gap-1 text-xs text-primary">
                       <ListChecks className="w-3 h-3" />
-                      {quizType === "objective" ? "30 MCQs" : quizType === "subjective" ? "5 Written Questions" : "10 MCQs + 3 Written"}
+                      {bankCount > 0 ? `${bankCount} MCQs in bank` : "AI-generated questions"}
                       {uploadedFile && <span className="text-amber-400 ml-1">+ File Analysis</span>}
                     </div>
-                    <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                      <Timer className="w-3 h-3" />
-                      {quizType === "objective" ? "Time limit: 30 min (1 min/question)" : quizType === "subjective" ? "Time limit: 15 min (3 min/question)" : "Time limit: 19 min"}
-                    </p>
+                    {/* Real quiz history for this subject + semester. */}
+                    {adaptive && adaptive.semAttempts > 0 ? (
+                      <div className="space-y-0.5">
+                        <p className="text-[11px] text-muted-foreground">
+                          {adaptive.semAttempts} attempt{adaptive.semAttempts > 1 ? "s" : ""} · Best {adaptive.semBestPct}%
+                        </p>
+                        {adaptive.level && (
+                          <p className="text-[11px] font-medium text-foreground/80">Your level: {adaptive.level}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground">Not started yet</p>
+                    )}
                   </div>
 
                   {!uploadedFile && (

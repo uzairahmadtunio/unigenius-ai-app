@@ -1,5 +1,6 @@
-import { GraduationCap, User, Moon, Sun, LogOut, RefreshCw, Settings, Bell, Shield, Share2, Menu, Info, MessageCircle as MessageCircleIcon } from "lucide-react";
+import { GraduationCap, User, Moon, Sun, LogOut, RefreshCw, Settings, Bell, Shield, Share2, Menu, Info, MessageCircle as MessageCircleIcon, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -37,17 +38,28 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
     document.documentElement.classList.toggle("dark", isDark);
   }, [isDark]);
 
-  // Use cached profile query — shared across app
-  const { data: avatarUrl = "" } = useQuery({
+  // Use cached profile query — shared across app. Extended for the menu
+  // drawer: the profile card needs the real display name and semester,
+  // not just the avatar.
+  const { data: profile } = useQuery({
     queryKey: ["profile-avatar", user?.id],
     enabled: !!user,
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("avatar_url").eq("user_id", user!.id).single();
-      return data?.avatar_url || "";
+      const { data } = await supabase
+        .from("profiles")
+        .select("avatar_url, display_name, current_semester")
+        .eq("user_id", user!.id)
+        .single();
+      return {
+        avatarUrl: data?.avatar_url || "",
+        displayName: data?.display_name || null,
+        currentSemester: data?.current_semester ?? null,
+      };
     },
   });
+  const avatarUrl = profile?.avatarUrl ?? "";
 
   // Use shared notice queries — same cache keys as NoticeBoard
   const { data: allNotices = [] } = useQuery({
@@ -98,6 +110,14 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
     }
     if (unreadPersonal > 0) markAllRead();
   };
+
+  // Drawer profile-card sub-line: real semester + real department name.
+  // The email never appears in the drawer. Missing fields are simply
+  // left out (graceful fallback).
+  const profileSubParts: string[] = [];
+  if (profile?.currentSemester) profileSubParts.push(`Semester ${profile.currentSemester}`);
+  if (department) profileSubParts.push(departmentInfo[department].fullName);
+  const profileSubLine = profileSubParts.join(" · ");
 
   return (
     <nav className="sticky top-0 z-40 bg-background/85 backdrop-blur-md border-b border-border">
@@ -238,8 +258,8 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
               <Button variant="ghost" size="icon" className="rounded-lg hidden md:flex" onClick={() => navigate("/profile")}>
                 <Settings className="w-4 h-4" />
               </Button>
-              <Avatar className="w-8 h-8 cursor-pointer border border-primary/20 hidden sm:flex" onClick={() => navigate("/profile")}>
-                <AvatarImage src={avatarUrl} />
+              <Avatar className="w-8 h-8 cursor-pointer ring-2 ring-primary/40 ring-offset-1 ring-offset-background transition-transform duration-200 hover:scale-105 active:scale-95" onClick={() => navigate("/profile")}>
+                <AvatarImage src={avatarUrl} className="object-cover" />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                   {user.email?.charAt(0).toUpperCase()}
                 </AvatarFallback>
@@ -271,18 +291,23 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
                 {user && (
                   <button
                     onClick={() => { setMobileOpen(false); navigate("/profile"); }}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/15 transition-colors text-left"
                   >
-                    <Avatar className="w-9 h-9 border border-primary/20">
-                      <AvatarImage src={avatarUrl} />
+                    <Avatar className="w-10 h-10 ring-2 ring-primary/40 ring-offset-1 ring-offset-background shrink-0">
+                      <AvatarImage src={avatarUrl} className="object-cover" />
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                        {user.email?.charAt(0).toUpperCase()}
+                        {(profile?.displayName || user.email || "?").charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground truncate">My Profile</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {profile?.displayName || "My Profile"}
+                      </p>
+                      {profileSubLine && (
+                        <p className="text-[11px] text-muted-foreground truncate">{profileSubLine}</p>
+                      )}
                     </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                   </button>
                 )}
 
@@ -297,14 +322,11 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
                 {isTeacher && !isAdmin && (
                   <MobileMenuItem icon={GraduationCap} label="Teacher Panel" highlight onClick={() => { setMobileOpen(false); navigate("/teacher-dashboard"); }} />
                 )}
-                {isAdmin && (
-                  <MobileMenuItem icon={Shield} label="Admin Dashboard" highlight onClick={() => { setMobileOpen(false); navigate("/admin"); }} />
-                )}
+                {/* Admin + Settings live only in NavItems above — the old
+                    duplicate "Admin Dashboard" and "Settings" rows that
+                    used to sit here were removed (Batch 2 dedupe). */}
                 {department && (
                   <MobileMenuItem icon={RefreshCw} label="Change Department" onClick={() => { setMobileOpen(false); clearDepartment(); }} />
-                )}
-                {user && (
-                  <MobileMenuItem icon={Settings} label="Settings" onClick={() => { setMobileOpen(false); navigate("/profile"); }} />
                 )}
                 <MobileMenuItem
                   icon={Share2}
@@ -315,17 +337,25 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
                     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
                   }}
                 />
-                <MobileMenuItem
-                  icon={isDark ? Sun : Moon}
-                  label={isDark ? "Light Mode" : "Dark Mode"}
-                  onClick={() => setIsDark(!isDark)}
-                />
+                <div className="w-full flex items-center gap-3 p-3 rounded-lg text-left text-foreground">
+                  {isDark ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
+                  <span className="text-sm font-medium flex-1">Light Mode</span>
+                  <Switch
+                    checked={!isDark}
+                    onCheckedChange={(checked) => setIsDark(!checked)}
+                    aria-label="Toggle light mode"
+                  />
+                </div>
               </div>
               <div className="p-3 border-t border-border">
                 {user ? (
-                  <Button variant="outline" className="w-full rounded-lg text-xs" onClick={() => { setMobileOpen(false); signOut(); }}>
-                    <LogOut className="w-4 h-4 mr-2" /> Sign Out
-                  </Button>
+                  <button
+                    onClick={() => { setMobileOpen(false); signOut(); }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-rose-600 dark:text-rose-300/90 hover:bg-rose-500/10 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4 shrink-0" />
+                    <span className="text-sm font-medium">Sign Out</span>
+                  </button>
                 ) : (
                   <Button className="w-full rounded-lg text-xs gradient-primary" onClick={() => { setMobileOpen(false); navigate("/auth"); }}>
                     <User className="w-4 h-4 mr-2" /> Sign In

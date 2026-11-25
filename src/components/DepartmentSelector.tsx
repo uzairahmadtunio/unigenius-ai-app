@@ -3,9 +3,9 @@ import {
   GraduationCap,
   ArrowRight,
   ChevronRight,
-  CodeXml,
+  Code2,
   Cpu,
-  BrainCircuit,
+  Brain,
   type LucideIcon,
 } from "lucide-react";
 import { Department, departmentInfo, useDepartment } from "@/contexts/DepartmentContext";
@@ -13,27 +13,34 @@ import { Department, departmentInfo, useDepartment } from "@/contexts/Department
 const departments: Department[] = ["se", "cs", "ai"];
 
 const departmentIcons: Record<Department, LucideIcon> = {
-  se: CodeXml,
+  se: Code2,
   cs: Cpu,
-  ai: BrainCircuit,
+  ai: Brain,
 };
 
 const DepartmentSelector = () => {
   const { setDepartment } = useDepartment();
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto gradient-hero">
-      {/* Background orbs — pinned to the viewport so they never clip or scroll with content */}
+    <div
+      className="fixed inset-0 z-[60] overflow-y-auto auth-grain"
+      style={{
+        background:
+          "radial-gradient(900px 480px at 12% -5%, hsl(252 95% 68% / 0.16), transparent 60%), radial-gradient(820px 420px at 88% -10%, hsl(245 90% 66% / 0.12), transparent 60%), #07060F",
+      }}
+    >
+      {/* Plum-black violet world — grid overlay + glow orbs, pinned to the viewport so they never clip or scroll with content */}
+      <div className="auth-grid-overlay" />
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <motion.div
           className="absolute w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] rounded-full opacity-15"
-          style={{ background: "radial-gradient(circle, hsla(230, 80%, 60%, 0.4), transparent)", top: "-10%", left: "-5%" }}
+          style={{ background: "radial-gradient(circle, hsla(258, 85%, 65%, 0.4), transparent)", top: "-10%", left: "-5%" }}
           animate={{ scale: [1, 1.2, 1], x: [0, 40, 0] }}
           transition={{ duration: 6, repeat: Infinity }}
         />
         <motion.div
           className="absolute w-[260px] h-[260px] sm:w-[400px] sm:h-[400px] rounded-full opacity-15"
-          style={{ background: "radial-gradient(circle, hsla(280, 60%, 60%, 0.4), transparent)", bottom: "-5%", right: "-5%" }}
+          style={{ background: "radial-gradient(circle, hsla(275, 70%, 62%, 0.4), transparent)", bottom: "-5%", right: "-5%" }}
           animate={{ scale: [1, 1.3, 1], y: [0, -30, 0] }}
           transition={{ duration: 5, repeat: Infinity }}
         />

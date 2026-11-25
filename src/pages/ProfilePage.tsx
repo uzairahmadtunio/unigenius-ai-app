@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { User, Trophy, Camera, Save, Edit2, Calendar, Loader2, Github, Linkedin, BadgeCheck, X, Plus, Eye, EyeOff, Award, BookOpen, TrendingUp } from "lucide-react";
+import { User, Trophy, Camera, Save, Edit2, Calendar, Loader2, Github, Linkedin, BadgeCheck, X, Plus, Eye, EyeOff, Award, BookOpen, TrendingUp, Copy, ExternalLink, Sparkles, FileCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -250,11 +250,9 @@ const ProfilePage = () => {
               {isUploading ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <Camera className="w-6 h-6 text-white" />}
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-            {isVerified && (
-              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-background flex items-center justify-center">
-                <BadgeCheck className="w-5 h-5 text-primary" />
-              </div>
-            )}
+            {/* Verified badge lives ONLY next to the name below — the
+                second badge that overlapped the photo was removed so
+                there is one unified badge treatment. */}
           </div>
 
           {/* Info */}
@@ -306,6 +304,11 @@ const ProfilePage = () => {
           {/* Quick Stats + Edit */}
           <div className="flex flex-col items-center gap-3">
             <CircularProgress percentage={attendancePercent} size={90} strokeWidth={7} />
+            {attendancePercent === 0 && (
+              <p className="text-[11px] text-muted-foreground text-center max-w-[150px]">
+                No attendance marked yet — your percentage will appear here once classes are marked.
+              </p>
+            )}
             <Button
               variant={isEditing ? "default" : "outline"}
               size="sm"
@@ -319,22 +322,13 @@ const ProfilePage = () => {
           </div>
         </div>
 
-        {/* Skills Tags */}
-        {profile.skills.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-border/50">
-            {profile.skills.map((skill) => (
-              <Badge key={skill} variant="secondary" className="text-[10px] gap-1">
-                {skill}
-                {isEditing && (
-                  <X className="w-3 h-3 cursor-pointer hover:text-destructive" onClick={() => removeSkill(skill)} />
-                )}
-              </Badge>
-            ))}
-          </div>
-        )}
+        {/* Skills are shown ONCE — in the Career & Links tab's Technical
+            Skills card (which also carries the add/remove editing UI).
+            The duplicate header chips block was removed. */}
       </motion.div>
 
-      {/* PWA Status */}
+      {/* App Status — rendered exactly ONCE here, above the tabs (it
+          used to repeat at the top of every tab/section). */}
       <PWAStatusCard />
 
       {/* Tabbed Content */}
@@ -411,7 +405,7 @@ const ProfilePage = () => {
                     </p>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Section</label>
                     {isEditing ? (
@@ -420,12 +414,14 @@ const ProfilePage = () => {
                       <p className="text-sm font-medium text-foreground bg-muted rounded-xl px-3 py-2">{profile.section || "—"}</p>
                     )}
                   </div>
+                  {/* University gets a full-width row so the name is never
+                      truncated inside a half-width field. */}
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">University</label>
                     {isEditing ? (
                       <Input value={profile.university} onChange={(e) => updateField("university", e.target.value)} className="rounded-xl" />
                     ) : (
-                      <p className="text-sm font-medium text-foreground bg-muted rounded-xl px-3 py-2 truncate">{profile.university}</p>
+                      <p className="text-sm font-medium text-foreground bg-muted rounded-xl px-3 py-2 break-words">{profile.university || "—"}</p>
                     )}
                   </div>
                 </div>
@@ -521,13 +517,26 @@ const ProfilePage = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {badges.map((b) => (
-                    <motion.div key={b.id} whileHover={{ scale: 1.05 }} className="bg-muted rounded-xl p-3 text-center space-y-1">
-                      <span className="text-2xl">{b.badge_icon}</span>
-                      <p className="text-xs font-semibold text-foreground leading-tight">{b.badge_name}</p>
-                      <p className="text-[10px] text-muted-foreground">{new Date(b.earned_at).toLocaleDateString()}</p>
-                    </motion.div>
-                  ))}
+                  {badges.map((b) => {
+                    // Line-icon medallions instead of the stored emoji glyphs.
+                    const name = (b.badge_name || "").toLowerCase();
+                    const MedallionIcon = name.includes("profile pro")
+                      ? Sparkles
+                      : name.includes("cv")
+                        ? FileCheck
+                        : Award;
+                    return (
+                      <motion.div key={b.id} whileHover={{ scale: 1.05 }} className="bg-muted rounded-xl p-3 text-center space-y-1.5">
+                        <div className="w-11 h-11 rounded-full bg-primary/10 border border-primary/25 flex items-center justify-center mx-auto">
+                          <MedallionIcon className="w-5 h-5 text-primary" />
+                        </div>
+                        <p className="text-xs font-semibold text-foreground leading-tight">{b.badge_name}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(b.earned_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </motion.div>
@@ -579,20 +588,50 @@ const ProfilePage = () => {
                   <label className="text-xs text-muted-foreground flex items-center gap-1"><Github className="w-3 h-3" /> GitHub URL</label>
                   {isEditing ? (
                     <Input value={profile.github_url} onChange={(e) => updateField("github_url", e.target.value)} placeholder="https://github.com/username" className="rounded-xl" />
+                  ) : profile.github_url ? (
+                    <div className="flex items-start gap-1.5 bg-muted rounded-xl px-3 py-2">
+                      <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 break-all text-sm font-medium text-primary hover:underline py-0.5">
+                        {profile.github_url}
+                      </a>
+                      <button
+                        type="button"
+                        aria-label="Copy GitHub URL"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-background/60 shrink-0"
+                        onClick={() => { navigator.clipboard.writeText(profile.github_url); toast.success("Link copied!"); }}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                      <a href={profile.github_url} target="_blank" rel="noopener noreferrer" aria-label="Open GitHub profile" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-background/60 shrink-0">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
                   ) : (
-                    <p className="text-sm font-medium text-foreground bg-muted rounded-xl px-3 py-2 truncate">
-                      {profile.github_url ? <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{profile.github_url}</a> : "—"}
-                    </p>
+                    <p className="text-sm font-medium text-foreground bg-muted rounded-xl px-3 py-2">—</p>
                   )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground flex items-center gap-1"><Linkedin className="w-3 h-3" /> LinkedIn URL</label>
                   {isEditing ? (
                     <Input value={profile.linkedin_url} onChange={(e) => updateField("linkedin_url", e.target.value)} placeholder="https://linkedin.com/in/username" className="rounded-xl" />
+                  ) : profile.linkedin_url ? (
+                    <div className="flex items-start gap-1.5 bg-muted rounded-xl px-3 py-2">
+                      <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 break-all text-sm font-medium text-primary hover:underline py-0.5">
+                        {profile.linkedin_url}
+                      </a>
+                      <button
+                        type="button"
+                        aria-label="Copy LinkedIn URL"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-background/60 shrink-0"
+                        onClick={() => { navigator.clipboard.writeText(profile.linkedin_url); toast.success("Link copied!"); }}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                      <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="Open LinkedIn profile" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-background/60 shrink-0">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
                   ) : (
-                    <p className="text-sm font-medium text-foreground bg-muted rounded-xl px-3 py-2 truncate">
-                      {profile.linkedin_url ? <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{profile.linkedin_url}</a> : "—"}
-                    </p>
+                    <p className="text-sm font-medium text-foreground bg-muted rounded-xl px-3 py-2">—</p>
                   )}
                 </div>
               </div>

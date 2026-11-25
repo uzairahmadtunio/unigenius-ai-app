@@ -61,7 +61,7 @@ interface ThemeConfig {
 
 const THEMES: Record<ThemeKey, ThemeConfig> = {
   academic: {
-    label: "🎓 Academic",
+    label: "Academic",
     desc: "Professional Blue & White",
     slideBg: "bg-white dark:bg-[#F0F4F8]",
     slideHeaderBg: "bg-gradient-to-r from-[#1E40AF] to-[#2563EB]",
@@ -77,7 +77,7 @@ const THEMES: Record<ThemeKey, ThemeConfig> = {
     pptxBullet: "1E293B", pptxHint: "6B7280", pptxSlideNum: "94A3B8",
   },
   darkTech: {
-    label: "⚡ Dark Tech",
+    label: "Dark Tech",
     desc: "Charcoal & Neon Blue",
     slideBg: "bg-[#0F172A]",
     slideHeaderBg: "bg-gradient-to-r from-[#0E7490] to-[#7C3AED]",
@@ -93,7 +93,7 @@ const THEMES: Record<ThemeKey, ThemeConfig> = {
     pptxBullet: "CBD5E1", pptxHint: "64748B", pptxSlideNum: "475569",
   },
   minimalist: {
-    label: "📄 Minimalist",
+    label: "Minimalist",
     desc: "Clean Black & White",
     slideBg: "bg-[#FAFAFA] dark:bg-[#18181B]",
     slideHeaderBg: "bg-[#18181B] dark:bg-[#27272A]",
@@ -109,7 +109,7 @@ const THEMES: Record<ThemeKey, ThemeConfig> = {
     pptxBullet: "3F3F46", pptxHint: "A1A1AA", pptxSlideNum: "A1A1AA",
   },
   corporate: {
-    label: "💼 Corporate",
+    label: "Corporate",
     desc: "Navy & Gold Executive",
     slideBg: "bg-[#F8FAFC] dark:bg-[#0F1B3D]",
     slideHeaderBg: "bg-gradient-to-r from-[#0F1B3D] via-[#1E3A5F] to-[#0F1B3D]",
@@ -125,7 +125,7 @@ const THEMES: Record<ThemeKey, ThemeConfig> = {
     pptxBullet: "1E293B", pptxHint: "64748B", pptxSlideNum: "94A3B8",
   },
   sunset: {
-    label: "🌅 Sunset Glow",
+    label: "Sunset Glow",
     desc: "Coral & Plum Gradient",
     slideBg: "bg-[#FFF8F5] dark:bg-[#1A0F1F]",
     slideHeaderBg: "bg-gradient-to-br from-[#FF6B6B] via-[#EE5A70] to-[#6C5CE7]",
@@ -141,7 +141,7 @@ const THEMES: Record<ThemeKey, ThemeConfig> = {
     pptxBullet: "3D1F2F", pptxHint: "C44569", pptxSlideNum: "C44569",
   },
   forest: {
-    label: "🌿 Forest Calm",
+    label: "Forest Calm",
     desc: "Emerald & Cream Natural",
     slideBg: "bg-[#F5F0E8] dark:bg-[#0F1F17]",
     slideHeaderBg: "bg-gradient-to-r from-[#064E3B] to-[#0D7A5F]",
@@ -157,7 +157,7 @@ const THEMES: Record<ThemeKey, ThemeConfig> = {
     pptxBullet: "1F2937", pptxHint: "4A6741", pptxSlideNum: "84A98C",
   },
   royal: {
-    label: "👑 Royal Premium",
+    label: "Royal Premium",
     desc: "Deep Purple & Gold",
     slideBg: "bg-[#FAF7FF] dark:bg-[#1A0F2E]",
     slideHeaderBg: "bg-gradient-to-r from-[#2D1B69] via-[#5B21B6] to-[#C9A84C]",
@@ -173,7 +173,7 @@ const THEMES: Record<ThemeKey, ThemeConfig> = {
     pptxBullet: "1F1235", pptxHint: "5B21B6", pptxSlideNum: "A78BFA",
   },
   monochrome: {
-    label: "◼️ Monochrome Pop",
+    label: "Monochrome Pop",
     desc: "Bold Black & Accent",
     slideBg: "bg-white dark:bg-[#0A0A0A]",
     slideHeaderBg: "bg-[#0A0A0A] dark:bg-[#FF5722]",
@@ -576,7 +576,7 @@ const PresentationPage = () => {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
-                  <p className="text-xs">📸 {slide.imageSuggestion}</p>
+                  <p className="text-xs">{slide.imageSuggestion}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -619,7 +619,7 @@ const PresentationPage = () => {
     <PageShell
       title="AI Slide Maker"
       subtitle="Gamma-style AI Presentations with AI Images"
-      icon={<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center"><Presentation className="w-5 h-5 text-primary-foreground" /></div>}
+      icon={<div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center"><Presentation className="w-5 h-5 text-primary-foreground" /></div>}
     >
       <div className="space-y-6" ref={topRef}>
         {/* Mode Selector — Gamma-style */}
@@ -684,15 +684,17 @@ const PresentationPage = () => {
           ) : null}
 
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Palette className="w-4 h-4 text-muted-foreground" />
               <Select value={theme} onValueChange={(v) => setTheme(v as ThemeKey)}>
-                <SelectTrigger className="w-[200px] rounded-xl text-xs h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[230px] max-w-[72vw] rounded-xl text-xs h-auto min-h-9 py-1.5 whitespace-normal"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(Object.keys(THEMES) as ThemeKey[]).map((key) => (
                     <SelectItem key={key} value={key}>
-                      <span className="text-xs font-medium">{THEMES[key].label}</span>
-                      <span className="text-[10px] text-muted-foreground ml-1.5">{THEMES[key].desc}</span>
+                      <span className="flex flex-col items-start">
+                        <span className="text-xs font-medium whitespace-nowrap">{THEMES[key].label}</span>
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">{THEMES[key].desc}</span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -745,17 +747,23 @@ const PresentationPage = () => {
               </div>
             </div>
 
-            <Button onClick={generateSlides} disabled={isGenerating || (inputMode === "ai" ? !topic.trim() : !pasteText.trim())} className="rounded-xl gradient-primary text-primary-foreground gap-2 ml-auto">
+            <Button onClick={generateSlides} disabled={isGenerating || (inputMode === "ai" ? !topic.trim() : !pasteText.trim())} className="rounded-xl gradient-button text-primary-foreground gap-2 ml-auto shadow-[0_10px_30px_-10px_rgba(139,92,246,0.55)] hover:brightness-110">
               {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               {isGenerating ? "Generating..." : "Generate Slides"}
             </Button>
           </div>
 
-          {/* Theme preview bar */}
-          <div className="flex gap-2 items-center">
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Theme:</span>
-            <div className={`flex-1 h-7 rounded-lg ${t.slideHeaderBg} flex items-center px-3`}>
-              <span className="text-[10px] text-white font-medium">{THEMES[theme].desc}</span>
+          {/* Theme preview — a true 16:9 slide mock drawn with the selected
+              theme's own colours (presentational only: the theme's accent
+              lives inside this mock; all app chrome stays violet). */}
+          <div className="flex gap-3 items-center">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold shrink-0">Theme:</span>
+            <div className="w-32 sm:w-40 shrink-0">
+              <MiniSlide themeKey={theme} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground">{THEMES[theme].label}</p>
+              <p className="text-[11px] text-muted-foreground">{THEMES[theme].desc}</p>
             </div>
           </div>
         </motion.div>
@@ -769,7 +777,7 @@ const PresentationPage = () => {
                 {generatingImages.size > 0 ? `Generating ${generatingImages.size} images...` : "AI images • Speaker notes • WYSIWYG preview"}
               </p>
             </div>
-            <Button onClick={downloadPPTX} disabled={isDownloading || generatingImages.size > 0} className="rounded-xl gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600">
+            <Button onClick={downloadPPTX} disabled={isDownloading || generatingImages.size > 0} className="rounded-xl gap-2 gradient-button text-white">
               {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               {isDownloading ? "Creating..." : "Download .pptx"}
             </Button>
@@ -779,7 +787,7 @@ const PresentationPage = () => {
         {/* Generating State */}
         {isGenerating && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-2xl p-8 flex flex-col items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center animate-pulse">
+            <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center animate-pulse">
               <Presentation className="w-8 h-8 text-white" />
             </div>
             <p className="font-display font-semibold text-foreground">Creating {slideCount} slides with AI images...</p>
@@ -868,12 +876,12 @@ const PresentationPage = () => {
         {/* Empty State */}
         {!isGenerating && slides.length === 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-2xl p-8 flex flex-col items-center gap-3 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center">
-              <Presentation className="w-8 h-8 text-muted-foreground/40" />
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Presentation className="w-8 h-8 text-primary/50" />
             </div>
             <p className="font-display font-semibold text-foreground">AI Presentation Maker</p>
             <p className="text-sm text-muted-foreground">Generate professional slides with AI-generated images — max 3 bullets per slide.</p>
-            <p className="text-xs text-muted-foreground">🪄 AI Generate • 📝 Paste Text • 🖼️ AI Images • 🎨 3 Themes • 📥 PPTX Export</p>
+            <p className="text-xs text-muted-foreground">AI Generate · Paste Text · AI Images · 3 Themes · PPTX Export</p>
           </motion.div>
         )}
       </div>

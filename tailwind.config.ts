@@ -16,6 +16,8 @@ export default {
       fontFamily: {
         sans: ["Manrope", "system-ui", "sans-serif"],
         display: ["Sora", "Manrope", "system-ui", "sans-serif"],
+        inter: ["Inter", "system-ui", "sans-serif"],
+        accent: ['"Playfair Display"', "Georgia", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",

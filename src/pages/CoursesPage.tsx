@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import {
   Loader2, Search, GraduationCap, Play, Crown, Youtube, ArrowLeft,
   CheckCircle2, ChevronLeft, ChevronRight, FolderOpen, PlayCircle, ListVideo, Maximize,
-  ExternalLink, Sparkles,
+  ExternalLink, Sparkles, HardDrive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -316,7 +316,7 @@ const CoursesPage = () => {
         .from("courses" as any)
         .select("*")
         .order("sort_order", { ascending: true });
-      setCourses((data as Course[]) || []);
+      setCourses((data as unknown as Course[]) || []);
       setLoading(false);
     })();
   }, []);
@@ -339,7 +339,7 @@ const CoursesPage = () => {
         .select("id, video_id, title, position")
         .eq("course_id", id)
         .order("position", { ascending: true });
-      setVideosByCourse((prev) => ({ ...prev, [id]: (data as CourseVideo[]) || [] }));
+      setVideosByCourse((prev) => ({ ...prev, [id]: (data as unknown as CourseVideo[]) || [] }));
       setVideosLoading(false);
     },
     [videosByCourse]
@@ -506,30 +506,55 @@ const CoursesPage = () => {
     count: number,
     totalVideos: number,
     _img: string | null
-  ) => (
-    <button
-      onClick={() => goSection(kind)}
-      className="text-left glass rounded-2xl border border-border p-4 flex gap-3 items-start group hover:border-primary/40 transition-colors w-full"
-    >
-      <span
-        className={`w-12 h-12 rounded-2xl shrink-0 flex items-center justify-center ${
-          kind === "premium" ? "bg-amber-400 text-black" : kind === "ai" ? "bg-violet-500 text-white" : "bg-red-500 text-white"
-        }`}
+  ) => {
+    // Compact Lectures-pattern row: muted tint tile, title + type pill,
+    // FULL description (no clamp), real counts + source pill, chevron.
+    const tile =
+      kind === "premium"
+        ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+        : kind === "ai"
+          ? "bg-primary/10 text-primary border-primary/20"
+          : "bg-rose-500/10 text-rose-400 border-rose-500/20";
+    const typePill =
+      kind === "premium"
+        ? "bg-amber-500/10 text-amber-400 border-amber-500/25"
+        : kind === "ai"
+          ? "bg-primary/10 text-primary border-primary/25"
+          : "bg-rose-500/10 text-rose-400 border-rose-500/25";
+    const source = kind === "free" ? "YouTube" : "From our Drive";
+    return (
+      <button
+        onClick={() => goSection(kind)}
+        className="text-left glass rounded-2xl border border-border p-4 flex gap-3 items-center group hover:border-primary/40 transition-colors w-full"
       >
-        {kind === "premium" ? <Crown className="w-6 h-6" /> : kind === "ai" ? <Sparkles className="w-6 h-6" /> : <Youtube className="w-6 h-6" />}
-      </span>
-      <span className="flex-1 min-w-0 space-y-1">
-        <span className="block font-display font-bold">{title}</span>
-        <span className="block text-xs text-muted-foreground leading-relaxed line-clamp-2">{blurb}</span>
-        <span className="block text-xs font-semibold text-primary">
-          {count} courses{totalVideos ? ` • ${totalVideos.toLocaleString()} videos` : ""} — tap to view inside
+        <span className={`w-14 h-14 rounded-2xl shrink-0 flex items-center justify-center border ${tile}`}>
+          {kind === "premium" ? <Crown className="w-6 h-6" /> : kind === "ai" ? <Sparkles className="w-6 h-6" /> : <Play className="w-6 h-6" />}
         </span>
-      </span>
-    </button>
-  );
+        <span className="flex-1 min-w-0 space-y-1.5">
+          <span className="flex items-center gap-2 flex-wrap">
+            <span className="font-display font-bold">{title}</span>
+            <span className={`text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-full border ${typePill}`}>
+              {kind === "premium" ? "PREMIUM" : kind === "ai" ? "AI" : "FREE"}
+            </span>
+          </span>
+          <span className="block text-xs text-muted-foreground leading-relaxed">{blurb}</span>
+          <span className="flex items-center gap-2 flex-wrap text-xs">
+            <span className="font-semibold text-foreground">
+              {count} courses{totalVideos ? ` • ${totalVideos.toLocaleString()} videos` : ""}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-muted/60 border border-border/50 text-muted-foreground">
+              {kind === "free" ? <Youtube className="w-3 h-3" /> : <HardDrive className="w-3 h-3" />}
+              {source}
+            </span>
+          </span>
+        </span>
+        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+      </button>
+    );
+  };
 
   const renderHub = () => (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="space-y-3 pb-4">
       {hubCard(
         "premium",
         "Premium Courses",
@@ -546,16 +571,14 @@ const CoursesPage = () => {
         freeAll.reduce((s, c) => s + (c.video_count || 0), 0),
         HUB_FREE_IMG
       )}
-      <div className="sm:col-span-2">
-        {hubCard(
-          "ai",
-          "AI Courses",
-          "AI and skill courses — AI tools, automation agents, building your own apps, web design, UI/UX and content creation. Skills for the new economy, from our own Drive, inside the app.",
-          aiAll.length,
-          aiAll.reduce((s, c) => s + (c.video_count || 0), 0),
-          HUB_AI_IMG
-        )}
-      </div>
+      {hubCard(
+        "ai",
+        "AI Courses",
+        "AI and skill courses — AI tools, automation agents, building your own apps, web design, UI/UX and content creation. Skills for the new economy, from our own Drive, inside the app.",
+        aiAll.length,
+        aiAll.reduce((s, c) => s + (c.video_count || 0), 0),
+        HUB_AI_IMG
+      )}
     </div>
   );
 

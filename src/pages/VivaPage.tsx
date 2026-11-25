@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Send, RotateCcw, GraduationCap, Volume2 } from "lucide-react";
+import { Mic, MicOff, Send, GraduationCap, Volume2, XCircle, BookOpen, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PageShell from "@/components/PageShell";
@@ -16,6 +16,12 @@ interface Message {
   role: "user" | "assistant";
   content: string;
 }
+
+const DIFFICULTY_LABELS: Record<string, string> = {
+  easy: "Easy — Basic concepts",
+  medium: "Medium — Application level",
+  hard: "Hard — Deep understanding",
+};
 
 const VIVA_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-session`;
 
@@ -177,53 +183,70 @@ const VivaPage = () => {
     speechSynthesis.speak(utterance);
   };
 
+  // The seeded first message ("Start the viva examination for …") is an
+  // internal instruction for the viva-session function — it is part of
+  // the API conversation but must NEVER render as a chat bubble. System
+  // messages are filtered out for the same reason.
+  const visibleMessages = messages.filter(
+    (m) =>
+      (m as { role: string }).role !== "system" &&
+      !(m.role === "user" && m.content.startsWith("Start the viva examination for")),
+  );
+
   if (!started) {
     return (
       <PageShell
         title="Viva Simulation"
         subtitle="AI-Powered Oral Examination"
-        icon={<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center"><GraduationCap className="w-5 h-5 text-primary-foreground" /></div>}
+        icon={<div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center"><GraduationCap className="w-5 h-5 text-primary" /></div>}
       >
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto space-y-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto space-y-6 pb-6">
           <div className="glass rounded-2xl p-8 space-y-6">
             <div className="text-center space-y-2">
-              <div className="text-5xl">🎤</div>
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+                <Mic className="w-7 h-7 text-primary" />
+              </div>
               <h2 className="font-display font-bold text-xl text-foreground">Mock Viva Examination</h2>
               <p className="text-sm text-muted-foreground">Select your subject and difficulty. The AI examiner will test your knowledge with progressive questions.</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Subject</label>
+                <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-primary" /> Subject
+                </label>
                 <Select value={selectedSubject} onValueChange={setSelectedSubject}>
                   <SelectTrigger className="rounded-xl">
                     <SelectValue placeholder="Choose a subject" />
                   </SelectTrigger>
                   <SelectContent>
                     {subjects.map(s => (
-                      <SelectItem key={s.id} value={s.name}>{s.icon} {s.name}</SelectItem>
+                      <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Difficulty</label>
+                <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-primary" /> Difficulty
+                </label>
                 <Select value={difficulty} onValueChange={setDifficulty}>
                   <SelectTrigger className="rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="easy">🟢 Easy — Basic concepts</SelectItem>
-                    <SelectItem value="medium">🟡 Medium — Application level</SelectItem>
-                    <SelectItem value="hard">🔴 Hard — Deep understanding</SelectItem>
+                    <SelectItem value="easy">Easy — Basic concepts</SelectItem>
+                    <SelectItem value="medium">Medium — Application level</SelectItem>
+                    <SelectItem value="hard">Hard — Deep understanding</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <Button onClick={startViva} className="w-full rounded-xl h-12 font-semibold" disabled={!selectedSubject || !user}>
-              {!user ? "Sign in to start" : "Start Viva 🎯"}
+            <Button onClick={startViva} className="w-full rounded-xl h-12 font-semibold gradient-button text-primary-foreground gap-2" disabled={!selectedSubject || !user}>
+              <Mic className="w-4 h-4" />
+              {!user ? "Sign in to start" : "Start Viva"}
             </Button>
           </div>
         </motion.div>
@@ -235,12 +258,33 @@ const VivaPage = () => {
     <PageShell
       title="Viva Simulation"
       subtitle={selectedSubject}
-      icon={<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center"><GraduationCap className="w-5 h-5 text-primary-foreground" /></div>}
+      icon={<div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center"><GraduationCap className="w-5 h-5 text-primary" /></div>}
     >
       <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-220px)]">
+        {/* Session state — the viva flow is a free-form examiner chat, so
+            it tracks no question counter/total, timer or score in state;
+            only the real session identity (subject + difficulty) is
+            surfaced here, plus End Session. */}
+        <div className="flex flex-wrap items-center gap-2 pb-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-medium text-primary">
+            <BookOpen className="w-3 h-3" /> {selectedSubject}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-medium text-primary">
+            <Layers className="w-3 h-3" /> {DIFFICULTY_LABELS[difficulty] || difficulty}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto rounded-xl gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+            onClick={resetViva}
+          >
+            <XCircle className="w-3.5 h-3.5" /> End Session
+          </Button>
+        </div>
+
         <div className="flex-1 overflow-y-auto space-y-4 pb-4 pr-1">
           <AnimatePresence>
-            {messages.map((msg, i) => (
+            {visibleMessages.map((msg, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 10 }}
@@ -249,8 +293,8 @@ const VivaPage = () => {
               >
                 <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                   msg.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "glass border border-border/30"
+                    ? "gradient-primary text-primary-foreground"
+                    : "glass border border-primary/25"
                 }`}>
                   {msg.role === "assistant" ? (
                     <div className="space-y-2">
@@ -266,7 +310,7 @@ const VivaPage = () => {
               </motion.div>
             ))}
           </AnimatePresence>
-          {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
+          {isLoading && visibleMessages[visibleMessages.length - 1]?.role !== "assistant" && (
             <div className="flex justify-start">
               <div className="glass rounded-2xl px-4 py-3 border border-border/30">
                 <div className="flex items-center gap-2">
@@ -280,29 +324,36 @@ const VivaPage = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="glass rounded-2xl border border-border/30 p-3 flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`rounded-xl flex-shrink-0 ${isListening ? "bg-destructive/20 text-destructive animate-pulse" : ""}`}
-            onClick={toggleListening}
-          >
-            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          </Button>
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendAnswer()}
-            placeholder={isListening ? "Listening... speak your answer" : "Type your answer..."}
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
-            disabled={isLoading}
-          />
-          <Button variant="ghost" size="icon" className="rounded-xl flex-shrink-0" onClick={sendAnswer} disabled={!input.trim() || isLoading}>
-            <Send className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="rounded-xl flex-shrink-0 text-muted-foreground" onClick={resetViva}>
-            <RotateCcw className="w-4 h-4" />
-          </Button>
+        {/* Answer area — big gradient mic + text field with Send */}
+        <div className="glass rounded-2xl border border-border/30 p-3 space-y-2.5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleListening}
+              aria-label={isListening ? "Stop voice input" : "Answer by voice"}
+              className={`w-12 h-12 rounded-full gradient-button text-primary-foreground flex items-center justify-center shrink-0 shadow-elevated transition-transform hover:scale-105 ${isListening ? "animate-pulse ring-2 ring-destructive/50" : ""}`}
+            >
+              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
+            <p className="text-xs text-muted-foreground leading-snug">
+              {isListening ? "Listening... speak your answer" : "Tap to answer by voice, or type your answer below."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendAnswer()}
+              placeholder={isListening ? "Listening... speak your answer" : "Type your answer..."}
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none rounded-xl border border-border/50 px-3 py-2.5 focus:border-primary/50"
+              disabled={isLoading}
+            />
+            <Button size="icon" className="rounded-xl gradient-button text-primary-foreground flex-shrink-0" onClick={sendAnswer} disabled={!input.trim() || isLoading}>
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            After you send an answer, the examiner replies above with feedback and the next question.
+          </p>
         </div>
       </div>
     </PageShell>

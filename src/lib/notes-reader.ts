@@ -82,7 +82,7 @@ export async function fetchSubjectTopics(subjectName: string): Promise<SubjectTo
     .select("id, subject, semester, topic_no, title, slug, has_lab")
     .order("topic_no", { ascending: true });
   if (!data) return [];
-  return (data as SubjectTopic[]).filter((t) => sameSubject(t.subject, subjectName));
+  return (data as unknown as SubjectTopic[]).filter((t) => sameSubject(t.subject, subjectName));
 }
 
 /** topic_id -> status for every topic page of this subject (published or not). */
@@ -92,7 +92,7 @@ export async function fetchTopicPageStatuses(subjectName: string): Promise<Map<s
     .select("topic_id, subject, status");
   const map = new Map<string, string>();
   if (!data) return map;
-  (data as { topic_id: string; subject: string; status: string }[])
+  (data as unknown as { topic_id: string; subject: string; status: string }[])
     .filter((p) => sameSubject(p.subject, subjectName))
     .forEach((p) => map.set(p.topic_id, p.status));
   return map;
@@ -106,7 +106,7 @@ export async function fetchTopicPage(topicId: string): Promise<TopicPageData | n
     .eq("status", "published")
     .maybeSingle();
   if (!data) return null;
-  const page = data as TopicPageData;
+  const page = data as unknown as TopicPageData;
   return {
     ...page,
     code_examples: Array.isArray(page.code_examples) ? page.code_examples : [],
@@ -121,7 +121,7 @@ export async function fetchSubjectBooks(subjectName: string): Promise<LibraryBoo
     .select("id, subject, semester, title, author, source, license, hosted_url, official_url, size_mb, page_count")
     .order("title", { ascending: true });
   if (!data) return [];
-  return (data as LibraryBook[]).filter((b) => sameSubject(b.subject, subjectName));
+  return (data as unknown as LibraryBook[]).filter((b) => sameSubject(b.subject, subjectName));
 }
 
 /** External notes + past papers for this subject (demoted reference strip). */

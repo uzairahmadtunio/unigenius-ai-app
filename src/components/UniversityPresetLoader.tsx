@@ -338,7 +338,7 @@ const UniversityPresetLoader = ({ pool, onApplied }: Props) => {
             <>
               <div className="rounded-xl bg-muted/60 px-3 py-2.5 text-sm text-foreground space-y-1">
                 <p>
-                  <span className="font-medium">{selected.name}</span> — {PROGRAM_LABELS[program]}
+                  <span className="font-medium">{selected.name}</span> — {PROGRAM_LABELS[program]}{" "}
                   scheme available: Semester {loadedSemesters.join(", ")} will be loaded
                   {missingSemesters.length > 0 &&
                     ` · The scheme for Semester ${missingSemesters.join(", ")} is not available yet, so those lists will stay as they are`}

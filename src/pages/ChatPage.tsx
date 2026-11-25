@@ -19,6 +19,7 @@ import { ACCEPT_EXTENSIONS, isFileAllowed, getFileCategory, FILE_CATEGORY_STYLES
 import FileIcon from "@/components/FileIcon";
 import { notifyAiTier } from "@/lib/ai-tier-notifier";
 import { useAdmin } from "@/hooks/use-admin";
+import { useCurrentSemester } from "@/hooks/use-current-semester";
 
 interface Message {
   id: string;
@@ -28,7 +29,17 @@ interface Message {
   fileThumbnails?: string[];
   error?: boolean;
   retryText?: string;
+  // Real timestamp when the row carries one (chat_messages.created_at
+  // for loaded chats; send time for new messages). Optional on purpose.
+  createdAt?: string;
 }
+
+const formatMsgTime = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+};
 
 interface AttachedFile {
   name: string;
@@ -75,6 +86,9 @@ const ChatPage = () => {
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [voiceGender, setVoiceGender] = useState<"female" | "male">("female");
+  // Last quick-action chip tapped — drives the violet selected state.
+  const [activeChip, setActiveChip] = useState<string | null>(null);
+  const { semester: currentSemester, loaded: semesterLoaded } = useCurrentSemester();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -218,7 +232,7 @@ const ChatPage = () => {
     if (error) { toast.error("Failed to load chat"); return; }
     const loadedMessages: Message[] = [
       WELCOME_MESSAGE,
-      ...(data || []).map((m: any) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content, fileNames: m.file_names?.length > 0 ? m.file_names : undefined })),
+      ...(data || []).map((m: any) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content, fileNames: m.file_names?.length > 0 ? m.file_names : undefined, createdAt: m.created_at || undefined })),
     ];
     setMessages(loadedMessages);
     setAttachedFiles([]);
@@ -321,7 +335,7 @@ const ChatPage = () => {
     const streamStartedAt = Date.now();
     const STREAM_TOTAL_MS = 120_000;
     const assistantId = Date.now().toString();
-    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "", createdAt: new Date().toISOString() }]);
 
     const readWithTimeout = async () => {
       // Total stream deadline: the 45s per-chunk watchdog alone is not
@@ -392,7 +406,7 @@ const ChatPage = () => {
       ? `${msg}${msg ? "\n\n" : ""}📎 ${attachedFiles.length} file${attachedFiles.length > 1 ? "s" : ""} attached`
       : msg;
 
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content: displayContent, fileNames, fileThumbnails: fileThumbnails.length > 0 ? fileThumbnails : undefined };
+    const userMsg: Message = { id: Date.now().toString(), role: "user", content: displayContent, fileNames, fileThumbnails: fileThumbnails.length > 0 ? fileThumbnails : undefined, createdAt: new Date().toISOString() };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
@@ -445,6 +459,7 @@ const ChatPage = () => {
         content: `⚠️ ${err.message || "Something went wrong while contacting the AI."}`,
         error: true,
         retryText: msg,
+        createdAt: new Date().toISOString(),
       }]);
       toast.error(err.message || "Failed to get response");
     } finally {
@@ -455,7 +470,8 @@ const ChatPage = () => {
 
   // Put a quick-prompt starter into the input and focus it, so the student
   // can type their topic right after it. Never sends by itself.
-  const fillPrompt = (prompt: string) => {
+  const fillPrompt = (prompt: string, label?: string) => {
+    if (label) setActiveChip(label);
     setInput((prev) => {
       const t = prev.trim();
       return t ? `${prompt}${t}` : prompt;
@@ -511,6 +527,21 @@ const ChatPage = () => {
                 <p className="text-[11px] text-muted-foreground hidden sm:block">PDFs, Images, Word, PPT, Audio & Video</p>
               </div>
             </div>
+            {/* Persona strip: logo tile + persona name + violet online dot.
+                The semester tag only renders from real profile data. */}
+            <div className="max-w-3xl mx-auto flex items-center gap-2 mt-2 pt-2 border-t border-border/20">
+              <div className="w-6 h-6 rounded-md gradient-primary flex items-center justify-center shrink-0">
+                <Bot className="w-3.5 h-3.5 text-primary-foreground" />
+              </div>
+              <span className="text-xs font-medium text-foreground">Professor AI</span>
+              <span className="w-2 h-2 rounded-full bg-primary shrink-0" title="Online" />
+              <span className="text-[10px] text-muted-foreground">Online</span>
+              {user && semesterLoaded && (
+                <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 border border-primary/25 text-primary">
+                  SEM {currentSemester}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Scrollable messages area */}
@@ -544,7 +575,18 @@ const ChatPage = () => {
                           ))}
                         </div>
                       )}
-                      <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === "user" ? "gradient-primary text-primary-foreground" : "glass text-foreground"}`}>
+                      {msg.role === "assistant" && (
+                        <p className="text-[10px] text-muted-foreground ml-1 flex items-center gap-1.5">
+                          <span className="font-semibold text-primary">Professor AI</span>
+                          {msg.createdAt && formatMsgTime(msg.createdAt) && (
+                            <>
+                              <span aria-hidden="true">·</span>
+                              <span>{formatMsgTime(msg.createdAt)}</span>
+                            </>
+                          )}
+                        </p>
+                      )}
+                      <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === "user" ? "bg-primary/20 border border-primary/30 text-foreground" : "glass text-foreground"}`}>
                         {msg.role === "assistant" ? <MarkdownMessage content={msg.content} /> : msg.content || "…"}
                       </div>
                       {msg.error && msg.retryText && (
@@ -641,18 +683,33 @@ const ChatPage = () => {
             </AnimatePresence>
           </div>
 
-          {/* Fixed bottom input area */}
-          <div className="border-t border-border/30 bg-background/80 backdrop-blur-md px-4 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+          {/* Fixed bottom input area — rounded card, clear of the bottom
+              edge with safe-area padding (bottom nav is hidden here). */}
+          <div className="border-t border-border/30 bg-background/80 backdrop-blur-md px-4 pt-3" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
             <div className="max-w-3xl mx-auto space-y-2">
-              {/* Smart Buttons */}
-              <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-                {smartButtons.map((btn) => (
-                  <Button key={btn.label} variant="outline" size="sm" className="rounded-xl text-xs gap-1.5 flex-shrink-0" onClick={() => fillPrompt(btn.prompt)} disabled={isStreaming}>
-                    <btn.icon className="w-3 h-3" />
-                    <span className="hidden sm:inline">{btn.label}</span>
-                    <span className="sm:hidden">{btn.label.split(" ").slice(0, 2).join(" ")}</span>
-                  </Button>
-                ))}
+              {/* Smart Buttons: ONE horizontally scrollable row — full
+                  labels, no wrapping, no truncation. */}
+              <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+                {smartButtons.map((btn) => {
+                  const isActiveChip = activeChip === btn.label;
+                  return (
+                    <Button
+                      key={btn.label}
+                      variant="outline"
+                      size="sm"
+                      className={`rounded-full text-xs gap-1.5 shrink-0 whitespace-nowrap transition-colors ${
+                        isActiveChip
+                          ? "bg-primary/15 border-primary/50 text-primary hover:bg-primary/20 hover:text-primary"
+                          : ""
+                      }`}
+                      onClick={() => fillPrompt(btn.prompt, btn.label)}
+                      disabled={isStreaming}
+                    >
+                      <btn.icon className="w-3 h-3" />
+                      <span>{btn.label}</span>
+                    </Button>
+                  );
+                })}
               </div>
 
               {/* Attached files preview */}

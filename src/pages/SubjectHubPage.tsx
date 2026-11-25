@@ -109,7 +109,7 @@ const SubjectHubPage = () => {
         x.toLowerCase().replace(/\(.*?\)/g, " ").replace(/^introduction to /, "")
           .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
       const target = norm(subjectName);
-      const mine = (data as HubLecture[]).filter((l) => {
+      const mine = (data as unknown as HubLecture[]).filter((l) => {
         const n = norm(l.subject);
         return n === target || n.includes(target) || target.includes(n);
       });
@@ -737,7 +737,7 @@ TEACHING STYLE:
               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold"
             >
               <MonitorPlay className="w-4 h-4 text-red-500" />
-              Is Subject ke Lectures
+              Lectures for this Subject
               <span className="text-xs font-medium text-muted-foreground">
                 {hubLectures.length} playlists
               </span>

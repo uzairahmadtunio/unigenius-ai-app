@@ -42,22 +42,61 @@ const CareerReadinessWidget = () => {
 
   if (!user || score === null) return null;
 
-  const color = score >= 70 ? "text-emerald-500" : score >= 40 ? "text-amber-500" : "text-red-400";
+  // 12 tick marks around the ring, like a dial.
+  const ticks = Array.from({ length: 12 }, (_, i) => {
+    const a = (i * 30 * Math.PI) / 180;
+    return {
+      x1: 20 + Math.cos(a) * 17.4,
+      y1: 20 + Math.sin(a) * 17.4,
+      x2: 20 + Math.cos(a) * 19,
+      y2: 20 + Math.sin(a) * 19,
+    };
+  });
+  const circumference = 2 * Math.PI * 15.5;
 
   return (
     <motion.button
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       onClick={() => navigate("/career")}
-      className="glass rounded-2xl p-4 flex items-center gap-4 w-full text-left transition-shadow hover:shadow-md"
+      className="glass rounded-2xl p-4 sm:p-5 flex items-center gap-4 w-full h-full text-left transition-shadow hover:shadow-md group"
     >
       <div className="relative w-14 h-14 flex-shrink-0">
-        <svg viewBox="0 0 36 36" className="w-14 h-14 -rotate-90">
-          <circle cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" className="text-muted/30" strokeWidth="3" />
-          <circle cx="18" cy="18" r="15.5" fill="none" className={color} strokeWidth="3" strokeDasharray={`${score * 0.97} 100`} strokeLinecap="round" />
+        <svg viewBox="0 0 40 40" className="w-14 h-14 -rotate-90">
+          <defs>
+            <linearGradient id="career-readiness-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#8B5CF6" />
+              <stop offset="100%" stopColor="#4E7BFF" />
+            </linearGradient>
+          </defs>
+          {ticks.map((t, i) => (
+            <line
+              key={i}
+              x1={t.x1}
+              y1={t.y1}
+              x2={t.x2}
+              y2={t.y2}
+              stroke="currentColor"
+              className="text-muted-foreground/40"
+              strokeWidth="0.8"
+              strokeLinecap="round"
+            />
+          ))}
+          <circle cx="20" cy="20" r="15.5" fill="none" stroke="currentColor" className="text-muted/30" strokeWidth="3" />
+          <circle
+            cx="20"
+            cy="20"
+            r="15.5"
+            fill="none"
+            stroke="url(#career-readiness-gradient)"
+            strokeWidth="3"
+            strokeDasharray={`${(score / 100) * circumference} ${circumference}`}
+            strokeLinecap="round"
+          />
         </svg>
-        <span className={`absolute inset-0 flex items-center justify-center text-xs font-bold ${color}`}>{score}%</span>
+        <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">{score}%</span>
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5">
@@ -66,6 +105,9 @@ const CareerReadinessWidget = () => {
         <p className="text-[11px] text-muted-foreground mt-0.5">
           {score >= 70 ? "You're career-ready! Keep it up." : score >= 40 ? "Getting there — solve more DSA & do interviews." : "Start with DSA, mock interviews & CV upload."}
         </p>
+        <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary">
+          Start with DSA <ArrowRight className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5" />
+        </span>
       </div>
       <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
     </motion.button>

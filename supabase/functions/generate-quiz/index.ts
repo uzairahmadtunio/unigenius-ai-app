@@ -132,7 +132,37 @@ serve(async (req) => {
     const {
       subject, department, count = 30, fileData, fileType, fileName, mode,
       topic, bankOnly = false, bankFirst = true, semester,
+      difficulty, weakTopics,
     } = await req.json();
+
+    // ─── Adaptive level guidance (optional, backward compatible) ──────
+    // The client derives the student's level for the subject from their
+    // quiz history and passes it here. When absent, generation behaves
+    // exactly as before. Guidance applies ONLY to AI-generated questions
+    // (bank questions are served as-is and never pass through here).
+    const DIFFICULTY_GUIDANCE: Record<string, string> = {
+      Easy: "recall and basic concepts — definitions, direct facts and simple one-step questions a beginner can answer after a first reading",
+      Medium: "application — using concepts in short scenarios and standard problems, not just recalling them",
+      Hard: "analysis and multi-step reasoning — questions that combine concepts, need several steps, or ask the student to compare/evaluate",
+    };
+    const validDifficulty =
+      typeof difficulty === "string" && difficulty in DIFFICULTY_GUIDANCE
+        ? difficulty
+        : null;
+    const validWeakTopics = Array.isArray(weakTopics)
+      ? weakTopics.filter((t: unknown) => typeof t === "string" && t.trim()).slice(0, 5)
+      : [];
+    const adaptiveGuidance = (() => {
+      if (!validDifficulty && validWeakTopics.length === 0) return "";
+      let g = "\n\nADAPTIVE LEVEL GUIDANCE:";
+      if (validDifficulty) {
+        g += ` Target difficulty level: ${validDifficulty} — ${DIFFICULTY_GUIDANCE[validDifficulty]}. Keep every generated question at about this level.`;
+      }
+      if (validWeakTopics.length > 0) {
+        g += ` The student is weak in these topics: ${validWeakTopics.join(", ")}. Aim roughly 40% of the generated questions at these weak topics (still tagged with their real topic), and spread the rest across the subject's other important topics.`;
+      }
+      return g;
+    })();
 
     const sb = getServiceClient();
     const storedSubject = sb && subject && !fileData ? await findBankSubject(sb, subject) : null;
@@ -173,6 +203,8 @@ serve(async (req) => {
         systemText = `You are a university exam question generator for ${department || "Software Engineering"} students. Write exactly ${numQ} short-answer (subjective) questions about "${subject}". Each question must be answerable in 3-6 sentences and test understanding, not memorised one-liners.${topicRule}`;
         parts.push({ text: `Write ${numQ} diverse short-answer questions for the subject "${subject}"${topic ? ` focused strictly on the topic "${topic}"` : " covering its most important concepts"}. For each question, provide a complete model answer (3-6 sentences) and the key points a correct answer must mention.${topicRule}` });
       }
+
+      systemText += adaptiveGuidance;
 
       const saToolDecl = {
         function_declarations: [{
@@ -292,6 +324,8 @@ STRICT ANSWER-VALIDITY RULES:
       systemText = `You are a university exam question generator for ${department} students. Generate exactly ${aiCount} diverse multiple choice questions about "${subject}".${VALIDITY_RULES}${topicRule}`;
       parts.push({ text: `Generate ${aiCount} diverse MCQs for the subject "${subject}"${topic ? ` focused strictly on the topic "${topic}"` : " covering all important topics"}. Each question must have 4 options (A, B, C, D), one correct answer, a brief explanation, and a topic tag.${topicRule} Remember: no question may depend on undefined or unspecified behaviour (such as a++ + ++a) — every correct answer must be guaranteed by the standard.` });
     }
+
+    systemText += adaptiveGuidance;
 
     const toolDecl = {
       function_declarations: [{

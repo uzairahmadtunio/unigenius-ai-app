@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Bot, GraduationCap, Target, BookOpenCheck, Mic, FileText,
@@ -46,7 +47,7 @@ export const NAV_GROUPS: { label: string; items: Item[] }[] = [
 export const NavItems = ({ onNavigate }: { onNavigate?: () => void }) => {
   const { isAdmin } = useAdmin();
   const { isTeacher } = useRole();
-  const link = (it: Item) => (
+  const link = (it: Item, extra?: ReactNode) => (
     <NavLink
       key={it.to}
       to={it.to}
@@ -55,13 +56,14 @@ export const NavItems = ({ onNavigate }: { onNavigate?: () => void }) => {
       className={({ isActive }) => cn(
         "group flex items-center gap-2.5 rounded-md px-2.5 h-9 text-[13px] font-medium transition-colors focus-ring",
         isActive
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          ? "bg-primary/15 text-foreground"
           : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
       )}
     >
       {({ isActive }) => (<>
         <it.icon className={cn("w-4 h-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} aria-hidden />
         <span className="truncate">{it.label}</span>
+        {extra}
       </>)}
     </NavLink>
   );
@@ -70,7 +72,13 @@ export const NavItems = ({ onNavigate }: { onNavigate?: () => void }) => {
       <div className="space-y-0.5">
         {link({ to: "/", label: "Dashboard", icon: LayoutDashboard })}
         {isTeacher && !isAdmin && link({ to: "/teacher-dashboard", label: "Teacher Panel", icon: GraduationCap })}
-        {isAdmin && link({ to: "/admin", label: "Admin", icon: Shield })}
+        {isAdmin &&
+          link(
+            { to: "/admin", label: "Admin Dashboard", icon: Shield },
+            <span className="ml-auto shrink-0 text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/25">
+              ADMIN
+            </span>,
+          )}
       </div>
       {NAV_GROUPS.map((g) => (
         <div key={g.label}>

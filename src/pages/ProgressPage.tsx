@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, Clock, BookOpen, Plus, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { TrendingUp, Clock, BookOpen, Plus, Loader2, CalendarPlus, PieChart as PieChartIcon, Cpu, Code2, Sigma, PenLine, Landmark, Atom, FlaskConical, Leaf, Network, Database, AppWindow, Globe, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,6 +34,35 @@ interface Session {
 
 const COLORS = ["#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#3b82f6", "#14b8a6"];
 
+/* Same canonical subject-naming standard as the Planner form. Stored
+ * session subjects are user data and are never rewritten — only the
+ * labels derived in code (semester subject list) are mapped. */
+const CANONICAL_SUBJECT_NAMES: Record<string, string> = {
+  "Multivariable Calculus": "Applied Calculus",
+  "Communication Skills": "Expository Writing",
+};
+const canonicalSubject = (name: string): string =>
+  CANONICAL_SUBJECT_NAMES[name.trim()] ?? name;
+
+/** Keyword-matched line icon for a subject (mirrors SubjectGrid). */
+const getSubjectIcon = (name: string): LucideIcon => {
+  const n = name.toLowerCase();
+  if (n.includes("logic") || n.includes("digital")) return Cpu;
+  if (n.includes("programming") || n.includes("oop") || n.includes("object")) return Code2;
+  if (n.includes("calculus") || n.includes("math")) return Sigma;
+  if (n.includes("writing") || n.includes("english") || n.includes("composition")) return PenLine;
+  if (n.includes("pakistan")) return Landmark;
+  if (n.includes("quran") || n.includes("islam")) return BookOpen;
+  if (n.includes("physics")) return Atom;
+  if (n.includes("chemistry")) return FlaskConical;
+  if (n.includes("biolog")) return Leaf;
+  if (n.includes("data structure") || n.includes("algorithm")) return Network;
+  if (n.includes("database")) return Database;
+  if (n.includes("operating")) return AppWindow;
+  if (n.includes("network")) return Globe;
+  return BookOpen;
+};
+
 const ProgressPage = () => {
   const { user } = useAuth();
   const { department } = useDepartment();
@@ -45,6 +74,14 @@ const ProgressPage = () => {
   const [adding, setAdding] = useState(false);
   const [subject, setSubject] = useState("");
   const [duration, setDuration] = useState("30");
+  const logFormRef = useRef<HTMLDivElement>(null);
+
+  const focusLogForm = () => {
+    logFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      logFormRef.current?.querySelector<HTMLElement>("button, input")?.focus();
+    }, 350);
+  };
 
   const subjects = department ? getSubjects(department, semester) : [];
 
@@ -119,6 +156,7 @@ const ProgressPage = () => {
     [sessions]
   );
   const weekHours = useMemo(() => last7DaysData.reduce((a, b) => a + b.hours, 0).toFixed(1), [last7DaysData]);
+  const weekEmpty = useMemo(() => last7DaysData.every((d) => d.hours === 0), [last7DaysData]);
 
   // Subject progress %: target 20h per subject (semester goal)
   const subjectProgress = useMemo(() => {
@@ -134,21 +172,21 @@ const ProgressPage = () => {
       title="Progress Tracker"
       subtitle="Your study analytics & subject completion"
       icon={
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-          <TrendingUp className="w-5 h-5 text-primary-foreground" />
+        <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+          <TrendingUp className="w-5 h-5 text-primary" />
         </div>
       }
     >
       <div className="space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <StatCard icon={Clock} label="Total Hours" value={`${totalHours}h`} gradient="from-violet-500 to-purple-500" />
-          <StatCard icon={TrendingUp} label="This Week" value={`${weekHours}h`} gradient="from-emerald-500 to-teal-500" />
-          <StatCard icon={BookOpen} label="Sessions" value={String(sessions.length)} gradient="from-amber-500 to-orange-500" />
+        {/* Stats — three compact cards across on mobile too */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <StatCard icon={Clock} label="Total Hours" value={`${totalHours}h`} tile="bg-primary/10 text-primary border-primary/20" />
+          <StatCard icon={TrendingUp} label="This Week" value={`${weekHours}h`} tile="bg-blue-500/10 text-blue-400 border-blue-500/20" />
+          <StatCard icon={BookOpen} label="Sessions" value={String(sessions.length)} tile="bg-amber-500/10 text-amber-400 border-amber-500/20" />
         </div>
 
         {/* Log session */}
-        <div className="glass rounded-2xl p-4 space-y-3">
+        <div ref={logFormRef} className="glass rounded-2xl p-4 space-y-3">
           <h3 className="font-display font-semibold text-foreground text-sm">Log a Study Session</h3>
           <div className="flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-[140px]">
@@ -168,7 +206,7 @@ const ProgressPage = () => {
                 <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select subject" /></SelectTrigger>
                 <SelectContent>
                   {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.name}>{s.icon} {s.name}</SelectItem>
+                    <SelectItem key={s.id} value={s.name}>{s.icon} {canonicalSubject(s.name)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -187,7 +225,7 @@ const ProgressPage = () => {
         {/* Weekly chart */}
         <div className="glass rounded-2xl p-4">
           <h3 className="font-display font-semibold text-foreground text-sm mb-3">Last 7 Days (hours)</h3>
-          <div className="h-56">
+          <div className="relative h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={last7DaysData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -197,6 +235,20 @@ const ProgressPage = () => {
                 <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            {weekEmpty && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-4">
+                <span className="w-11 h-11 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <CalendarPlus className="w-5 h-5 text-primary" />
+                </span>
+                <p className="text-sm font-medium text-foreground">No sessions logged this week yet</p>
+                <button
+                  onClick={focusLogForm}
+                  className="text-xs font-semibold text-primary hover:underline underline-offset-2"
+                >
+                  Log your first session
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -205,7 +257,12 @@ const ProgressPage = () => {
           <div className="glass rounded-2xl p-4">
             <h3 className="font-display font-semibold text-foreground text-sm mb-3">Hours by Subject</h3>
             {bySubject.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-8">Log a session to see breakdown</p>
+              <div className="rounded-xl border border-dashed border-primary/25 bg-primary/5 px-4 py-8 flex flex-col items-center justify-center gap-2 text-center">
+                <span className="w-11 h-11 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <PieChartIcon className="w-5 h-5 text-primary" />
+                </span>
+                <p className="text-xs text-muted-foreground">Log a session to see breakdown</p>
+              </div>
             ) : (
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
@@ -222,17 +279,25 @@ const ProgressPage = () => {
           <div className="glass rounded-2xl p-4">
             <h3 className="font-display font-semibold text-foreground text-sm mb-3">Semester {semester} Completion</h3>
             <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
-              {subjectProgress.map((s) => (
-                <div key={s.id} className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-foreground truncate">{s.icon} {s.name}</span>
-                    <span className="text-muted-foreground">{s.hours}h / 20h</span>
+              {subjectProgress.map((s) => {
+                const SubIcon = getSubjectIcon(s.name);
+                return (
+                  <div key={s.id} className="space-y-1">
+                    <div className="flex justify-between items-center text-xs gap-2">
+                      <span className="text-foreground truncate flex items-center gap-1.5 min-w-0">
+                        <span className="w-5 h-5 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                          <SubIcon className="w-3 h-3 text-primary" />
+                        </span>
+                        {canonicalSubject(s.name)}
+                      </span>
+                      <span className="text-muted-foreground flex-shrink-0">{s.hours}h / 20h</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${s.pct}%` }} transition={{ duration: 0.8 }} className="h-full gradient-primary" />
+                    </div>
                   </div>
-                  <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${s.pct}%` }} transition={{ duration: 0.8 }} className="h-full gradient-primary" />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {subjectProgress.length === 0 && <p className="text-xs text-muted-foreground">No subjects</p>}
             </div>
           </div>
@@ -247,13 +312,13 @@ const ProgressPage = () => {
   );
 };
 
-const StatCard = ({ icon: Icon, label, value, gradient }: any) => (
-  <div className="glass rounded-2xl p-4">
-    <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-2`}>
-      <Icon className="w-4 h-4 text-white" />
+const StatCard = ({ icon: Icon, label, value, tile }: any) => (
+  <div className="glass rounded-2xl p-3 sm:p-4 min-w-0">
+    <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl border ${tile} flex items-center justify-center mb-2`}>
+      <Icon className="w-4 h-4" />
     </div>
-    <p className="text-2xl font-display font-bold text-foreground">{value}</p>
-    <p className="text-xs text-muted-foreground">{label}</p>
+    <p className="text-xl sm:text-2xl font-display font-bold text-foreground truncate">{value}</p>
+    <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{label}</p>
   </div>
 );
 

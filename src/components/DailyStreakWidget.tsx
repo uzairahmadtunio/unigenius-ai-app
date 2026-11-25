@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Flame, Trophy, Calendar, TrendingUp, Gift, Heart } from "lucide-react";
+import { Flame, Trophy, Calendar, TrendingUp, Gift, Heart, Check } from "lucide-react";
 import { useStreak } from "@/hooks/use-streak";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
+
+const MILESTONES = [7, 14, 30, 50, 100];
+
+const LEVEL_LABELS: Record<string, string> = {
+  warming: "Warming up",
+  hot: "On fire",
+  blazing: "Blazing",
+  legendary: "Legendary",
+};
+
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 const DailyStreakWidget = () => {
   const { user } = useAuth();
@@ -47,20 +58,6 @@ const DailyStreakWidget = () => {
 
   const streakLevel =
     currentStreak >= 30 ? "legendary" : currentStreak >= 14 ? "blazing" : currentStreak >= 7 ? "hot" : "warming";
-
-  const streakColors: Record<string, string> = {
-    warming: "from-orange-400/20 to-yellow-400/20 border-orange-500/30",
-    hot: "from-orange-500/20 to-red-400/20 border-orange-500/40",
-    blazing: "from-red-500/20 to-pink-500/20 border-red-500/40",
-    legendary: "from-purple-500/20 to-pink-500/20 border-purple-500/50",
-  };
-
-  const flameColors: Record<string, string> = {
-    warming: "text-orange-400",
-    hot: "text-orange-500",
-    blazing: "text-red-500",
-    legendary: "text-purple-500",
-  };
 
   const canClaimProDay = currentStreak >= 7 && !claimed;
   const canRecover = isUnlimited || (recoveryRemaining ?? 0) > 0;
@@ -105,13 +102,46 @@ const DailyStreakWidget = () => {
     setTimeout(() => window.location.reload(), 900);
   };
 
+  // Week dots (Mon–Sun): a day is active when it falls inside the current
+  // streak window — today back through (currentStreak - 1) days — and is
+  // not in the future.
+  const todayStart = startOfDay(new Date());
+  const mondayOffset = (todayStart.getDay() + 6) % 7;
+  const monday = new Date(todayStart);
+  monday.setDate(monday.getDate() - mondayOffset);
+  const streakStart = new Date(todayStart);
+  streakStart.setDate(streakStart.getDate() - (currentStreak - 1));
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(monday);
+    date.setDate(date.getDate() + i);
+    const isToday = date.getTime() === todayStart.getTime();
+    const isActive =
+      currentStreak > 0 && date.getTime() <= todayStart.getTime() && date.getTime() >= streakStart.getTime();
+    return { date, isToday, isActive, label: "MTWTFSS"[i] };
+  });
+
+  // Milestone strip copy.
+  const nextMilestone = MILESTONES.find((m) => m > currentStreak);
+  const reachedMilestone = MILESTONES.includes(currentStreak);
+  const lastMilestone = MILESTONES.filter((m) => m <= currentStreak).pop();
+  let milestoneText: string | null = null;
+  if (currentStreak > 0) {
+    if (reachedMilestone) {
+      milestoneText = `You reached a ${currentStreak}-day streak. Keep going!`;
+    } else if (nextMilestone) {
+      const remaining = nextMilestone - currentStreak;
+      milestoneText = `${remaining} more day${remaining === 1 ? "" : "s"} to your ${nextMilestone}-day streak!`;
+    } else if (lastMilestone) {
+      milestoneText = `You reached a ${lastMilestone}-day streak. Keep going!`;
+    }
+  }
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.06 }}
-      className={`glass rounded-2xl p-4 bg-gradient-to-br ${streakColors[streakLevel]} border`}
+      className="glass rounded-2xl p-4 sm:p-5 h-full"
     >
       <div className="flex items-center justify-between">
         {/* Streak counter */}
@@ -121,12 +151,12 @@ const DailyStreakWidget = () => {
             transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
             className="relative"
           >
-            <Flame className={`w-8 h-8 ${flameColors[streakLevel]}`} />
+            <Flame className="w-8 h-8 text-amber-400" />
             {currentStreak >= 7 && (
               <motion.div
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ repeat: Infinity, duration: 1 }}
-                className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-orange-400 blur-[2px]"
+                className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 blur-[2px]"
               />
             )}
           </motion.div>
@@ -135,7 +165,7 @@ const DailyStreakWidget = () => {
               <span className="text-2xl font-display font-bold text-foreground">{currentStreak}</span>
               <span className="text-xs text-muted-foreground font-medium">day streak</span>
             </div>
-            <p className="text-[10px] text-muted-foreground capitalize">{streakLevel} 🔥</p>
+            <p className="text-[10px] text-muted-foreground">{LEVEL_LABELS[streakLevel]}</p>
           </div>
         </div>
 
@@ -145,7 +175,7 @@ const DailyStreakWidget = () => {
             <Button
               size="sm"
               onClick={claimProDay}
-              className="rounded-xl gap-1.5 text-xs bg-gradient-to-r from-amber-500 to-orange-500 text-white animate-pulse hover:animate-none"
+              className="rounded-xl gap-1.5 text-xs gradient-button text-white"
             >
               <Gift className="w-3.5 h-3.5" />
               Free Pro Day
@@ -158,7 +188,7 @@ const DailyStreakWidget = () => {
                 onClick={recoverStreak}
                 disabled={recovering}
                 variant="outline"
-                className="rounded-xl gap-1.5 text-xs border-rose-500/40 text-rose-500 hover:bg-rose-500/10"
+                className="rounded-xl gap-1.5 text-xs border-primary/40 text-primary hover:bg-primary/10"
               >
                 <Heart className="w-3.5 h-3.5" />
                 {recovering ? "Restoring..." : "Restore Streak"}
@@ -172,7 +202,7 @@ const DailyStreakWidget = () => {
           )}
           <div className="text-center">
             <div className="flex items-center gap-1 justify-center">
-              <Trophy className="w-3 h-3 text-yellow-500" />
+              <Trophy className="w-3 h-3 text-amber-400" />
               <span className="text-sm font-bold text-foreground">{longestStreak}</span>
             </div>
             <p className="text-[10px] text-muted-foreground">Best</p>
@@ -189,11 +219,50 @@ const DailyStreakWidget = () => {
 
       {/* Streak progress bar to next milestone */}
       {currentStreak > 0 && <StreakProgress current={currentStreak} />}
+
+      {/* Week dots */}
+      <div className="mt-5 flex items-start justify-between px-0.5">
+        {weekDays.map((d) => (
+          <div key={d.label + d.date.toISOString()} className="flex flex-col items-center gap-1.5">
+            <div
+              className={`relative w-8 h-8 rounded-full flex items-center justify-center ${
+                d.isActive || d.isToday
+                  ? "bg-amber-400 text-amber-950"
+                  : "border border-border text-muted-foreground"
+              }`}
+            >
+              {d.isToday && (
+                <span className="absolute -inset-0.5 rounded-full ring-2 ring-amber-400/40 animate-pulse" />
+              )}
+              {d.isToday ? (
+                <Flame className="w-3.5 h-3.5" />
+              ) : d.isActive ? (
+                <Check className="w-3 h-3" />
+              ) : (
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+              )}
+            </div>
+            <span
+              className={`text-[9px] font-semibold ${
+                d.isToday ? "text-amber-400" : "text-muted-foreground"
+              }`}
+            >
+              {d.label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Milestone strip */}
+      {currentStreak > 0 && milestoneText && (
+        <div className="mt-4 bg-amber-400/10 border border-amber-300/20 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
+          <Flame className="w-3.5 h-3.5 text-amber-300 flex-shrink-0" />
+          <p className="text-xs font-medium leading-snug text-foreground">{milestoneText}</p>
+        </div>
+      )}
     </motion.div>
   );
 };
-
-const MILESTONES = [7, 14, 30, 50, 100];
 
 const StreakProgress = ({ current }: { current: number }) => {
   const nextMilestone = MILESTONES.find((m) => m > current) || 100;
@@ -201,7 +270,7 @@ const StreakProgress = ({ current }: { current: number }) => {
   const progress = ((current - prevMilestone) / (nextMilestone - prevMilestone)) * 100;
 
   return (
-    <div className="mt-3 space-y-1">
+    <div className="mt-4 space-y-1.5">
       <div className="flex justify-between items-center">
         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
           <TrendingUp className="w-3 h-3" />
@@ -209,12 +278,12 @@ const StreakProgress = ({ current }: { current: number }) => {
         </span>
         <span className="text-[10px] font-medium text-foreground">{Math.round(progress)}%</span>
       </div>
-      <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 1, ease: "easeOut" }}
-          className="h-full rounded-full bg-gradient-to-r from-orange-400 to-red-500"
+          className="h-full rounded-full gradient-primary"
         />
       </div>
     </div>

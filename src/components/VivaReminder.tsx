@@ -56,7 +56,8 @@ const VivaReminder = ({ semester }: { semester: number }) => {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className="glass rounded-2xl p-3 flex items-center gap-3 border border-primary/20"
+        whileHover={{ y: -1 }}
+        className="glass rounded-2xl p-3.5 sm:p-4 flex items-center gap-3 border border-primary/20"
       >
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center flex-shrink-0">
           <Brain className="w-4 h-4 text-primary-foreground" />

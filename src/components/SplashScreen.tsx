@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { GraduationCap, Code2, BookOpen, Award, Briefcase, FlaskConical } from "lucide-react";
 
 interface SplashScreenProps {
@@ -25,6 +26,7 @@ const floatingIcons = [
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const [stage, setStage] = useState(0);
   const [subtitleIdx, setSubtitleIdx] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const timers = [
@@ -48,25 +50,34 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     onComplete();
   }, [onComplete]);
 
+  const handleSignIn = useCallback(() => {
+    onComplete();
+    navigate("/auth");
+  }, [onComplete, navigate]);
+
   // Typing animation text
   const headline = "Welcome to UniGenius AI";
 
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
+        className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden auth-grain"
         exit={{ opacity: 0 }}
         transition={{ duration: 0.6 }}
         style={{
-          background: "linear-gradient(135deg, hsl(260 60% 12%), hsl(220 70% 14%), hsl(190 60% 16%))",
+          background:
+            "radial-gradient(900px 480px at 12% -5%, hsl(252 95% 68% / 0.16), transparent 60%), radial-gradient(820px 420px at 88% -10%, hsl(245 90% 66% / 0.12), transparent 60%), #07060F",
         }}
       >
-        {/* Animated mesh gradient blobs */}
+        {/* Faint grid overlay (auth world) */}
+        <div className="auth-grid-overlay" />
+
+        {/* Animated mesh gradient blobs — violet family only */}
         <div className="absolute inset-0 overflow-hidden">
           <motion.div
             className="absolute w-[600px] h-[600px] rounded-full opacity-30 blur-3xl"
             style={{
-              background: "radial-gradient(circle, hsl(270 70% 50% / 0.5), transparent 70%)",
+              background: "radial-gradient(circle, hsl(262 80% 55% / 0.5), transparent 70%)",
               top: "-10%",
               left: "-5%",
             }}
@@ -80,7 +91,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           <motion.div
             className="absolute w-[500px] h-[500px] rounded-full opacity-25 blur-3xl"
             style={{
-              background: "radial-gradient(circle, hsl(200 80% 50% / 0.5), transparent 70%)",
+              background: "radial-gradient(circle, hsl(248 85% 60% / 0.5), transparent 70%)",
               top: "40%",
               right: "-10%",
             }}
@@ -94,7 +105,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           <motion.div
             className="absolute w-[400px] h-[400px] rounded-full opacity-20 blur-3xl"
             style={{
-              background: "radial-gradient(circle, hsl(170 60% 45% / 0.4), transparent 70%)",
+              background: "radial-gradient(circle, hsl(275 75% 55% / 0.4), transparent 70%)",
               bottom: "-5%",
               left: "30%",
             }}
@@ -107,7 +118,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           />
         </div>
 
-        {/* Floating transparent 3D icons */}
+        {/* Floating transparent icons — faint violet */}
         {floatingIcons.map(({ Icon, x, y, size, delay }, i) => (
           <motion.div
             key={i}
@@ -129,7 +140,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           >
             <Icon
               style={{ width: size, height: size }}
-              className="text-white/20"
+              className="text-violet-300/25"
               strokeWidth={1.2}
             />
           </motion.div>
@@ -143,20 +154,15 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           className="mb-8 relative"
         >
           <motion.div
-            className="absolute inset-0 rounded-2xl"
+            className="absolute inset-0 rounded-2xl gradient-primary"
             style={{
-              background: "linear-gradient(135deg, hsl(260 60% 60% / 0.4), hsl(200 80% 60% / 0.4))",
               filter: "blur(20px)",
             }}
             animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.8, 0.5] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.div
-            className="relative w-20 h-20 rounded-2xl flex items-center justify-center border border-white/10"
-            style={{
-              background: "linear-gradient(135deg, hsl(260 50% 30% / 0.6), hsl(200 60% 25% / 0.6))",
-              backdropFilter: "blur(20px)",
-            }}
+            className="relative w-20 h-20 rounded-2xl flex items-center justify-center border border-white/15 gradient-primary shadow-[0_18px_38px_-12px_rgba(124,92,255,0.6)]"
             animate={{ rotate: [0, 5, -5, 0] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           >
@@ -171,7 +177,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
             animate={stage >= 0 ? { opacity: 1, y: 0 } : {}}
             className="text-4xl md:text-6xl font-display font-black text-white tracking-tight"
             style={{
-              textShadow: "0 0 40px hsl(260 60% 60% / 0.3), 0 2px 10px hsl(0 0% 0% / 0.3)",
+              textShadow: "0 0 40px hsl(262 80% 60% / 0.3), 0 2px 10px hsl(0 0% 0% / 0.3)",
             }}
           >
             {headline.split("").map((char, i) => (
@@ -180,6 +186,8 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.05 * i, duration: 0.05 }}
+                className={i >= 11 ? "headline-text" : undefined}
+                style={i >= 11 ? { textShadow: "none" } : undefined}
               >
                 {char}
               </motion.span>
@@ -215,18 +223,14 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
               >
                 <motion.button
                   onClick={handleGetStarted}
-                  className="relative px-10 py-3.5 rounded-2xl font-display font-bold text-white text-base tracking-wide overflow-hidden group"
-                  style={{
-                    background: "linear-gradient(135deg, hsl(260 60% 50%), hsl(200 70% 50%))",
-                    boxShadow: "0 0 30px hsl(260 60% 50% / 0.4), 0 0 60px hsl(200 70% 50% / 0.2)",
-                  }}
+                  className="gradient-button relative px-10 py-3.5 rounded-2xl font-display font-bold text-white text-base tracking-wide overflow-hidden group"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.97 }}
                   animate={{
                     boxShadow: [
-                      "0 0 20px hsl(260 60% 50% / 0.3), 0 0 40px hsl(200 70% 50% / 0.15)",
-                      "0 0 35px hsl(260 60% 50% / 0.5), 0 0 70px hsl(200 70% 50% / 0.25)",
-                      "0 0 20px hsl(260 60% 50% / 0.3), 0 0 40px hsl(200 70% 50% / 0.15)",
+                      "0 0 20px hsl(258 90% 65% / 0.35), 0 0 40px hsl(252 85% 60% / 0.18)",
+                      "0 0 35px hsl(258 90% 65% / 0.55), 0 0 70px hsl(252 85% 60% / 0.28)",
+                      "0 0 20px hsl(258 90% 65% / 0.35), 0 0 40px hsl(252 85% 60% / 0.18)",
                     ],
                   }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -235,24 +239,48 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
                   <span
                     className="absolute inset-0 rounded-2xl opacity-60"
                     style={{
-                      border: "1px solid hsl(200 80% 70% / 0.4)",
+                      border: "1px solid hsl(258 90% 78% / 0.45)",
                     }}
                   />
                   Get Started →
                 </motion.button>
 
+                <p className="text-sm text-white/50">
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={handleSignIn}
+                    className="font-semibold text-violet-300 underline-offset-4 transition hover:text-violet-200 hover:underline"
+                  >
+                    Sign in
+                  </button>
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Founder credit at bottom */}
+        {/* Stats + founder credit at bottom */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={stage >= 3 ? { opacity: 1 } : {}}
           transition={{ duration: 0.6 }}
-          className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-3"
+          className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-4 px-6"
         >
+          <div className="grid grid-cols-3 divide-x divide-white/[0.08] text-center">
+            <div className="px-4 sm:px-6">
+              <p className="font-display text-lg sm:text-xl font-bold text-white">55+</p>
+              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">Subjects</p>
+            </div>
+            <div className="px-4 sm:px-6">
+              <p className="font-display text-lg sm:text-xl font-bold text-white">615</p>
+              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">Topic Pages</p>
+            </div>
+            <div className="px-4 sm:px-6">
+              <p className="font-display text-lg sm:text-xl font-bold text-white">2,410</p>
+              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">Questions</p>
+            </div>
+          </div>
           <div className="w-16 h-px bg-white/15" />
           <p className="text-[11px] text-white/30 tracking-widest uppercase font-light">
             Designed & Founded by Uzair Ahmad

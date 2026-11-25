@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Library, Search, Eye, EyeOff, Lightbulb, Play, Pencil, Trash2, CheckCircle, XCircle, ArrowRight, Trophy, Loader2 } from "lucide-react";
+import { Library, Search, Eye, EyeOff, Lightbulb, Play, Pencil, Trash2, CheckCircle, XCircle, ArrowRight, Trophy, Loader2, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRole } from "@/hooks/use-role";
+import { useCurrentSemester } from "@/hooks/use-current-semester";
 import { toast } from "sonner";
 import PageShell from "@/components/PageShell";
 
@@ -52,6 +53,19 @@ const QuestionBankPage = () => {
 
   const [subjectFilter, setSubjectFilter] = useState<string>("all");
   const [topicFilter, setTopicFilter] = useState<string>("all");
+  // Semester filter (question_bank.semester). Defaults to the student's
+  // own current semester once the profile value has loaded — applied
+  // exactly once so it never fights a manual change.
+  const [semesterFilter, setSemesterFilter] = useState<string>("all");
+  const { semester: studentSemester, loaded: semesterLoaded } = useCurrentSemester();
+  const semesterDefaultApplied = useRef(false);
+  useEffect(() => {
+    if (semesterDefaultApplied.current) return;
+    if (semesterLoaded && user) {
+      semesterDefaultApplied.current = true;
+      setSemesterFilter(String(studentSemester));
+    }
+  }, [semesterLoaded, studentSemester, user]);
   const [search, setSearch] = useState("");
   // Pagination: the bank renders 25 questions per page — previously ALL
   // matching questions (800+) rendered in one endless list.
@@ -138,6 +152,13 @@ const QuestionBankPage = () => {
     () => Array.from(new Set(questions.map((q) => q.subject).filter(Boolean))).sort(),
     [questions]
   );
+  const semesters = useMemo(
+    () =>
+      Array.from(
+        new Set(questions.map((q) => q.semester).filter((s): s is number => typeof s === "number"))
+      ).sort((a, b) => a - b),
+    [questions]
+  );
   const topics = useMemo(
     () =>
       Array.from(
@@ -156,6 +177,7 @@ const QuestionBankPage = () => {
     return questions.filter((q) => {
       if (subjectFilter !== "all" && q.subject !== subjectFilter) return false;
       if (topicFilter !== "all" && q.topic !== topicFilter) return false;
+      if (semesterFilter !== "all" && q.semester !== Number(semesterFilter)) return false;
       if (!s) return true;
       return (
         q.question.toLowerCase().includes(s) ||
@@ -163,12 +185,12 @@ const QuestionBankPage = () => {
         q.subject?.toLowerCase().includes(s)
       );
     });
-  }, [questions, subjectFilter, topicFilter, search]);
+  }, [questions, subjectFilter, topicFilter, semesterFilter, search]);
 
   // Reset to the first page whenever the result set changes.
   useEffect(() => {
     setPage(1);
-  }, [subjectFilter, topicFilter, search, questions]);
+  }, [subjectFilter, topicFilter, semesterFilter, search, questions]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -181,7 +203,8 @@ const QuestionBankPage = () => {
   // bank is loaded, so per-subject counts are exact too). With no filter,
   // prefer the database's exact count, and never show less than the
   // number of questions actually loaded.
-  const filtersActive = subjectFilter !== "all" || topicFilter !== "all" || search.trim() !== "";
+  const filtersActive =
+    subjectFilter !== "all" || topicFilter !== "all" || semesterFilter !== "all" || search.trim() !== "";
   const displayTotal = filtersActive
     ? filtered.length
     : Math.max(exactTotal ?? 0, filtered.length);
@@ -324,34 +347,53 @@ const QuestionBankPage = () => {
                 const correct = pResult?.correct_answer ?? currentQ.correct_answer ?? "";
                 const isCorrect = pShow && o.key === correct;
                 const isWrong = pShow && pSelected === o.key && o.key !== correct;
+                const isDimmed = pShow && !isCorrect && !isWrong;
                 return (
                   <button
                     key={o.key}
                     disabled={pShow}
                     onClick={() => setPSelected(o.key)}
-                    className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                    className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all ${
                       isCorrect
-                        ? "border-green-500 bg-green-500/10"
+                        ? "gradient-primary border-transparent text-primary-foreground"
                         : isWrong
-                        ? "border-destructive bg-destructive/10"
+                        ? "border-rose-500/50 bg-rose-500/10"
                         : pSelected === o.key
                         ? "border-primary bg-primary/10"
                         : "border-border hover:border-primary/50"
-                    }`}
+                    } ${isDimmed ? "opacity-50" : ""}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-primary">{o.key}.</span>
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className={`w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                          isCorrect
+                            ? "bg-white/20 text-white"
+                            : "bg-primary/10 text-primary border border-primary/20"
+                        }`}
+                      >
+                        {o.key}
+                      </span>
                       <span className="flex-1">{o.text}</span>
-                      {isCorrect && <CheckCircle className="w-5 h-5 text-green-500" />}
-                      {isWrong && <XCircle className="w-5 h-5 text-destructive" />}
+                      {isCorrect && (
+                        <span className="flex items-center gap-1.5 shrink-0">
+                          <CheckCircle className="w-4 h-4 text-white" />
+                          <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-white/20 text-white">CORRECT</span>
+                        </span>
+                      )}
+                      {isWrong && (
+                        <span className="flex items-center gap-1.5 shrink-0">
+                          <XCircle className="w-4 h-4 text-rose-400" />
+                          <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-400">YOUR PICK</span>
+                        </span>
+                      )}
                     </div>
                   </button>
                 );
               })}
             </div>
             {pShow && (pResult?.explanation || currentQ.explanation) && (
-              <div className="p-4 rounded-lg bg-muted/50 border-l-4 border-primary">
-                <p className="text-sm font-semibold mb-1">Explanation</p>
+              <div className="px-3 py-2.5 rounded-lg bg-muted/40 border-l-2 border-primary">
+                <p className="text-[10px] font-bold tracking-wider text-primary mb-1">EXPLANATION</p>
                 <p className="text-sm text-muted-foreground">{pResult?.explanation || currentQ.explanation}</p>
               </div>
             )}
@@ -379,9 +421,23 @@ const QuestionBankPage = () => {
       subtitle="Browse teacher-curated MCQs and practice for exams"
       icon={<Library className="w-6 h-6 text-primary" />}
     >
+      {/* Level pill — reflects the active semester filter. When the
+          filter matches the student's own semester, the bank is
+          matched to their level. */}
+      <div className="mb-4">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/25 px-3 py-1 text-xs font-medium text-primary">
+          <Target className="w-3.5 h-3.5" />
+          {semesterFilter === "all"
+            ? "All semesters"
+            : user && Number(semesterFilter) === studentSemester
+              ? `Matched to your level · Semester ${studentSemester}`
+              : `Semester ${semesterFilter}`}
+        </span>
+      </div>
+
       {/* Controls */}
       <Card className="p-4 mb-6 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -403,6 +459,13 @@ const QuestionBankPage = () => {
             <SelectContent>
               <SelectItem value="all">All Topics</SelectItem>
               {topics.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={semesterFilter} onValueChange={setSemesterFilter}>
+            <SelectTrigger><SelectValue placeholder="Semester" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All semesters</SelectItem>
+              {semesters.map((s) => <SelectItem key={s} value={String(s)}>Semester {s}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -445,66 +508,81 @@ const QuestionBankPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(i * 0.02, 0.3) }}
               >
-                <Card className="p-5 space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">{q.subject}</Badge>
-                      {q.topic && <Badge variant="outline">{q.topic}</Badge>}
-                    </div>
-                    {canEdit(q) && (
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => setEditing(q)}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDelete(q)}>
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
-                    )}
+                <Card className="p-4 space-y-3">
+                  {/* Admin edit/delete controls were removed from the
+                      student-facing cards (Batch 2). The edit dialog +
+                      handlers below stay in the codebase; content is
+                      managed from the admin area. */}
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary">{q.subject}</Badge>
+                    {q.topic && <Badge variant="outline">{q.topic}</Badge>}
                   </div>
-                  <h3 className="font-semibold text-base">{q.question}</h3>
+                  <h3 className="font-semibold text-sm sm:text-[15px] leading-snug">{q.question}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {opts.map((k) => {
-                      const isCorrect = showAns && k === q.correct_answer;
+                      const isCorrect = showAns && !!q.correct_answer && k === q.correct_answer;
+                      const isDimmed = showAns && !!q.correct_answer && !isCorrect;
                       return (
                         <div
                           key={k}
-                          className={`p-3 rounded-lg border ${
-                            isCorrect ? "border-green-500 bg-green-500/10" : "border-border bg-muted/30"
-                          }`}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-sm transition-opacity ${
+                            isCorrect
+                              ? "gradient-primary border-transparent text-primary-foreground font-medium"
+                              : "border-border bg-muted/30"
+                          } ${isDimmed ? "opacity-50" : ""}`}
                         >
-                          <span className="font-bold text-primary mr-2">{k}.</span>
-                          <span>{optMap[k]}</span>
-                          {isCorrect && <CheckCircle className="w-4 h-4 text-green-500 inline ml-2" />}
+                          <span
+                            className={`w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                              isCorrect
+                                ? "bg-white/20 text-white"
+                                : "bg-primary/10 text-primary border border-primary/20"
+                            }`}
+                          >
+                            {k}
+                          </span>
+                          <span className="flex-1">{optMap[k]}</span>
+                          {isCorrect && (
+                            <span className="flex items-center gap-1.5 shrink-0">
+                              <CheckCircle className="w-4 h-4 text-white" />
+                              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-white/20 text-white">CORRECT</span>
+                            </span>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                   {canManage && (
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
+                      <button
                         onClick={() => setRevealed((r) => ({ ...r, [q.id]: !r[q.id] }))}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          showAns
+                            ? "bg-primary/15 border-primary/40 text-primary"
+                            : "border-border text-muted-foreground hover:text-foreground"
+                        }`}
                       >
-                        {showAns ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+                        {showAns ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                         {showAns ? "Hide Answer" : "Show Answer"}
-                      </Button>
+                      </button>
                       {q.explanation && (
-                        <Button
-                          size="sm"
-                          variant="outline"
+                        <button
                           onClick={() => setExplained((r) => ({ ...r, [q.id]: !r[q.id] }))}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                            showExp
+                              ? "bg-primary/15 border-primary/40 text-primary"
+                              : "border-border text-muted-foreground hover:text-foreground"
+                          }`}
                         >
-                          <Lightbulb className="w-4 h-4 mr-1" />
+                          <Lightbulb className="w-3.5 h-3.5" />
                           {showExp ? "Hide Explanation" : "Show Explanation"}
-                        </Button>
+                        </button>
                       )}
                     </div>
                   )}
                   {showExp && q.explanation && (
-                    <div className="p-3 rounded-lg bg-muted/50 border-l-4 border-primary text-sm text-muted-foreground">
-                      {q.explanation}
+                    <div className="px-3 py-2.5 rounded-lg bg-muted/40 border-l-2 border-primary">
+                      <p className="text-[10px] font-bold tracking-wider text-primary mb-1">EXPLANATION</p>
+                      <p className="text-sm text-muted-foreground">{q.explanation}</p>
                     </div>
                   )}
                 </Card>
@@ -514,12 +592,14 @@ const QuestionBankPage = () => {
         </div>
       )}
 
-      {/* Pagination controls */}
+      {/* Pagination controls — in the normal content flow, with clear
+          space above the fixed bottom nav. */}
       {!isLoading && filtered.length > PAGE_SIZE && (
-        <div className="flex items-center justify-center gap-3 pt-2">
+        <div className="flex items-center justify-center gap-3 mt-6 pb-24 md:pb-8">
           <Button
             size="sm"
             variant="outline"
+            className="rounded-full px-4 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary disabled:text-muted-foreground disabled:border-border"
             disabled={safePage <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
@@ -532,6 +612,7 @@ const QuestionBankPage = () => {
           <Button
             size="sm"
             variant="outline"
+            className="rounded-full px-4 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary disabled:text-muted-foreground disabled:border-border"
             disabled={safePage >= pageCount}
             onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
           >

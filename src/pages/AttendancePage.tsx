@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import { CalendarCheck, AlertTriangle, CheckCircle, XCircle, MinusCircle, TrendingUp, TrendingDown, Calculator, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  CalendarCheck, AlertTriangle, CheckCircle, XCircle, MinusCircle, TrendingUp, TrendingDown,
+  Calculator, Calendar, ChevronRight, Target, Code2, Monitor, Sigma, Atom, PenLine,
+  Network, BookOpen, GraduationCap, type LucideIcon,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,24 +22,53 @@ interface AttendanceRecord {
   status: Status;
 }
 
+// The app's one required threshold — used everywhere in this UI.
 const MIN_ATTENDANCE = 75;
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "2026-11-24" → "24 Nov 2026" */
+const fmtDate = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return `${d} ${MONTHS[m - 1]} ${y}`;
+};
+
+// Line icon per subject (replaces the emoji stored in subject data).
+const subjectIcon = (name: string): LucideIcon => {
+  const n = name.toLowerCase();
+  if (n.includes("programming") || n.includes("oop") || n.includes("object-oriented")) return Code2;
+  if (n.includes("ict") || n.includes("computer")) return Monitor;
+  if (n.includes("calculus") || n.includes("algebra") || n.includes("math")) return Sigma;
+  if (n.includes("physics")) return Atom;
+  if (n.includes("english") || n.includes("writing") || n.includes("composition") || n.includes("communication")) return PenLine;
+  if (n.includes("discrete") || n.includes("logic") || n.includes("digital")) return Network;
+  if (n.includes("islamic") || n.includes("quran") || n.includes("studies")) return BookOpen;
+  return GraduationCap;
+};
+
 // ── Circular Progress Component ──
+// The track is a visible plum ring (primary at low opacity) so a 0%
+// ring still reads as a ring; figures below the threshold are muted
+// neutral, never alarm-red.
 const CircularProgress = ({ percentage, size = 80, strokeWidth = 7 }: { percentage: number; size?: number; strokeWidth?: number }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
-  const color = percentage >= 80 ? "stroke-emerald-400" : percentage >= 75 ? "stroke-amber-400" : "stroke-red-400";
-  const bgColor = percentage >= 80 ? "text-emerald-400" : percentage >= 75 ? "text-amber-400" : "text-red-400";
+  const met = percentage >= MIN_ATTENDANCE;
 
   return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={strokeWidth} className="text-muted/30" />
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className={`${color} transition-all duration-700 ease-out`} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={strokeWidth} className="text-primary/20" />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={strokeWidth}
+          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
+          className={`${met ? "text-primary" : "text-primary/40"} transition-all duration-700 ease-out`}
+        />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={`text-lg font-bold font-display ${bgColor}`}>{percentage}%</span>
+        <span className={`font-bold font-display ${size >= 64 ? "text-lg" : "text-[11px]"} ${met ? "text-foreground" : "text-muted-foreground"}`}>{percentage}%</span>
       </div>
     </div>
   );
@@ -44,8 +76,7 @@ const CircularProgress = ({ percentage, size = 80, strokeWidth = 7 }: { percenta
 
 // ── Bunk Calculator Logic ──
 function calcBunkable(present: number, total: number): number {
-  // How many more classes can I miss and stay >= 75%?
-  // (present) / (total + x) >= 0.75  →  x <= (present / 0.75) - total
+  // How many more classes can I miss and stay >= MIN_ATTENDANCE%?
   if (total === 0) return 0;
   const maxBunks = Math.floor(present / (MIN_ATTENDANCE / 100)) - total;
   return Math.max(0, maxBunks);
@@ -53,8 +84,6 @@ function calcBunkable(present: number, total: number): number {
 
 function calcToReach(present: number, total: number, target: number): number {
   // How many consecutive classes to attend to reach target%?
-  // (present + x) / (total + x) >= target/100
-  // x >= (target * total - 100 * present) / (100 - target)
   if (total === 0) return 0;
   const current = (present / total) * 100;
   if (current >= target) return 0;
@@ -62,7 +91,7 @@ function calcToReach(present: number, total: number, target: number): number {
   return Math.max(0, needed);
 }
 
-// ── 14-Day Calendar Strip ──
+// ── 14-Day Calendar Strip — numbered day tiles, today highlighted ──
 const CalendarStrip = ({ records, subject }: { records: AttendanceRecord[]; subject: string }) => {
   const days = useMemo(() => {
     const arr = [];
@@ -72,25 +101,44 @@ const CalendarStrip = ({ records, subject }: { records: AttendanceRecord[]; subj
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split("T")[0];
       const rec = records.find(r => r.subject === subject && r.date === dateStr);
-      arr.push({ date: d, dateStr, status: rec?.status || null });
+      arr.push({ date: d, dateStr, status: rec?.status || null, isToday: i === 0 });
     }
     return arr;
   }, [records, subject]);
 
   const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+  const rangeLabel = days.length
+    ? `${fmtDate(days[0].dateStr)} – ${fmtDate(days[days.length - 1].dateStr)}`
+    : "";
 
   return (
-    <div className="flex gap-1 justify-between">
-      {days.map(({ date, dateStr, status }) => {
-        const bg = status === "present" ? "bg-emerald-500" : status === "absent" ? "bg-red-500" : status === "leave" ? "bg-amber-500" : "bg-muted/30";
-        return (
-          <div key={dateStr} className="flex flex-col items-center gap-0.5" title={`${dateStr}: ${status || "no record"}`}>
-            <span className="text-[8px] text-muted-foreground">{dayLabels[date.getDay()]}</span>
-            <div className={`w-4 h-4 rounded-sm ${bg} transition-colors`} />
-            <span className="text-[8px] text-muted-foreground">{date.getDate()}</span>
+    <div className="space-y-1.5">
+      <p className="text-[10px] text-muted-foreground">{rangeLabel}</p>
+      <div className="grid grid-cols-7 gap-1.5">
+        {days.map(({ date, dateStr, status, isToday }) => (
+          <div
+            key={dateStr}
+            title={`${fmtDate(dateStr)}: ${status || "no record"}`}
+            className={`rounded-lg border px-1 py-1.5 text-center ${
+              isToday ? "border-primary/60 bg-primary/10" : "border-border/60 bg-muted/20"
+            }`}
+          >
+            <p className="text-[8px] uppercase tracking-wide text-muted-foreground">{dayLabels[date.getDay()]}</p>
+            <p className={`text-xs font-semibold leading-tight ${isToday ? "text-primary" : "text-foreground"}`}>{date.getDate()}</p>
+            <span
+              className={`mx-auto mt-1 block w-1.5 h-1.5 rounded-full ${
+                status === "present"
+                  ? "bg-primary"
+                  : status === "absent"
+                    ? "bg-rose-400"
+                    : status === "leave"
+                      ? "bg-amber-400"
+                      : "bg-transparent"
+              }`}
+            />
           </div>
-        );
-      })}
+        ))}
+      </div>
     </div>
   );
 };
@@ -145,9 +193,8 @@ const AttendancePage = () => {
     const leaves = subRecords.filter(r => r.status === "leave").length;
     const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
     const bunkable = calcBunkable(present, total);
-    const toReach80 = calcToReach(present, total, 80);
-    const toReach75 = calcToReach(present, total, 75);
-    return { total, present, absent, leaves, percentage, bunkable, toReach80, toReach75 };
+    const toReach = calcToReach(present, total, MIN_ATTENDANCE);
+    return { total, present, absent, leaves, percentage, bunkable, toReach };
   };
 
   const getTodayStatus = (subjectName: string): Status | null => {
@@ -163,18 +210,20 @@ const AttendancePage = () => {
       const s = getStats(sub.name);
       totalClasses += s.total;
       totalPresent += s.present;
-      if (s.total >= 3 && s.percentage < 75) lowCount++;
+      if (s.total >= 3 && s.percentage < MIN_ATTENDANCE) lowCount++;
     });
     const overallPct = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 0;
     return { totalClasses, totalPresent, overallPct, lowCount };
   }, [records, subjects]);
+
+  const nothingMarked = records.length === 0;
 
   if (!user) {
     return (
       <PageShell
         title="Attendance Tracker"
         subtitle="Smart Bunk Calculator & 75% Monitor"
-        icon={<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center"><CalendarCheck className="w-5 h-5 text-primary-foreground" /></div>}
+        icon={<div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center"><CalendarCheck className="w-5 h-5 text-primary" /></div>}
       >
         <div className="glass rounded-2xl p-8 text-center space-y-4">
           <CalendarCheck className="w-12 h-12 text-muted-foreground/30 mx-auto" />
@@ -189,27 +238,36 @@ const AttendancePage = () => {
     <PageShell
       title="Attendance Tracker"
       subtitle="Smart Bunk Calculator & 75% Monitor"
-      icon={<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center"><CalendarCheck className="w-5 h-5 text-primary-foreground" /></div>}
+      icon={<div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center"><CalendarCheck className="w-5 h-5 text-primary" /></div>}
     >
-      <div className="space-y-6">
+      <div className="space-y-5 pb-6">
         {/* Overall Summary Bar */}
-        <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-6">
+        <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-5">
           <CircularProgress percentage={overallStats.overallPct} size={70} strokeWidth={6} />
           <div className="flex-1 min-w-[200px]">
             <h3 className="font-display font-bold text-foreground text-lg">Overall Attendance</h3>
             <p className="text-sm text-muted-foreground">
               {`${overallStats.totalPresent}/${overallStats.totalClasses} classes attended`}
             </p>
+            {nothingMarked && (
+              <p className="text-xs text-muted-foreground mt-1">
+                No classes marked yet. Mark your first class below to start tracking.
+              </p>
+            )}
           </div>
-          <div className="flex gap-4 text-center">
+          <div className="flex items-center gap-4 text-center">
             <div>
               <p className="text-2xl font-bold font-display text-foreground">{subjects.length}</p>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Subjects</p>
             </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+              <Target className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs text-primary font-medium">Min Required: {MIN_ATTENDANCE}%</span>
+            </span>
             {overallStats.lowCount > 0 && (
               <div>
-                <p className="text-2xl font-bold font-display text-red-400">{overallStats.lowCount}</p>
-                <p className="text-[10px] text-red-400 uppercase tracking-wider">Low (&lt;75%)</p>
+                <p className="text-2xl font-bold font-display text-amber-500 dark:text-amber-400">{overallStats.lowCount}</p>
+                <p className="text-[10px] text-amber-500 dark:text-amber-400 uppercase tracking-wider">Low (&lt;{MIN_ATTENDANCE}%)</p>
               </div>
             )}
           </div>
@@ -218,7 +276,7 @@ const AttendancePage = () => {
         {/* Controls */}
         <div className="flex flex-wrap gap-3 items-end">
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Semester</label>
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Semester</label>
             <Select value={String(semester)} onValueChange={v => setSemester(Number(v))}>
               <SelectTrigger className="rounded-xl w-[140px]"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -227,99 +285,106 @@ const AttendancePage = () => {
             </Select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Date</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="glass rounded-xl px-3 py-2 text-sm text-foreground outline-none"
-            />
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-xs text-amber-400 font-medium">Min Required: {MIN_ATTENDANCE}%</span>
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Date</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                className="glass rounded-xl px-3 py-2 text-sm text-foreground outline-none"
+              />
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{fmtDate(selectedDate)}</span>
+            </div>
           </div>
         </div>
 
-        {/* Subject Cards */}
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {subjects.map((sub, idx) => {
-            const stats = getStats(sub.name);
-            const todayStatus = getTodayStatus(sub.name);
-            const isLow = stats.total >= 3 && stats.percentage < MIN_ATTENDANCE;
-            const isExpanded = expandedSubject === sub.name;
+        {/* Subject list — compact rows in one card. The per-subject
+            Present / Absent / Leave marking controls stay functional as
+            a compact strip inside each row (the design mockup hid them;
+            removing working controls was not authorised). */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Subjects</p>
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+              {subjects.length} subject{subjects.length === 1 ? "" : "s"}
+            </span>
+            {loading && <span className="text-[11px] text-muted-foreground">Loading…</span>}
+          </div>
 
-            return (
-              <motion.div
-                key={sub.id}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className={`glass rounded-2xl overflow-hidden border-2 transition-colors ${isLow ? "border-red-500/40" : "border-transparent hover:border-primary/20"}`}
-              >
-                {/* Header with Circular Progress */}
-                <div className="p-4 flex items-start gap-3">
-                  <CircularProgress percentage={stats.percentage} size={64} strokeWidth={5} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{sub.icon}</span>
+          <div className="glass rounded-2xl border border-border overflow-hidden divide-y divide-border/50">
+            {subjects.map((sub, idx) => {
+              const stats = getStats(sub.name);
+              const todayStatus = getTodayStatus(sub.name);
+              const isLow = stats.total >= 3 && stats.percentage < MIN_ATTENDANCE;
+              const isExpanded = expandedSubject === sub.name;
+              const Icon = subjectIcon(sub.name);
+
+              return (
+                <motion.div
+                  key={sub.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.04 }}
+                  className="p-3.5 sm:p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                      <Icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <h4 className="font-display font-semibold text-foreground text-sm truncate">{sub.name}</h4>
-                    </div>
-                    <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
-                      <span className="text-emerald-400">{stats.present}P</span>
-                      <span className="text-red-400">{stats.absent}A</span>
-                      <span className="text-amber-400">{stats.leaves}L</span>
-                      <span>= {stats.total} total</span>
-                    </div>
-
-                    {/* Short Attendance Warning Badge */}
-                    {isLow && (
-                      <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-500/15 rounded-full px-2 py-0.5 uppercase tracking-wider">
-                        <AlertTriangle className="w-2.5 h-2.5" />
-                        Short Attendance
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">{stats.present}P</span>
+                        <span className="px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 dark:text-rose-400 font-medium">{stats.absent}A</span>
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">{stats.leaves}L</span>
+                        <span className="text-muted-foreground">= {stats.total} total</span>
+                        {isLow && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-full px-2 py-0.5 uppercase tracking-wider">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            Short Attendance
+                          </span>
+                        )}
                       </div>
-                    )}
+                    </div>
+                    <CircularProgress percentage={stats.percentage} size={46} strokeWidth={4} />
                   </div>
-                </div>
 
-                {/* Quick Attendance Buttons */}
-                <div className="px-4 pb-3 flex gap-2">
-                  {(["present", "absent", "leave"] as Status[]).map(status => {
-                    const isActive = todayStatus === status;
-                    const Icon = status === "present" ? CheckCircle : status === "absent" ? XCircle : MinusCircle;
-                    const colors = status === "present"
-                      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50"
-                      : status === "absent"
-                        ? "bg-red-500/20 text-red-400 border-red-500/50"
-                        : "bg-amber-500/20 text-amber-400 border-amber-500/50";
-
-                    return (
-                      <button
-                        key={status}
-                        onClick={() => markAttendance(sub.name, status)}
-                        className={`flex-1 rounded-xl py-2 text-xs font-medium border transition-all flex items-center justify-center gap-1 ${isActive ? colors : "border-border/50 text-muted-foreground hover:border-primary/30"
-                          }`}
-                      >
-                        <Icon className="w-3 h-3" />
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Bunk Calculator Predictions */}
-                <div className="px-4 pb-3">
-                  <button
-                    onClick={() => setExpandedSubject(isExpanded ? null : sub.name)}
-                    className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
-                  >
-                    <span className="flex items-center gap-1">
-                      <Calculator className="w-3 h-3" />
-                      Bunk Calculator & History
+                  {/* Marking controls — compact strip, marking for the
+                      date selected above */}
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap hidden sm:inline">
+                      {fmtDate(selectedDate)}:
                     </span>
-                    <ChevronRight className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                  </button>
+                    {(["present", "absent", "leave"] as Status[]).map(status => {
+                      const isActive = todayStatus === status;
+                      const StatusIcon = status === "present" ? CheckCircle : status === "absent" ? XCircle : MinusCircle;
+                      const activeColors = status === "present"
+                        ? "bg-primary/15 text-primary border-primary/40"
+                        : status === "absent"
+                          ? "bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/30"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30";
 
+                      return (
+                        <button
+                          key={status}
+                          onClick={() => markAttendance(sub.name, status)}
+                          className={`flex-1 rounded-lg py-1.5 px-2 text-[11px] font-medium border transition-all flex items-center justify-center gap-1 ${isActive ? activeColors : "border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"}`}
+                        >
+                          <StatusIcon className="w-3 h-3" />
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => setExpandedSubject(isExpanded ? null : sub.name)}
+                      aria-label="Bunk Calculator and history"
+                      className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                    >
+                      <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                    </button>
+                  </div>
+
+                  {/* Bunk Calculator & History */}
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div
@@ -328,34 +393,43 @@ const AttendancePage = () => {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="space-y-3 pt-2">
-                          {/* Predictions */}
+                        <div className="space-y-3 pt-3">
+                          <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                            <Calculator className="w-3.5 h-3.5 text-primary" />
+                            Bunk Calculator &amp; History
+                          </p>
+                          {/* One threshold (MIN_ATTENDANCE) in both tiles */}
                           <div className="grid grid-cols-2 gap-2">
-                            <div className="rounded-xl bg-emerald-500/10 p-2.5 text-center">
-                              <TrendingDown className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
-                              <p className="text-lg font-bold font-display text-emerald-400">{stats.bunkable}</p>
-                              <p className="text-[9px] text-muted-foreground leading-tight">classes you can<br />still miss (≥75%)</p>
+                            <div className="rounded-xl bg-primary/10 border border-primary/15 p-2.5 text-center">
+                              <TrendingDown className="w-4 h-4 text-primary mx-auto mb-1" />
+                              <p className="text-lg font-bold font-display text-foreground">{stats.bunkable}</p>
+                              <p className="text-[9px] text-muted-foreground leading-tight">
+                                classes you can still miss while staying at {MIN_ATTENDANCE}%
+                              </p>
                             </div>
-                            <div className="rounded-xl bg-blue-500/10 p-2.5 text-center">
-                              <TrendingUp className="w-4 h-4 text-blue-400 mx-auto mb-1" />
-                              <p className="text-lg font-bold font-display text-blue-400">
-                                {stats.percentage >= 80 ? "✓" : stats.toReach80}
+                            <div className="rounded-xl bg-primary/10 border border-primary/15 p-2.5 text-center">
+                              <TrendingUp className="w-4 h-4 text-primary mx-auto mb-1" />
+                              <p className="text-lg font-bold font-display text-foreground">
+                                {stats.total > 0 && stats.percentage >= MIN_ATTENDANCE ? "✓" : stats.toReach}
                               </p>
                               <p className="text-[9px] text-muted-foreground leading-tight">
-                                {stats.percentage >= 80 ? "already at 80%+" : "classes to attend\nto reach 80%"}
+                                {stats.total > 0 && stats.percentage >= MIN_ATTENDANCE
+                                  ? `already at ${MIN_ATTENDANCE}%+`
+                                  : `classes to attend to reach ${MIN_ATTENDANCE}%`}
                               </p>
                             </div>
                           </div>
 
-                          {stats.percentage < 75 && stats.total > 0 && (
-                            <div className="rounded-xl bg-red-500/10 p-2.5 text-center">
-                              <p className="text-xs text-red-400 font-medium">
-                                ⚠️ Attend next <span className="font-bold">{stats.toReach75}</span> classes consecutively to reach 75%
+                          {stats.percentage < MIN_ATTENDANCE && stats.total > 0 && (
+                            <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 text-center flex items-center justify-center gap-1.5">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+                              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                Attend next <span className="font-bold">{stats.toReach}</span> classes consecutively to reach {MIN_ATTENDANCE}%
                               </p>
                             </div>
                           )}
 
-                          {/* 14-Day Calendar Strip */}
+                          {/* Last 14 Days */}
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                               <Calendar className="w-3 h-3" />
@@ -364,13 +438,13 @@ const AttendancePage = () => {
                             <CalendarStrip records={records} subject={sub.name} />
                             <div className="flex gap-3 justify-center mt-1">
                               <span className="flex items-center gap-1 text-[8px] text-muted-foreground">
-                                <div className="w-2 h-2 rounded-sm bg-emerald-500" /> Present
+                                <span className="w-2 h-2 rounded-full bg-primary inline-block" /> Present
                               </span>
                               <span className="flex items-center gap-1 text-[8px] text-muted-foreground">
-                                <div className="w-2 h-2 rounded-sm bg-red-500" /> Absent
+                                <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" /> Absent
                               </span>
                               <span className="flex items-center gap-1 text-[8px] text-muted-foreground">
-                                <div className="w-2 h-2 rounded-sm bg-amber-500" /> Leave
+                                <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Leave
                               </span>
                             </div>
                           </div>
@@ -378,10 +452,10 @@ const AttendancePage = () => {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </div>
-              </motion.div>
-            );
-          })}
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </PageShell>

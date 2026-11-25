@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import { Trophy, Crown, Medal, Flame, Target, Award, Clock, CalendarDays, Globe, Users, GraduationCap, Building2 } from "lucide-react";
+import { Trophy, Crown, Medal, Flame, Star, Target, Award, Clock, CalendarDays, Globe, Users, GraduationCap, Building2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -27,6 +29,14 @@ interface LeaderboardEntry {
 
 type TimeFilter = "all" | "week" | "month";
 type ScopeFilter = "global" | "department" | "semester" | "me";
+
+// One shared pill-group pattern for BOTH filter groups (scope + period):
+// same container, same pill style, same active treatment.
+const pillGroupClass = "flex gap-1 glass rounded-xl p-1 flex-wrap";
+const pillClass = (active: boolean) =>
+  `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-semibold transition-all ${
+    active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+  }`;
 
 const LeaderboardPage = () => {
   const { user } = useAuth();
@@ -88,8 +98,8 @@ const LeaderboardPage = () => {
       title="Leaderboard"
       subtitle="Compete across UniGenius"
       icon={
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
-          <Trophy className="w-5 h-5 text-primary-foreground" />
+        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+          <Trophy className="w-5 h-5 text-amber-400" />
         </div>
       }
     >
@@ -108,7 +118,7 @@ const LeaderboardPage = () => {
               <div className="flex-1 min-w-0">
                 <p className="font-display font-bold text-foreground">Your Rank</p>
                 <p className="text-sm text-muted-foreground truncate">
-                  {currentUserEntry.total_points} pts • {currentUserEntry.quizzes_taken} quizzes • 🔥 {currentUserEntry.current_streak}d
+                  {currentUserEntry.total_points} pts • {currentUserEntry.quizzes_taken} quizzes • <Flame className="inline w-3.5 h-3.5 text-orange-400 -mt-0.5" /> {currentUserEntry.current_streak}d
                 </p>
               </div>
               <Flame className="w-6 h-6 text-amber-400 flex-shrink-0" />
@@ -118,7 +128,7 @@ const LeaderboardPage = () => {
 
         {/* Scope filters */}
         <div className="flex gap-2 flex-wrap">
-          <div className="flex gap-1 glass rounded-xl p-1 flex-wrap">
+          <div className={pillGroupClass}>
             {([
               { id: "global", label: "Global", icon: Globe },
               { id: "department", label: "Department", icon: Building2 },
@@ -128,18 +138,14 @@ const LeaderboardPage = () => {
               <button
                 key={s.id}
                 onClick={() => setScopeFilter(s.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-semibold transition-all ${
-                  scopeFilter === s.id
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={pillClass(scopeFilter === s.id)}
               >
                 <s.icon className="w-3.5 h-3.5" />
                 {s.label}
               </button>
             ))}
           </div>
-          <div className="flex gap-1 glass rounded-xl p-1">
+          <div className={pillGroupClass}>
             {([
               { id: "all", label: "All Time", icon: Trophy },
               { id: "month", label: "Monthly", icon: CalendarDays },
@@ -148,11 +154,7 @@ const LeaderboardPage = () => {
               <button
                 key={t.id}
                 onClick={() => setTimeFilter(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-semibold transition-all ${
-                  timeFilter === t.id
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={pillClass(timeFilter === t.id)}
               >
                 <t.icon className="w-3.5 h-3.5" />
                 {t.label}
@@ -186,8 +188,12 @@ const LeaderboardPage = () => {
             <span className="hidden sm:block text-center">Dept</span>
             <span className="text-center">Sem</span>
             <span className="text-center">Pts</span>
-            <span className="text-center" title="Current streak">🔥</span>
-            <span className="text-center hidden sm:block" title="Longest streak">★</span>
+            <span className="flex items-center justify-center gap-1" title="Current streak">
+              <Flame className="w-3.5 h-3.5 text-orange-400" /> Streak
+            </span>
+            <span className="hidden sm:flex items-center justify-center" title="Longest streak">
+              <Star className="w-3.5 h-3.5 text-amber-400/80" />
+            </span>
           </div>
 
           <LayoutGroup>
@@ -204,6 +210,11 @@ const LeaderboardPage = () => {
                     {scopeFilter === "me" ? "You're not ranked yet" : "No rankings yet"}
                   </p>
                   <p className="text-xs text-muted-foreground">Complete quizzes to appear!</p>
+                  <div className="pt-2">
+                    <Button asChild className="rounded-xl gradient-primary text-primary-foreground">
+                      <Link to="/practice">Take a quiz</Link>
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 displayEntries.map((entry) => {
@@ -281,9 +292,9 @@ const LeaderboardPage = () => {
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-primary" />Correct = <span className="font-bold text-foreground">10 pts</span></div>
-            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-400" />Perfect = <span className="font-bold text-amber-400">+50 pts</span></div>
-            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-400" />DSA = <span className="font-bold text-emerald-400">+20 pts</span></div>
-            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-400" />🔥 current / ★ longest streak</div>
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500/80" />Perfect = <span className="font-bold text-amber-400">+50 pts</span></div>
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#6D5CFF]" />DSA = <span className="font-bold text-[#9D8CFF]">+20 pts</span></div>
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-400/80" /><span className="flex items-center gap-1 flex-wrap"><Flame className="w-3.5 h-3.5 text-orange-400" /> current / <Star className="w-3.5 h-3.5 text-orange-400/80" /> longest streak</span></div>
           </div>
         </motion.div>
       </div>

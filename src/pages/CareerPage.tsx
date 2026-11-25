@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Briefcase, Code, FileText, Mic, MicOff, Send, Bot, User,
   Play, CheckCircle, XCircle, Upload, FileUp, Award, Target,
-  Lightbulb, ArrowRight, RefreshCw, Copy, Sparkles, List, Zap, TrendingUp
+  Lightbulb, ArrowRight, RefreshCw, Copy, Sparkles, List, Zap, TrendingUp, Medal
 } from "lucide-react";
 import SkillAnalyzer from "@/components/SkillAnalyzer";
 import { Button } from "@/components/ui/button";
@@ -259,7 +259,7 @@ Start by greeting the candidate and asking your first question.`
               className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
             >
               {msg.role === "assistant" && (
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center flex-shrink-0 mt-1">
+                <div className="w-7 h-7 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0 mt-1">
                   <Bot className="w-3.5 h-3.5 text-primary-foreground" />
                 </div>
               )}
@@ -496,7 +496,7 @@ Be encouraging but honest. Use markdown formatting.`
           checkAndAwardBadges(user.id);
         }
       } else if (text.toLowerCase().includes("correct: no")) {
-        toast.info("Not quite right — review the feedback and try again! 💪");
+        toast.info("Not quite right — review the feedback and try again!");
       }
     } catch (e: any) {
       toast.error(e.message || "Analysis failed");
@@ -524,8 +524,8 @@ Be encouraging but honest. Use markdown formatting.`
           </button>
         </div>
 
-        <Badge variant="secondary" className="text-[10px] gap-1">
-          ⚔️ {solvedIds.size}/5 for DSA Warrior Badge
+        <Badge variant="secondary" className="text-[10px] gap-1 bg-primary/10 text-primary border border-primary/20">
+          <Medal className="w-3 h-3" /> {solvedIds.size}/5 for DSA Warrior Badge
         </Badge>
       </div>
 
@@ -541,10 +541,10 @@ Be encouraging but honest. Use markdown formatting.`
                     key={p.id}
                     whileHover={{ x: 4 }}
                     onClick={() => selectProblem(p)}
-                    className={`glass rounded-xl p-4 text-left flex items-center gap-3 transition-all ${solved ? "ring-1 ring-emerald-500/30" : "hover:shadow-md"}`}
+                    className={`glass rounded-xl p-4 text-left flex items-center gap-3 transition-all ${solved ? "ring-1 ring-primary/30" : "hover:shadow-md"}`}
                   >
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                      solved ? "bg-emerald-500/20 text-emerald-500" : "bg-muted text-muted-foreground"
+                      solved ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
                     }`}>
                       {solved ? <CheckCircle className="w-4 h-4" /> : p.id}
                     </div>
@@ -552,10 +552,19 @@ Be encouraging but honest. Use markdown formatting.`
                       <p className="font-semibold text-sm text-foreground">{p.title}</p>
                       <p className="text-[11px] text-muted-foreground">{p.category}</p>
                     </div>
-                    <Badge variant={p.difficulty === "easy" ? "secondary" : p.difficulty === "medium" ? "outline" : "destructive"} className="text-[10px]">
-                      {p.difficulty === "easy" ? "🟢" : p.difficulty === "medium" ? "🟡" : "🔴"} {p.difficulty}
-                    </Badge>
-                    {solved && <Badge variant="secondary" className="text-[10px] text-emerald-500">+20 pts</Badge>}
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${
+                      p.difficulty === "easy"
+                        ? "bg-primary/10 text-primary"
+                        : p.difficulty === "medium"
+                          ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                          : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-300"
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        p.difficulty === "easy" ? "bg-primary" : p.difficulty === "medium" ? "bg-amber-400" : "bg-indigo-400"
+                      }`} />
+                      {p.difficulty}
+                    </span>
+                    {solved && <Badge variant="secondary" className="text-[10px] text-primary">+20 pts</Badge>}
                   </motion.button>
                 );
               })}
@@ -569,9 +578,18 @@ Be encouraging but honest. Use markdown formatting.`
                 <Button variant="ghost" size="sm" className="rounded-xl text-xs" onClick={() => { setSelectedProblem(null); setAnalysis(""); }}>
                   ← Back to Problems
                 </Button>
-                <Badge variant={selectedProblem.difficulty === "easy" ? "secondary" : selectedProblem.difficulty === "medium" ? "outline" : "destructive"} className="text-[10px]">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${
+                  selectedProblem.difficulty === "easy"
+                    ? "bg-primary/10 text-primary"
+                    : selectedProblem.difficulty === "medium"
+                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                      : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-300"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    selectedProblem.difficulty === "easy" ? "bg-primary" : selectedProblem.difficulty === "medium" ? "bg-amber-400" : "bg-indigo-400"
+                  }`} />
                   {selectedProblem.difficulty}
-                </Badge>
+                </span>
                 <Badge variant="secondary" className="text-[10px]">{selectedProblem.category}</Badge>
               </div>
 
@@ -587,7 +605,9 @@ Be encouraging but honest. Use markdown formatting.`
                 {showHints && (
                   <div className="bg-muted rounded-xl p-3 text-xs space-y-1">
                     {selectedProblem.hints.map((h, i) => (
-                      <p key={i} className="text-muted-foreground">💡 {h}</p>
+                      <p key={i} className="text-muted-foreground flex items-start gap-1.5">
+                        <Lightbulb className="w-3 h-3 mt-0.5 shrink-0 text-primary" /> {h}
+                      </p>
                     ))}
                   </div>
                 )}
@@ -604,9 +624,9 @@ Be encouraging but honest. Use markdown formatting.`
               <Select value={difficulty} onValueChange={setDifficulty}>
                 <SelectTrigger className="rounded-xl w-[140px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="easy">🟢 Easy</SelectItem>
-                  <SelectItem value="medium">🟡 Medium</SelectItem>
-                  <SelectItem value="hard">🔴 Hard</SelectItem>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -802,7 +822,7 @@ Be specific, actionable, and encouraging. Use the actual content from the CV.`
           accept=".pdf,.png,.jpg,.jpeg"
           className="hidden"
         />
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center mx-auto">
+        <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mx-auto">
           {file ? <CheckCircle className="w-7 h-7 text-primary-foreground" /> : <Upload className="w-7 h-7 text-primary-foreground" />}
         </div>
         {file ? (
@@ -814,7 +834,9 @@ Be specific, actionable, and encouraging. Use the actual content from the CV.`
           <>
             <p className="font-display font-semibold text-foreground">Drop your CV here</p>
             <p className="text-xs text-muted-foreground">Supports PDF, PNG, JPG • Max 10MB</p>
-            <p className="text-[10px] text-muted-foreground">📝 Uploading earns you the <strong>CV Ready</strong> badge!</p>
+            <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+              <Award className="w-3 h-3 text-primary" /> Uploading earns you the <strong>CV Ready</strong> badge!
+            </p>
           </>
         )}
       </motion.div>
@@ -837,10 +859,10 @@ Be specific, actionable, and encouraging. Use the actual content from the CV.`
 
 // ─── Main Career Page ─────────────────────────────────────────────
 const tabs = [
-  { id: "interview" as ActiveTab, icon: Briefcase, label: "Interview Prep", desc: "AI Mock Interviews", color: "from-sky-500 to-indigo-500" },
-  { id: "dsa" as ActiveTab, icon: Code, label: "DSA Practice", desc: "10 Problems + AI", color: "from-emerald-500 to-teal-500" },
-  { id: "cv" as ActiveTab, icon: FileText, label: "CV Optimizer", desc: "AI Resume Scorer", color: "from-violet-500 to-purple-500" },
-  { id: "skills" as ActiveTab, icon: TrendingUp, label: "Skill Sync", desc: "Freelance Gigs", color: "from-amber-500 to-orange-500" },
+  { id: "interview" as ActiveTab, icon: Briefcase, label: "Interview Prep", desc: "AI Mock Interviews" },
+  { id: "dsa" as ActiveTab, icon: Code, label: "DSA Practice", desc: "10 Problems + AI" },
+  { id: "cv" as ActiveTab, icon: FileText, label: "CV Optimizer", desc: "AI Resume Scorer" },
+  { id: "skills" as ActiveTab, icon: TrendingUp, label: "Skill Sync", desc: "Freelance Gigs" },
 ];
 
 import { usePro } from "@/hooks/use-pro";
@@ -855,14 +877,14 @@ const CareerPage = () => {
       title="Career Hub"
       subtitle="Built by Uzair Ahmad"
       icon={
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center">
-          <Briefcase className="w-5 h-5 text-primary-foreground" />
+        <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+          <Briefcase className="w-5 h-5 text-primary" />
         </div>
       }
     >
       <div className="relative min-h-[400px]">
         {!isPro && !proLoading && <ProPaywall feature="AI career tools, mock interviews, and CV optimizer" />}
-        <div className="space-y-6">
+        <div className="space-y-6 pb-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {tabs.map((tab) => (
             <motion.button
@@ -876,8 +898,8 @@ const CareerPage = () => {
                   : "hover:shadow-md"
               }`}
             >
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${tab.color} flex items-center justify-center mx-auto mb-2`}>
-                <tab.icon className="w-5 h-5 text-primary-foreground" />
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-2">
+                <tab.icon className="w-5 h-5 text-primary" />
               </div>
               <p className="font-display font-semibold text-sm text-foreground">{tab.label}</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">{tab.desc}</p>
@@ -900,12 +922,6 @@ const CareerPage = () => {
           </motion.div>
         </AnimatePresence>
 
-        <div className="text-center pt-4 border-t border-border/30">
-          <p className="text-xs text-muted-foreground">
-            Career Hub — Powered by <span className="font-bold text-foreground">UniGenius AI</span> | Built by{" "}
-            <span className="font-bold gradient-text">Uzair Ahmad</span>
-          </p>
-        </div>
         </div>
       </div>
     </PageShell>

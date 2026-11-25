@@ -196,17 +196,23 @@ const NotesPage = () => {
     setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, upvotes: total } : n)));
   };
 
+  // Display-only cleanup: some stored titles carry a raw
+  // "(official source: https://…" fragment — strip it at render so it
+  // never shows (or overflows) in the card. DB rows are not rewritten.
+  const cleanNoteTitle = (t: string) =>
+    t.replace(/\s*\(official source:.*$/i, "").trim() || t;
+
   return (
     <PageShell
       title="Notes"
       subtitle="Share notes with everyone — or keep your own private ones"
       icon={
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-          <FileText className="w-5 h-5 text-primary-foreground" />
+        <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+          <FileText className="w-5 h-5 text-primary" />
         </div>
       }
     >
-      <Tabs defaultValue="marketplace" className="space-y-4">
+      <Tabs defaultValue="marketplace" className="space-y-4 w-full min-w-0 pb-24">
         <TabsList className="rounded-xl">
           <TabsTrigger value="marketplace" className="rounded-lg gap-1.5">
             <FileText className="w-3.5 h-3.5" /> Marketplace
@@ -216,16 +222,17 @@ const NotesPage = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="marketplace" className="mt-0">
-      <div className="grid lg:grid-cols-3 gap-4">
-        {/* Upload */}
-        <div className="glass rounded-2xl p-6 space-y-4 h-fit">
+        <TabsContent value="marketplace" className="mt-0 min-w-0">
+      <div className="grid lg:grid-cols-3 gap-4 min-w-0">
+        {/* Upload — min-w-0 on the grid child + w-full fields keep every
+            control inside the page padding at 390px (overflow fix). */}
+        <div className="glass rounded-2xl p-5 sm:p-6 space-y-4 h-fit min-w-0 w-full max-w-full">
           <h3 className="font-display font-semibold text-foreground">Upload Notes</h3>
 
-          <Input placeholder="Title (e.g., DSA Chapter 3 Notes)" value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl" />
+          <Input placeholder="Title (e.g., DSA Chapter 3 Notes)" value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl w-full min-w-0" />
 
           <Select value={String(semester)} onValueChange={(v) => setSemester(Number(v))}>
-            <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="rounded-xl w-full min-w-0"><SelectValue /></SelectTrigger>
             <SelectContent>
               {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
                 <SelectItem key={s} value={String(s)}>Semester {s}</SelectItem>
@@ -234,7 +241,7 @@ const NotesPage = () => {
           </Select>
 
           <Select value={subject} onValueChange={setSubject}>
-            <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select subject" /></SelectTrigger>
+            <SelectTrigger className="rounded-xl w-full min-w-0"><SelectValue placeholder="Select subject" /></SelectTrigger>
             <SelectContent>
               {subjects.map((s) => (
                 <SelectItem key={s.id} value={s.name}>{s.icon} {s.name}</SelectItem>
@@ -242,12 +249,12 @@ const NotesPage = () => {
             </SelectContent>
           </Select>
 
-          <div>
+          <div className="min-w-0 w-full max-w-full overflow-hidden">
             <input
               type="file"
               accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
+              className="block w-full max-w-full text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
             />
           </div>
 
@@ -258,7 +265,7 @@ const NotesPage = () => {
         </div>
 
         {/* Notes List */}
-        <div className="lg:col-span-2 space-y-3">
+        <div className="lg:col-span-2 space-y-3 min-w-0 w-full max-w-full">
           <h3 className="font-display font-semibold text-foreground">Semester {semester} Notes</h3>
 
           {loading ? (
@@ -277,12 +284,14 @@ const NotesPage = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="glass rounded-xl p-4 flex items-center gap-4"
+                className="glass rounded-xl p-4 flex items-start gap-3 w-full min-w-0 max-w-full"
               >
                 <button
                   onClick={() => upvote(note.id)}
-                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors ${
-                    userVotes.has(note.id) ? "bg-primary/20 text-primary" : "hover:bg-muted text-muted-foreground"
+                  className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-full border shrink-0 transition-colors ${
+                    userVotes.has(note.id)
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-primary/10 text-primary border-primary/25 hover:bg-primary/20"
                   }`}
                 >
                   <ThumbsUp className="w-4 h-4" />
@@ -290,13 +299,13 @@ const NotesPage = () => {
                 </button>
 
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground text-sm truncate">{note.title}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground text-sm line-clamp-2 break-words">{cleanNoteTitle(note.title)}</p>
+                  <p className="text-xs text-muted-foreground break-words mt-0.5">
                     {note.subject} • by {note.uploader_name} • {new Date(note.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                   </p>
                 </div>
 
-                <a href={note.file_url} target="_blank" rel="noopener noreferrer">
+                <a href={note.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
                   <Button size="sm" variant="outline" className="rounded-lg gap-1.5 text-xs">
                     <Download className="w-3 h-3" /> Download
                   </Button>
@@ -308,16 +317,16 @@ const NotesPage = () => {
       </div>
         </TabsContent>
 
-        <TabsContent value="my-notes" className="mt-0">
+        <TabsContent value="my-notes" className="mt-0 min-w-0">
           {!user ? (
             <div className="glass rounded-2xl p-8 text-center space-y-2">
               <NotebookPen className="w-10 h-10 text-muted-foreground/30 mx-auto" />
               <p className="text-sm text-muted-foreground">Sign in to write and keep your own private notes.</p>
             </div>
           ) : (
-            <div className="grid lg:grid-cols-3 gap-4">
+            <div className="grid lg:grid-cols-3 gap-4 min-w-0">
               {/* Editor */}
-              <div className="glass rounded-2xl p-6 space-y-4 h-fit">
+              <div className="glass rounded-2xl p-5 sm:p-6 space-y-4 h-fit min-w-0 w-full max-w-full">
                 <h3 className="font-display font-semibold text-foreground flex items-center gap-2">
                   {editingNoteId ? <Pencil className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4 text-primary" />}
                   {editingNoteId ? "Edit Note" : "New Note"}
@@ -326,14 +335,14 @@ const NotesPage = () => {
                   placeholder="Title (e.g., OOP — Inheritance cheatsheet)"
                   value={noteTitle}
                   onChange={(e) => setNoteTitle(e.target.value)}
-                  className="rounded-xl"
+                  className="rounded-xl w-full min-w-0"
                 />
                 <Textarea
                   placeholder="Write your note here… definitions, formulas, anything you want to remember."
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}
                   rows={10}
-                  className="rounded-xl resize-y"
+                  className="rounded-xl resize-y w-full min-w-0"
                 />
                 <div className="flex gap-2">
                   <Button onClick={saveTextNote} disabled={savingNote} className="flex-1 rounded-xl gradient-primary text-primary-foreground gap-2">
@@ -350,7 +359,7 @@ const NotesPage = () => {
               </div>
 
               {/* My notes list */}
-              <div className="lg:col-span-2 space-y-3">
+              <div className="lg:col-span-2 space-y-3 min-w-0 w-full max-w-full">
                 <h3 className="font-display font-semibold text-foreground">Your Notes ({myNotes.length})</h3>
                 {myNotesLoading ? (
                   <div className="glass rounded-2xl p-8 text-center">
@@ -368,12 +377,12 @@ const NotesPage = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.04 }}
-                      className={`glass rounded-xl p-4 space-y-2 ${editingNoteId === note.id ? "border border-primary/40" : ""}`}
+                      className={`glass rounded-xl p-4 space-y-2 w-full min-w-0 max-w-full ${editingNoteId === note.id ? "border border-primary/40" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-medium text-foreground text-sm truncate">{note.title}</p>
-                          <p className="text-[11px] text-muted-foreground">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-foreground text-sm line-clamp-2 break-words">{note.title}</p>
+                          <p className="text-[11px] text-muted-foreground break-words">
                             Updated {new Date(note.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} • {note.content.length} characters
                           </p>
                         </div>

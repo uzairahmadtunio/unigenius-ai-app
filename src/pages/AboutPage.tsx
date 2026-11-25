@@ -2,7 +2,9 @@ import { motion } from "framer-motion";
 import { Sparkles, Target, Eye, Trophy, Linkedin, Github, Heart, Globe } from "lucide-react";
 import PageShell from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
-import founderImg from "@/assets/founder-uzair.png";
+
+const FOUNDER_AVATAR_URL =
+  "https://qcfzwrabcjdpfybleydm.supabase.co/storage/v1/object/public/avatars/d75e89ba-2aec-4ff7-a137-47c7c4777617/founder-avatar-violet.png";
 
 const highlights = [
   "AI Study Chat",
@@ -72,11 +74,13 @@ const AboutPage = () => {
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="relative flex-shrink-0">
                 <div className="absolute inset-0 rounded-full gradient-primary blur-2xl opacity-40" />
-                <img
-                  src={founderImg}
-                  alt="Uzair Ahmad — Founder of UniGenius AI"
-                  className="relative w-40 h-40 md:w-48 md:h-48 rounded-full object-cover border-4 border-primary/30 shadow-[0_0_30px_hsl(var(--primary)/0.4)]"
-                />
+                <div className="relative w-40 h-40 md:w-48 md:h-48 rounded-full p-[3px] gradient-primary shadow-[0_0_30px_hsl(var(--primary)/0.4)]">
+                  <img
+                    src={FOUNDER_AVATAR_URL}
+                    alt="Uzair Ahmad — Founder of UniGenius AI"
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                </div>
               </div>
               <div className="flex-1 text-center md:text-left">
                 <h3 className="font-display text-2xl font-bold">Uzair Ahmad</h3>
@@ -138,12 +142,21 @@ const AboutPage = () => {
                   {h}
                 </motion.div>
               ))}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.05 * highlights.length }}
+                className="px-4 py-3 rounded-xl border border-dashed border-primary/25 text-sm font-medium text-center text-muted-foreground"
+              >
+                …and more
+              </motion.div>
             </div>
           </Card>
         </motion.section>
 
         <motion.p {...fade(0.3)} className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5">
-          Built with <Heart className="w-3 h-3 fill-destructive text-destructive" /> for students by Uzair Ahmad
+          Built with <Heart className="w-3 h-3 text-primary" /> for students by Uzair Ahmad
         </motion.p>
       </div>
     </PageShell>

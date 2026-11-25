@@ -51,10 +51,10 @@ const ExamCountdown = ({ semester }: { semester: number }) => {
   const urgency = timeLeft.days <= 3 ? "text-destructive" : timeLeft.days <= 7 ? "text-amber-500" : "text-primary";
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-      <Card className="glass border-border/30 overflow-hidden">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} className="h-full">
+      <Card className="glass border-border/30 overflow-hidden rounded-2xl h-full">
         <div className={`h-1 ${timeLeft.days <= 3 ? "bg-destructive" : timeLeft.days <= 7 ? "bg-amber-500" : "bg-primary"}`} />
-        <CardContent className="p-4">
+        <CardContent className="p-4 sm:p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
               <Clock className={`w-5 h-5 ${urgency}`} />

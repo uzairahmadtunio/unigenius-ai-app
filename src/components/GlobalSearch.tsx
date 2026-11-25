@@ -209,7 +209,7 @@ const GlobalSearch = () => {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="glass rounded-xl px-3 py-2 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full max-w-md"
+        className="glass rounded-2xl px-3 py-2 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-all duration-200 hover:-translate-y-px hover:shadow-elevated active:scale-[0.99] w-full max-w-md"
       >
         <Search className="w-4 h-4" />
         <span className="flex-1 text-left">Search subjects, notes, lectures...</span>

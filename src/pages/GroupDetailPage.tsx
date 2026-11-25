@@ -6,6 +6,7 @@ import {
   Users, ArrowLeft, Send, Crown, Copy, Hash, Paperclip,
   FileText, Trash2, Upload, User, Search, UserPlus, X,
   Settings, Camera, LogOut, ShieldCheck, AlertTriangle, Loader2,
+  MessageSquare, FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +95,6 @@ const GroupDetailPage = () => {
   const [files, setFiles] = useState<GroupFile[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [rollSearch, setRollSearch] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -427,7 +427,7 @@ const GroupDetailPage = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 pt-6 pb-28 md:pb-6">
         {loadingGroup && !group && (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -456,7 +456,7 @@ const GroupDetailPage = () => {
           <div className="flex-1">
             <h1 className="font-display font-bold text-foreground text-lg">{group?.name || "Loading..."}</h1>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>{`${members.length} members`}</span>
+              <span>{`${members.length} ${members.length === 1 ? "member" : "members"}`}</span>
               {isOwner && inviteCode && (
                 <button onClick={copyCode} className="flex items-center gap-1 hover:text-primary transition-colors">
                   <Hash className="w-3 h-3" />{inviteCode}
@@ -560,66 +560,63 @@ const GroupDetailPage = () => {
               </AlertDialog>
             )}
 
-            {/* Invite Button */}
-            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="rounded-xl gap-1.5">
-                  <UserPlus className="w-3.5 h-3.5" /> Invite
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="glass border-border/50">
-                <DialogHeader>
-                  <DialogTitle className="font-display">Invite Members</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="glass rounded-xl p-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Share this code</p>
-                      <p className="font-mono font-bold text-foreground text-lg">{inviteCode}</p>
-                    </div>
-                    <Button size="sm" variant="outline" onClick={copyCode} className="rounded-xl gap-1">
-                      <Copy className="w-3 h-3" /> Copy
-                    </Button>
-                  </div>
+          </div>
+        </div>
 
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground font-medium">Search by Roll Number</p>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="e.g., 22SW001"
-                        value={rollSearch}
-                        onChange={e => setRollSearch(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && searchByRoll()}
-                        className="rounded-xl"
-                      />
-                      <Button onClick={searchByRoll} disabled={searching} size="sm" className="rounded-xl">
-                        <Search className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    {searchResults.map((p: any) => (
-                      <div key={p.user_id} className="flex items-center justify-between glass rounded-xl px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                            {p.avatar_url ? (
-                              <img src={p.avatar_url} className="w-7 h-7 rounded-full object-cover" />
-                            ) : (
-                              <User className="w-3.5 h-3.5 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{p.display_name}</p>
-                            <p className="text-[10px] text-muted-foreground">{p.roll_number}</p>
-                          </div>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => inviteMember(p.user_id)} className="rounded-lg text-xs h-7">
-                          Add
-                        </Button>
-                      </div>
-                    ))}
+        {/* Invite — in-flow panel (was a floating modal; same handlers,
+            same logic, only the presentation/placement changed) */}
+        <div className="glass rounded-2xl p-4 space-y-4 mb-6">
+          <h2 className="font-display font-semibold text-foreground text-sm flex items-center gap-2">
+            <UserPlus className="w-4 h-4 text-primary" /> Invite Members
+          </h2>
+          <div className="glass rounded-xl p-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Share this code</p>
+              {inviteCode ? (
+                <p className="font-mono font-bold text-foreground text-lg truncate">{inviteCode}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1">Only the owner can view the invite code</p>
+              )}
+            </div>
+            <Button size="sm" variant="outline" onClick={copyCode} className="rounded-xl gap-1 shrink-0">
+              <Copy className="w-3 h-3" /> Copy
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground font-medium">Search by roll number</p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g., 22SW001"
+                value={rollSearch}
+                onChange={e => setRollSearch(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && searchByRoll()}
+                className="rounded-xl"
+              />
+              <Button onClick={searchByRoll} disabled={searching} size="sm" className="rounded-xl">
+                <Search className="w-4 h-4" />
+              </Button>
+            </div>
+            {searchResults.map((p: any) => (
+              <div key={p.user_id} className="flex items-center justify-between glass rounded-xl px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                    {p.avatar_url ? (
+                      <img src={p.avatar_url} className="w-7 h-7 rounded-full object-cover" />
+                    ) : (
+                      <User className="w-3.5 h-3.5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{p.display_name}</p>
+                    <p className="text-[10px] text-muted-foreground">{p.roll_number ? `Roll ${p.roll_number}` : "No roll number"}</p>
                   </div>
                 </div>
-              </DialogContent>
-            </Dialog>
+                <Button size="sm" variant="outline" onClick={() => inviteMember(p.user_id)} className="rounded-lg text-xs h-7">
+                  Add
+                </Button>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -627,13 +624,13 @@ const GroupDetailPage = () => {
         <Tabs defaultValue="chat" className="space-y-4">
           <TabsList className="glass rounded-xl">
             <TabsTrigger value="chat" className="rounded-lg text-xs gap-1.5 data-[state=active]:gradient-primary data-[state=active]:text-primary-foreground">
-              💬 Chat
+              <MessageSquare className="w-3.5 h-3.5" /> Chat
             </TabsTrigger>
             <TabsTrigger value="files" className="rounded-lg text-xs gap-1.5 data-[state=active]:gradient-primary data-[state=active]:text-primary-foreground">
-              📁 Files
+              <FolderOpen className="w-3.5 h-3.5" /> Files
             </TabsTrigger>
             <TabsTrigger value="members" className="rounded-lg text-xs gap-1.5 data-[state=active]:gradient-primary data-[state=active]:text-primary-foreground">
-              👥 Members ({members.length})
+              <Users className="w-3.5 h-3.5" /> Members ({members.length})
             </TabsTrigger>
           </TabsList>
 
@@ -770,7 +767,7 @@ const GroupDetailPage = () => {
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">{m.roll_number || "No roll number"}</p>
+                  <p className="text-[10px] text-muted-foreground">{m.roll_number ? `Roll ${m.roll_number}` : "No roll number"}</p>
                 </div>
                 {isOwner && m.user_id !== user.id && (
                   <div className="flex gap-1">

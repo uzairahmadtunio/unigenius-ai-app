@@ -107,7 +107,7 @@ const CalendarPage = () => {
       title="Semester Calendar"
       subtitle="Track assignments, quizzes, exams & viva"
       icon={
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
           <CalendarIcon className="w-5 h-5 text-primary-foreground" />
         </div>
       }
@@ -165,9 +165,14 @@ const CalendarPage = () => {
           <div className="glass rounded-2xl p-12 text-center text-sm text-muted-foreground">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="glass rounded-2xl p-12 text-center space-y-3">
-            <CalendarIcon className="w-12 h-12 text-muted-foreground/30 mx-auto" />
+            <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+              <CalendarIcon className="w-6 h-6 text-primary" />
+            </div>
             <p className="font-display font-semibold text-foreground">No events</p>
             <p className="text-xs text-muted-foreground">Add deadlines, quizzes, midterms, finals & vivas to stay on track.</p>
+            <Button variant="outline" onClick={() => setOpen(true)} className="rounded-xl gap-2">
+              <Plus className="w-4 h-4" /> Add your first event
+            </Button>
           </div>
         ) : (
           <div className="space-y-2">

@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 export type Department = "se" | "cs" | "ai";
 
 export const departmentInfo: Record<Department, { name: string; fullName: string; icon: string; color: string }> = {
-  se: { name: "Software Engineering", fullName: "BS Software Engineering", icon: "⚙️", color: "from-blue-500 to-indigo-600" },
-  cs: { name: "Computer Science", fullName: "BS Computer Science", icon: "💻", color: "from-emerald-500 to-teal-600" },
-  ai: { name: "Artificial Intelligence", fullName: "BS Artificial Intelligence", icon: "🤖", color: "from-violet-500 to-purple-600" },
+  se: { name: "Software Engineering", fullName: "BS Software Engineering", icon: "⚙️", color: "from-violet-500 to-indigo-600" },
+  cs: { name: "Computer Science", fullName: "BS Computer Science", icon: "💻", color: "from-indigo-500 to-violet-600" },
+  ai: { name: "Artificial Intelligence", fullName: "BS Artificial Intelligence", icon: "🤖", color: "from-purple-500 to-blue-600" },
 };
 
 interface DepartmentContextType {

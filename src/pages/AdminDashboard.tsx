@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useAdmin } from "@/hooks/use-admin";
 import { useAuth } from "@/contexts/AuthContext";
@@ -224,13 +225,14 @@ const OverviewTab = () => {
     });
   }, []);
 
+  // One violet line-icon system for all five stats (was five colours).
   const statCards = stats
     ? [
-        { label: "Total Users", value: stats.total_users, icon: Users, color: "text-blue-400" },
-        { label: "Total Groups", value: stats.total_groups, icon: FolderOpen, color: "text-emerald-400" },
-        { label: "Files Uploaded", value: stats.total_files, icon: BarChart3, color: "text-amber-400" },
-        { label: "Notices Posted", value: stats.total_notices, icon: Megaphone, color: "text-purple-400" },
-        { label: "Quizzes Taken", value: stats.total_quizzes, icon: Shield, color: "text-rose-400" },
+        { label: "Total Users", value: stats.total_users, icon: Users },
+        { label: "Total Groups", value: stats.total_groups, icon: FolderOpen },
+        { label: "Files Uploaded", value: stats.total_files, icon: BarChart3 },
+        { label: "Notices Posted", value: stats.total_notices, icon: Megaphone },
+        { label: "Quizzes Taken", value: stats.total_quizzes, icon: Shield },
       ]
     : [];
 
@@ -259,7 +261,9 @@ const OverviewTab = () => {
               }`}
             >
               <CardContent className="p-3 md:p-4 text-center">
-                <s.icon className={`w-5 h-5 md:w-6 md:h-6 mx-auto mb-1.5 md:mb-2 ${s.color}`} />
+                <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-1.5 md:mb-2">
+                  <s.icon className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+                </div>
                 <p className="text-xl md:text-2xl font-bold text-foreground">{s.value}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
               </CardContent>
@@ -286,20 +290,29 @@ const OverviewTab = () => {
               </p>
             </div>
           ) : (
-            <div className="flex gap-2 h-28 md:h-32">
-              {weeklyActivity.map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                  <div className="flex-1 w-full flex items-end">
-                    <div
-                      className="w-full rounded-t-md bg-primary/60 transition-all"
-                      style={{ height: `${h}%` }}
-                    />
+            <div className="relative">
+              {/* Faint gridlines behind the bars — deliberately NO axis
+                  numbers: the data shown carries no scale, so none is invented. */}
+              <div className="absolute inset-x-0 top-0 bottom-5 flex flex-col justify-between pointer-events-none" aria-hidden="true">
+                {[0, 1, 2, 3, 4].map((n) => (
+                  <div key={n} className="h-px w-full bg-border/40" />
+                ))}
+              </div>
+              <div className="relative flex gap-2 h-28 md:h-32">
+                {weeklyActivity.map((h, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                    <div className="flex-1 w-full flex items-end">
+                      <div
+                        className="w-full rounded-t-md bg-primary/60 transition-all"
+                        style={{ height: `${h}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] text-muted-foreground">
+                      {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i]}
+                    </span>
                   </div>
-                  <span className="text-[9px] text-muted-foreground">
-                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i]}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
@@ -1700,11 +1713,12 @@ const FeedbackTab = ({ onCountChange }: { onCountChange: (n: number) => void }) 
 
   const handleExportCSV = () => {
     if (feedbacks.length === 0) return;
-    const headers = ["Student Name", "Email", "Category", "Message", "Status", "Date"];
+    const headers = ["Student Name", "Email", "Category", "Rating", "Message", "Status", "Date"];
     const rows = feedbacks.map((f: any) => [
       f.user_name,
       f.user_email,
       feedbackTypeConfig[f.feedback_type]?.label || f.feedback_type,
+      typeof f.rating === "number" && f.rating > 0 ? `${f.rating} of 5` : "",
       `"${(f.message || "").replace(/"/g, '""')}"`,
       f.status,
       new Date(f.created_at).toLocaleDateString("en-US"),
@@ -1795,6 +1809,23 @@ const FeedbackTab = ({ onCountChange }: { onCountChange: (n: number) => void }) 
                         </span>
                       </div>
                       <p className="text-[10px] text-muted-foreground">{f.user_email}</p>
+                      {typeof f.rating === "number" && f.rating > 0 && (
+                        <div className="flex items-center gap-1 mt-1.5" aria-label={`Rated ${f.rating} of 5`}>
+                          {[1, 2, 3, 4, 5].map((value) => (
+                            <Star
+                              key={value}
+                              className={`w-3.5 h-3.5 ${
+                                value <= f.rating
+                                  ? "fill-violet-400 text-violet-400"
+                                  : "text-muted-foreground/40"
+                              }`}
+                            />
+                          ))}
+                          <span className="ml-1 text-[10px] font-semibold text-violet-300">
+                            {f.rating} of 5
+                          </span>
+                        </div>
+                      )}
                       <p className="text-xs text-foreground mt-2 whitespace-pre-wrap">{f.message}</p>
                       <div className="flex items-center gap-2 mt-3">
                         {isNew && (
@@ -2012,8 +2043,63 @@ const OPENAI_COMPAT_PRESETS: Record<string, { label: string; baseUrl: string; mo
   custom: { label: "Custom endpoint", baseUrl: "", model: "" },
 };
 
+/* ── API Keys honesty helpers ──────────────────────────────────────────
+   State partition (every loaded key is counted EXACTLY once):
+     disabled = NOT enabled
+     cooling  = enabled AND cooldown_until is in the future
+     active   = enabled AND NOT cooling
+   So active + cooling + disabled always equals the pool total. Keys the
+   provider rejected land in "disabled": report_api_key_result() flips
+   enabled=false when it marks a key invalid, so they are counted here —
+   never double-counted as a separate bucket. */
+const isCoolingKey = (k: any) =>
+  !!k.enabled && !!k.cooldown_until && new Date(k.cooldown_until).getTime() > Date.now();
+
+// "Errors high": enabled, non-cooling, error rate ≥ 90% over ≥ 4 requests.
+const isErrorsHighKey = (k: any) => {
+  const total = Number(k.total_requests) || 0;
+  const errors = Number(k.total_errors) || 0;
+  return !!k.enabled && !isCoolingKey(k) && total >= 4 && errors / total >= 0.9;
+};
+
+// Human one-liner for a raw provider error; the raw text stays available
+// behind each row's "Details" toggle.
+const humanErrorLine = (raw: string): string => {
+  const text = String(raw || "");
+  const lower = text.toLowerCase();
+  if (lower.includes("timed out") || lower.includes("timeout")) {
+    return "Last error: Request timed out.";
+  }
+  if (lower.includes("503") || lower.includes("high demand") || lower.includes("overloaded")) {
+    return "Last error: Gemini is busy right now (503).";
+  }
+  if (lower.includes("429") || lower.includes("rate")) {
+    return "Last error: Rate limit reached (429).";
+  }
+  if (lower.includes("api key") || lower.includes("401") || lower.includes("403")) {
+    return "Last error: Key rejected by the provider.";
+  }
+  // Fallback: a trimmed plain-text excerpt — never a raw JSON braces dump.
+  let excerpt = text.trim();
+  if (excerpt.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(excerpt);
+      const msg = parsed?.error?.message || parsed?.message || parsed?.error;
+      if (typeof msg === "string" && msg.trim()) excerpt = msg.trim();
+    } catch { /* not JSON after all — fall through to the cleaned excerpt */ }
+  }
+  excerpt = excerpt.replace(/[{}"]/g, "").replace(/\s+/g, " ").trim();
+  if (excerpt.length > 120) excerpt = excerpt.slice(0, 120).trimEnd() + "…";
+  return `Last error: ${excerpt}`;
+};
+
+// "24 Nov 2026" format for added / last-used dates.
+const formatAdminDate = (value: string) =>
+  new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
 const ApiKeysTab = () => {
   const [keys, setKeys] = useState<any[]>([]);
+  const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newProvider, setNewProvider] = useState("gemini");
@@ -2136,24 +2222,35 @@ const ApiKeysTab = () => {
     fetchKeys();
   };
 
+  // Reconciled counts — derived ONLY from enabled + cooldown_until using
+  // the partition above, so the four numbers always sum to the total.
   const counts = {
     total: keys.length,
-    active: keys.filter((k) => k.effective_status === "active").length,
-    cooldown: keys.filter((k) => k.effective_status === "cooldown").length,
-    invalid: keys.filter((k) => k.effective_status === "invalid").length,
+    active: keys.filter((k) => !!k.enabled && !isCoolingKey(k)).length,
+    cooling: keys.filter((k) => isCoolingKey(k)).length,
+    disabled: keys.filter((k) => !k.enabled).length,
   };
 
   const statusBadge = (k: any) => {
-    switch (k.effective_status) {
-      case "active":
-        return <Badge className="text-[9px] bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/15">Active</Badge>;
-      case "cooldown":
-        return <Badge className="text-[9px] bg-amber-500/15 text-amber-600 hover:bg-amber-500/15">Cooldown</Badge>;
-      case "invalid":
-        return <Badge variant="destructive" className="text-[9px]">Invalid</Badge>;
-      default:
-        return <Badge variant="secondary" className="text-[9px]">Disabled</Badge>;
+    if (!k.enabled) {
+      return <Badge variant="secondary" className="text-[9px]">Disabled</Badge>;
     }
+    if (isCoolingKey(k)) {
+      return <Badge className="text-[9px] bg-amber-500/15 text-amber-600 hover:bg-amber-500/15">Cooling down</Badge>;
+    }
+    if (isErrorsHighKey(k)) {
+      return <Badge className="text-[9px] bg-amber-500/15 text-amber-600 hover:bg-amber-500/15">Active · errors high</Badge>;
+    }
+    return <Badge className="text-[9px] bg-primary/15 text-primary hover:bg-primary/15">Active</Badge>;
+  };
+
+  const toggleErrorDetails = (id: string) => {
+    setExpandedErrors((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   return (
@@ -2162,9 +2259,7 @@ const ApiKeysTab = () => {
         <div>
           <h2 className="text-xl font-display font-bold text-foreground">API Keys</h2>
           <p className="text-xs text-muted-foreground">
-            {`${counts.total} keys in pool • ${counts.active} active`}
-            {counts.cooldown > 0 && <> • {counts.cooldown} cooling down</>}
-            {counts.invalid > 0 && <> • {counts.invalid} invalid</>}
+            {`${counts.total} keys in pool · ${counts.active} active · ${counts.cooling} cooling down · ${counts.disabled} disabled`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -2338,22 +2433,36 @@ const ApiKeysTab = () => {
                     <span>•</span>
                     <span>
                       {k.last_used_at
-                        ? `Last used ${new Date(k.last_used_at).toLocaleString()}`
+                        ? `Last used ${formatAdminDate(k.last_used_at)} · ${new Date(k.last_used_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
                         : "Never used"}
                     </span>
                     <span>•</span>
-                    <span>Added {new Date(k.created_at).toLocaleDateString()}</span>
+                    <span>Added {formatAdminDate(k.created_at)}</span>
                   </div>
-                  {k.effective_status === "cooldown" && k.cooldown_until && (
+                  {isCoolingKey(k) && k.cooldown_until && (
                     <p className="flex items-center gap-1 text-[10px] text-amber-600 mt-1">
                       <Clock className="w-3 h-3" />
                       Back in rotation after {new Date(k.cooldown_until).toLocaleTimeString()}
                     </p>
                   )}
                   {k.last_error && (
-                    <p className="text-[10px] text-destructive/80 mt-1 truncate" title={k.last_error}>
-                      Last error: {k.last_error}
-                    </p>
+                    <div className="mt-1">
+                      <p className="text-[10px] text-destructive/80 flex items-center gap-2 flex-wrap">
+                        <span>{humanErrorLine(k.last_error)}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleErrorDetails(k.id)}
+                          className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                        >
+                          {expandedErrors.has(k.id) ? "Hide details" : "Details"}
+                        </button>
+                      </p>
+                      {expandedErrors.has(k.id) && (
+                        <p className="text-[10px] text-muted-foreground mt-1 break-all whitespace-pre-wrap rounded-lg bg-muted/40 p-2">
+                          {k.last_error}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -2369,17 +2478,12 @@ const ApiKeysTab = () => {
                       ? <Loader2 className="w-4 h-4 animate-spin" />
                       : <FlaskConical className="w-4 h-4 text-muted-foreground" />}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-lg w-8 h-8"
-                    onClick={() => toggleEnabled(k)}
+                  <Switch
+                    checked={!!k.enabled}
+                    onCheckedChange={() => toggleEnabled(k)}
                     title={k.enabled ? "Disable" : "Enable (resets health)"}
-                  >
-                    {k.enabled
-                      ? <ToggleRight className="w-4 h-4 text-emerald-500" />
-                      : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
-                  </Button>
+                    aria-label={k.enabled ? `Disable ${k.label}` : `Enable ${k.label}`}
+                  />
                   <Button
                     variant="ghost"
                     size="icon"

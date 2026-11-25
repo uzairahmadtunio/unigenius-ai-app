@@ -75,8 +75,8 @@ const NoticeBoard = () => {
   if (activeNotices.length === 0) return null;
 
   return (
-    <div className="space-y-2">
-      <h2 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
+    <div className="space-y-3">
+      <h2 className="font-display font-bold text-lg tracking-tight text-foreground flex items-center gap-2">
         <Megaphone className="w-4 h-4 text-primary" /> University Notices
       </h2>
       <AnimatePresence>
@@ -90,8 +90,8 @@ const NoticeBoard = () => {
               exit={{ opacity: 0, height: 0 }}
               layout
             >
-              <Card className={`glass border-border/30 ${priorityStyles[notice.priority] || ""}`}>
-                <CardContent className="p-3 flex items-start gap-3">
+              <Card className={`glass border-border/30 rounded-2xl overflow-hidden ${priorityStyles[notice.priority] || ""}`}>
+                <CardContent className="p-4 flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
                     <Icon className="w-4 h-4 text-muted-foreground" />
                   </div>

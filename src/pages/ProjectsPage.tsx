@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Rocket, Search, Loader2, Clock, Gauge, ChevronRight } from "lucide-react";
+import {
+  Rocket, Search, Loader2, Clock, Gauge, ChevronRight, Code2, Users, BookOpen,
+  Landmark, Calculator, GraduationCap, HeartPulse, ShoppingBag, Gamepad2,
+  ShieldCheck, Wifi, Leaf, Bus, Briefcase, Database, MonitorSmartphone,
+  Accessibility, FolderGit2, Layers, type LucideIcon,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import PageShell from "@/components/PageShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,9 +37,66 @@ const LEVELS: { value: number | "all"; label: string }[] = [
 ];
 
 export const difficultyStyles: Record<string, string> = {
-  Easy: "bg-emerald-500/15 text-emerald-400",
-  Medium: "bg-amber-500/15 text-amber-400",
-  Hard: "bg-rose-500/15 text-rose-400",
+  Easy: "bg-primary/15 text-primary",
+  Medium: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  Hard: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-300",
+};
+
+// One chip component/style shared by BOTH filter rows (level + category).
+const FilterChip = ({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "rounded-full border px-3.5 h-8 text-[13px] font-medium transition-colors whitespace-nowrap shrink-0",
+      active
+        ? "gradient-button text-primary-foreground border-transparent"
+        : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40",
+    )}
+  >
+    {children}
+  </button>
+);
+
+// Line icon per project, picked from its real domains/title keywords.
+const domainIcons: Record<string, LucideIcon> = {
+  Education: GraduationCap,
+  Finance: Landmark,
+  Business: Briefcase,
+  Healthcare: HeartPulse,
+  "AI/ML": Code2,
+  Data: Database,
+  Desktop: MonitorSmartphone,
+  Mobile: MonitorSmartphone,
+  Web: Code2,
+  "Game Development": Gamepad2,
+  Security: ShieldCheck,
+  Networking: Wifi,
+  IoT: Wifi,
+  Agriculture: Leaf,
+  Transport: Bus,
+  Accessibility: Accessibility,
+  Blockchain: Layers,
+};
+
+const projectIcon = (p: Project): LucideIcon => {
+  const t = p.title.toLowerCase();
+  if (t.includes("student") || t.includes("record")) return Users;
+  if (t.includes("library") || t.includes("book")) return BookOpen;
+  if (t.includes("bank") || t.includes("account")) return Landmark;
+  if (t.includes("cgpa") || t.includes("grade") || t.includes("calculator")) return Calculator;
+  if (t.includes("shop") || t.includes("store") || t.includes("commerce")) return ShoppingBag;
+  for (const d of p.domains || []) {
+    if (domainIcons[d]) return domainIcons[d];
+  }
+  return FolderGit2;
 };
 
 const ProjectsPage = () => {
@@ -99,52 +161,40 @@ const ProjectsPage = () => {
         </div>
       }
     >
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-5 pb-6">
         {/* Search */}
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search a project or technology — e.g. React, attendance, game…"
-            className="pl-9"
+            placeholder="Search projects or tech…"
+            className="pl-9 rounded-xl"
           />
         </div>
 
-        {/* Level filter */}
-        <div className="flex flex-wrap gap-2">
-          {LEVELS.map((l) => (
-            <button
-              key={String(l.value)}
-              onClick={() => setLevel(l.value)}
-              className={cn(
-                "rounded-full border px-3.5 h-8 text-[13px] font-medium transition-colors",
-                level === l.value
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40",
-              )}
-            >
-              {l.label}
-            </button>
-          ))}
+        {/* Level filter — same chip component as the category row */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Level</p>
+          <div className="flex flex-wrap gap-2">
+            {LEVELS.map((l) => (
+              <FilterChip key={String(l.value)} active={level === l.value} onClick={() => setLevel(l.value)}>
+                {l.label}
+              </FilterChip>
+            ))}
+          </div>
         </div>
 
-        {/* Domain filter */}
-        <div className="flex flex-wrap gap-1.5">
-          {domains.map((d) => (
-            <button
-              key={d}
-              onClick={() => setDomain(d)}
-              className={cn(
-                "rounded-full px-2.5 h-7 text-xs font-medium transition-colors",
-                domain === d
-                  ? "bg-secondary text-secondary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-              )}
-            >
-              {d}
-            </button>
-          ))}
+        {/* Category filter — identical chip component */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Category</p>
+          <div className="flex flex-wrap gap-2">
+            {domains.map((d) => (
+              <FilterChip key={d} active={domain === d} onClick={() => setDomain(d)}>
+                {d}
+              </FilterChip>
+            ))}
+          </div>
         </div>
 
         {loading ? (
@@ -160,64 +210,70 @@ const ProjectsPage = () => {
             <p className="text-sm text-muted-foreground">
               {filtered.length} project{filtered.length === 1 ? "" : "s"}
             </p>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((p, i) => (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                >
-                  <Link
-                    to={`/projects/${p.id}`}
-                    className="group flex h-full flex-col glass rounded-2xl border border-border p-5 hover:border-primary/40 transition-colors"
+            <div className="grid gap-4 md:grid-cols-2">
+              {filtered.map((p, i) => {
+                const Icon = projectIcon(p);
+                return (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(i * 0.03, 0.3) }}
                   >
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="rounded-full bg-primary/15 text-primary px-2 py-0.5 text-[11px] font-semibold">
-                        {p.level_name}
-                      </span>
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                          difficultyStyles[p.difficulty] || "bg-secondary text-secondary-foreground",
-                        )}
-                      >
-                        {p.difficulty}
-                      </span>
-                    </div>
-                    <h3 className="mt-3 font-semibold leading-snug group-hover:text-primary transition-colors">
-                      {p.title}
-                    </h3>
-                    <p className="mt-1.5 text-sm text-muted-foreground line-clamp-3">{p.one_line}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {(p.tech_stack || []).slice(0, 4).map((t) => (
-                        <span
-                          key={t}
-                          className="rounded-md bg-secondary/70 px-1.5 py-0.5 text-[11px] text-secondary-foreground"
-                        >
-                          {t}
-                        </span>
-                      ))}
-                      {(p.tech_stack || []).length > 4 && (
-                        <span className="rounded-md bg-secondary/70 px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                          +{p.tech_stack.length - 4}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1" />
-                    <div className="mt-4 pt-3 border-t border-border/60 flex items-center gap-4 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" /> ~{p.estimated_weeks} week
-                        {p.estimated_weeks === 1 ? "" : "s"}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Gauge className="w-3.5 h-3.5" /> {p.semesters}
-                      </span>
-                      <ChevronRight className="w-4 h-4 ml-auto group-hover:translate-x-0.5 transition-transform" />
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
+                    <Link
+                      to={`/projects/${p.id}`}
+                      className="group flex h-full glass rounded-2xl border border-border p-4 hover:border-primary/40 transition-colors gap-3.5"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                        <Icon className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="rounded-full bg-primary/15 text-primary px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap">
+                            {p.level_name}
+                          </span>
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap",
+                              difficultyStyles[p.difficulty] || "bg-secondary text-secondary-foreground",
+                            )}
+                          >
+                            {p.difficulty}
+                          </span>
+                        </div>
+                        <h3 className="mt-2 font-semibold leading-snug group-hover:text-primary transition-colors">
+                          {p.title}
+                        </h3>
+                        {/* The projects table has no author column — the
+                            founder-approved neutral byline is used. */}
+                        <p className="mt-0.5 text-xs text-muted-foreground">by UniGenius Team</p>
+                        <p className="mt-1.5 text-sm text-muted-foreground line-clamp-3">{p.one_line}</p>
+                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                          {(p.tech_stack || []).map((t) => (
+                            <span
+                              key={t}
+                              className="rounded-md bg-secondary/70 px-1.5 py-0.5 text-[11px] text-secondary-foreground"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex-1" />
+                        <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center gap-4 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" /> ~{p.estimated_weeks} week
+                            {p.estimated_weeks === 1 ? "" : "s"}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <Gauge className="w-3.5 h-3.5" /> {p.semesters}
+                          </span>
+                          <ChevronRight className="w-4 h-4 ml-auto group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </div>
           </>
         )}

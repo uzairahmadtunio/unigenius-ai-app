@@ -10,7 +10,7 @@ const navItems = [
   { icon: User, label: "Profile", path: "/profile" },
 ];
 
-const hiddenRoutes = ["/ai-tutor", "/chat", "/code-lab", "/teacher-dashboard", "/admin"];
+const hiddenRoutes = ["/ai-tutor", "/chat", "/code-lab", "/teacher-dashboard", "/admin", "/auth", "/forgot-password", "/reset-password"];
 
 const MobileBottomNav = () => {
   const navigate = useNavigate();

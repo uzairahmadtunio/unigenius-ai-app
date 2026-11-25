@@ -373,13 +373,17 @@ const LecturesPage = () => {
     const total = lec.video_count || 0;
     const watchedCount = Math.min((progress[lec.id] || []).length, total || (progress[lec.id] || []).length);
     const showThumb = lec.thumb_video_id && !brokenThumbs.has(lec.id);
+    const pct = total > 0 ? (watchedCount / total) * 100 : 0;
+    // Compact horizontal card while browsing; the inline player takes
+    // the full card width while something is playing.
+    const isPlayingLayout = playing || !!activeVideo;
     return (
       <motion.div
         key={lec.id}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: Math.min(i * 0.04, 0.3) }}
-        className="glass rounded-2xl border border-border overflow-hidden flex flex-col"
+        className={`glass rounded-2xl border border-border overflow-hidden flex ${isPlayingLayout ? "flex-col" : "flex-row"}`}
       >
         {activeVideo ? (
           <div className="aspect-video w-full bg-black">
@@ -404,7 +408,7 @@ const LecturesPage = () => {
         ) : (
           <button
             onClick={() => { setWatchVideo(null); setPlayingId(`pl-${lec.id}`); }}
-            className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-red-500/15 via-muted/40 to-primary/10 group block"
+            className="relative w-[7.5rem] sm:w-44 shrink-0 self-start aspect-video overflow-hidden rounded-xl bg-gradient-to-br from-red-500/15 via-muted/40 to-primary/10 group block m-3 mr-0 sm:m-4 sm:mr-0"
           >
             {showThumb && (
               <img
@@ -416,46 +420,50 @@ const LecturesPage = () => {
               />
             )}
             <span className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors" />
-            <PlayCircle className="w-14 h-14 text-white drop-shadow-lg absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform" />
-            <span className="absolute top-2.5 left-2.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-black/60 text-white">
+            <PlayCircle className="w-10 h-10 text-white drop-shadow-lg absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform" />
+            <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-black/60 text-white max-w-[55%] truncate">
               {lec.subject}
             </span>
             {badgeSem ? (
-              <span className="absolute top-2.5 right-2.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-black/60 text-white">
-                Semester {badgeSem}
+              <span className="absolute top-1.5 right-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-black/60 text-white">
+                Sem {badgeSem}
               </span>
             ) : null}
-            {lec.language && (
-              <span className="absolute bottom-2.5 left-2.5 text-xs font-semibold px-2 py-0.5 rounded-full bg-black/70 text-white flex items-center gap-1">
-                <Languages className="w-3.5 h-3.5" /> {lec.language}
-              </span>
-            )}
-            <span className="absolute bottom-2.5 right-2.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-black/60 text-white flex items-center gap-1">
-              <Youtube className="w-3.5 h-3.5 text-red-500" /> Playlist
+            <span className="absolute bottom-1.5 right-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-black/60 text-white flex items-center gap-1">
+              <Youtube className="w-3 h-3 text-red-500" /> Playlist
             </span>
           </button>
         )}
-        <div className="p-4 flex flex-col gap-2 flex-1">
-          <h3 className="font-semibold leading-snug">{lec.title}</h3>
-          <p className="text-xs text-muted-foreground">{lec.channel}{lec.language ? ` • ${lec.language}` : ""} • Full playlist • YouTube</p>
+        <div className="p-3 sm:p-4 flex flex-col gap-1.5 flex-1 min-w-0">
+          <h3 className="font-semibold leading-snug text-sm line-clamp-2">{lec.title}</h3>
+          <p className="text-xs text-muted-foreground truncate">{lec.channel} • Full playlist • YouTube</p>
+          {lec.language && (
+            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-primary/10 border border-primary/25 px-2 py-0.5 text-[11px] font-medium text-primary">
+              <Languages className="w-3 h-3" /> {lec.language}
+            </span>
+          )}
           {total > 0 && watchedCount > 0 && (
             <div className="space-y-1">
               <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full bg-green-500 rounded-full transition-all"
-                  style={{ width: `${Math.round((watchedCount / total) * 100)}%` }}
+                  className="h-full gradient-primary rounded-full transition-all"
+                  style={{ width: `max(14px, ${pct}%)` }}
                 />
               </div>
               <p className="text-[11px] text-muted-foreground">
-                {watchedCount}/{total} videos watched
+                {watchedCount}/{total} watched
                 {watchedCount >= total ? " — playlist complete!" : ""}
+                {pct > 0 && pct < 5 ? " · just started" : ""}
               </p>
             </div>
           )}
-          <div className="mt-auto flex flex-wrap gap-2 pt-1">
+          {/* Exactly ONE primary action (Watch). Resume / Videos /
+              YouTube stay available as quiet ghost actions so no
+              working flow is lost. */}
+          <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1.5">
             <Button
               size="sm"
-              className="rounded-xl flex-1"
+              className="rounded-xl flex-1 min-w-[7rem]"
               variant={playing || activeVideo ? "secondary" : "default"}
               onClick={() => {
                 if (activeVideo) setWatchVideo(null);
@@ -466,14 +474,14 @@ const LecturesPage = () => {
               {playing || activeVideo ? "Close" : "Watch here"}
             </Button>
             {total > 0 && watchedCount > 0 && watchedCount < total && (
-              <Button size="sm" variant="outline" className="rounded-xl" onClick={() => resumeLecture(lec)}>
-                <Play className="w-4 h-4 mr-1.5" /> Resume
+              <Button size="sm" variant="ghost" className="rounded-xl text-muted-foreground hover:text-foreground px-2" onClick={() => resumeLecture(lec)}>
+                <Play className="w-4 h-4 mr-1" /> Resume
               </Button>
             )}
             <Button
               size="sm"
-              variant="outline"
-              className="rounded-xl"
+              variant="ghost"
+              className="rounded-xl text-muted-foreground hover:text-foreground px-2"
               onClick={() => {
                 if (expandedId === lec.id) setExpandedId(null);
                 else {
@@ -482,11 +490,11 @@ const LecturesPage = () => {
                 }
               }}
             >
-              <ListVideo className="w-4 h-4 mr-1.5" /> Videos
+              <ListVideo className="w-4 h-4 mr-1" /> Videos
             </Button>
-            <Button size="sm" variant="outline" className="rounded-xl" asChild>
+            <Button size="sm" variant="ghost" className="rounded-xl text-muted-foreground hover:text-foreground px-2" asChild>
               <a href={playlistWatchUrl(lec.playlist_id)} target="_blank" rel="noreferrer">
-                <ExternalLink className="w-4 h-4 mr-1.5" />
+                <ExternalLink className="w-4 h-4 mr-1" />
                 YouTube
               </a>
             </Button>
@@ -517,7 +525,7 @@ const LecturesPage = () => {
                         className="shrink-0"
                       >
                         {w ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-500" />
+                          <CheckCircle2 className="w-5 h-5 text-primary" />
                         ) : (
                           <Circle className="w-5 h-5 text-muted-foreground" />
                         )}
@@ -542,7 +550,7 @@ const LecturesPage = () => {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: Math.min(i * 0.03, 0.3) }}
-        className="glass rounded-2xl border border-border overflow-hidden flex flex-col"
+        className={`glass rounded-2xl border border-border overflow-hidden flex ${playing ? "flex-col" : "flex-row"}`}
       >
         {playing ? (
           <div className="aspect-video w-full bg-black">
@@ -557,7 +565,7 @@ const LecturesPage = () => {
         ) : (
           <button
             onClick={() => { setPlayingId(`vid-${hit.id}`); if (hit.lecture?.id) setWatched(hit.lecture.id, hit.video_id, true); }}
-            className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-red-500/15 via-muted/40 to-primary/10 group block"
+            className="relative w-[7.5rem] sm:w-44 shrink-0 self-start aspect-video overflow-hidden rounded-xl bg-gradient-to-br from-red-500/15 via-muted/40 to-primary/10 group block m-3 mr-0 sm:m-4 sm:mr-0"
           >
             {showThumb && (
               <img
@@ -569,33 +577,33 @@ const LecturesPage = () => {
               />
             )}
             <span className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors" />
-            <PlayCircle className="w-12 h-12 text-white drop-shadow-lg absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform" />
+            <PlayCircle className="w-10 h-10 text-white drop-shadow-lg absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform" />
             {hit.lecture?.subject && (
-              <span className="absolute top-2.5 left-2.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-black/60 text-white">
+              <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-black/60 text-white max-w-[90%] truncate">
                 {hit.lecture.subject}
               </span>
             )}
           </button>
         )}
-        <div className="p-4 flex flex-col gap-2 flex-1">
-          <h3 className="font-semibold leading-snug text-sm">{hit.title}</h3>
-          <p className="text-xs text-muted-foreground">
+        <div className="p-3 sm:p-4 flex flex-col gap-1.5 flex-1 min-w-0">
+          <h3 className="font-semibold leading-snug text-sm line-clamp-2">{hit.title}</h3>
+          <p className="text-xs text-muted-foreground truncate">
             {hit.lecture?.channel}
             {hit.lecture?.semester ? ` • Semester ${hit.lecture.semester}` : ""}
           </p>
-          <div className="mt-auto flex gap-2 pt-1">
+          <div className="mt-auto flex items-center gap-1.5 pt-1.5">
             <Button
               size="sm"
-              className="rounded-xl flex-1"
+              className="rounded-xl flex-1 min-w-[7rem]"
               variant={playing ? "secondary" : "default"}
               onClick={() => { if (!playing && hit.lecture?.id) setWatched(hit.lecture.id, hit.video_id, true); setPlayingId(playing ? null : `vid-${hit.id}`); }}
             >
               <MonitorPlay className="w-4 h-4 mr-1.5" />
               {playing ? "Close" : "Watch here"}
             </Button>
-            <Button size="sm" variant="outline" className="rounded-xl" asChild>
+            <Button size="sm" variant="ghost" className="rounded-xl text-muted-foreground hover:text-foreground px-2" asChild>
               <a href={videoWatchUrl(hit.video_id)} target="_blank" rel="noreferrer">
-                <ExternalLink className="w-4 h-4 mr-1.5" />
+                <ExternalLink className="w-4 h-4 mr-1" />
                 YouTube
               </a>
             </Button>
@@ -681,25 +689,26 @@ const LecturesPage = () => {
           </div>
         ) : (
           <>
-            {/* View toggle: student's own subjects vs full catalog */}
+            {/* View toggle: student's own subjects vs full catalog —
+                one segmented pill track, gradient active segment. */}
             {user && mySubjects.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/30 p-1">
                 <button
                   onClick={() => { viewTouched.current = true; setView("mine"); setSemesterChosen(false); setPlayingId(null); }}
-                  className={`px-4 py-1.5 rounded-full text-sm border transition-colors ${
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                     view === "mine" && !semesterChosen
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border bg-muted/30 hover:bg-muted/60"
+                      ? "gradient-button text-primary-foreground shadow"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   My Subjects
                 </button>
                 <button
                   onClick={() => { viewTouched.current = true; setView("browse"); setPlayingId(null); }}
-                  className={`px-4 py-1.5 rounded-full text-sm border transition-colors ${
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                     view === "browse" || semesterChosen
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border bg-muted/30 hover:bg-muted/60"
+                      ? "gradient-button text-primary-foreground shadow"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   All Lectures
@@ -713,15 +722,15 @@ const LecturesPage = () => {
                 (mineGrouped) never reads the semester at all, so picking
                 Semester 8 changed nothing there. Now picking a semester
                 always switches to the filtered catalog grid below. */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mr-1">
+            <div className="flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mr-1 shrink-0">
                 Semester
               </span>
               {["all", ...semesters].map((s) => (
                 <button
                   key={String(s)}
                   onClick={() => pickSemester(s as number | "all")}
-                  className={`px-3.5 py-1.5 rounded-full text-sm border transition-colors ${
+                  className={`px-3.5 py-1.5 rounded-full text-sm border transition-colors shrink-0 whitespace-nowrap ${
                     barSemester === s
                       ? "bg-primary text-primary-foreground border-primary"
                       : "border-border bg-muted/30 hover:bg-muted/60"
@@ -763,8 +772,14 @@ const LecturesPage = () => {
                             )}
                           </h3>
                           {items.length === 0 ? (
-                            <div className="glass rounded-2xl border border-border p-5 text-sm text-muted-foreground">
-                              Lectures for this subject are coming soon.
+                            <div className="glass rounded-2xl border border-border p-5 flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                                <MonitorPlay className="w-5 h-5 text-primary" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-foreground">Lectures for this subject are coming soon.</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">New playlists are added regularly — please check back soon.</p>
+                              </div>
                             </div>
                           ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -812,8 +827,14 @@ const LecturesPage = () => {
                 <Loader2 className="w-5 h-5 animate-spin" /> Loading lectures…
               </div>
             ) : visible.length === 0 ? (
-              <div className="glass rounded-2xl border border-border p-8 text-center text-muted-foreground">
-                Lectures for this selection are coming soon.
+              <div className="glass rounded-2xl border border-border p-6 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <MonitorPlay className="w-5 h-5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">Lectures for this selection are coming soon.</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">New playlists are added regularly — please check back soon.</p>
+                </div>
               </div>
             ) : (
               grouped.map(([subject, items]) => (

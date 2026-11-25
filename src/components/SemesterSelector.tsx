@@ -15,7 +15,7 @@ const SemesterSelector = ({ selected, onSelect }: SemesterSelectorProps) => {
           whileTap={{ scale: 0.95 }}
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
           onClick={() => onSelect(sem)}
-          className={`relative rounded-xl py-3 px-2 font-display font-semibold text-sm transition-colors duration-200 ${
+          className={`relative rounded-2xl py-3 px-2 font-display font-semibold text-sm transition-colors duration-200 ${
             selected === sem
               ? "gradient-primary text-primary-foreground shadow-elevated"
               : "glass text-foreground hover:shadow-card"
@@ -26,7 +26,7 @@ const SemesterSelector = ({ selected, onSelect }: SemesterSelectorProps) => {
           {selected === sem && (
             <motion.div
               layoutId="semester-indicator"
-              className="absolute inset-0 rounded-xl gradient-primary -z-10"
+              className="absolute inset-0 rounded-2xl gradient-primary -z-10"
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
             />
           )}

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { signedStorageUrl } from "@/lib/storage";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Search, Download, FileText, BookOpen, Filter, Trash2 } from "lucide-react";
+import { Search, Download, FileText, BookOpen, Filter, Trash2, Upload } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRole } from "@/hooks/use-role";
 import { toast } from "sonner";
@@ -17,7 +18,14 @@ const StudyMaterialsPage = () => {
   const [subjectFilter, setSubjectFilter] = useState("all");
   const { isAdmin, isTeacher } = useRole();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const canDelete = isAdmin || isTeacher;
+  // The only study-materials upload flow in the app lives in the Teacher
+  // Panel (TeacherDashboard → Upload Material tab, teacher/admin only).
+  // This page has no upload flow of its own, so the empty-state CTA is
+  // offered only to teacher/admin accounts and links to that real flow —
+  // students never see a button that would bounce them off a role gate.
+  const canUpload = isAdmin || isTeacher;
 
   const { data: materials = [], isLoading } = useQuery({
     queryKey: ["study-materials"],
@@ -84,8 +92,13 @@ const StudyMaterialsPage = () => {
     }
   };
 
+  // Honest empty states: an untouched, empty library is NOT a failed
+  // search. Only call it "no results" when a search/filter is really active.
+  const hasActiveFilter = search.trim() !== "" || subjectFilter !== "all";
+  const isLibraryEmpty = !isLoading && materials.length === 0 && !hasActiveFilter;
+
   return (
-    <PageShell title="Study Materials" icon={<BookOpen className="h-6 w-6" />} subtitle="Browse and download shared study materials">
+    <PageShell title="Study Materials" icon={<BookOpen className="h-6 w-6 text-primary" />} subtitle="Browse and download shared study materials">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
@@ -94,13 +107,13 @@ const StudyMaterialsPage = () => {
             placeholder="Search by title, subject, or description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-background/60 backdrop-blur-sm border-white/10"
+            className="pl-9 rounded-xl glass focus-visible:ring-primary/40"
           />
         </div>
         <div className="w-full sm:w-56">
           <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-            <SelectTrigger className="bg-background/60 backdrop-blur-sm border-white/10">
-              <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+            <SelectTrigger className="rounded-xl glass">
+              <Filter className="h-4 w-4 mr-2 text-primary" />
               <SelectValue placeholder="Filter by subject" />
             </SelectTrigger>
             <SelectContent>
@@ -122,6 +135,21 @@ const StudyMaterialsPage = () => {
             <Skeleton key={i} className="h-48 rounded-xl" />
           ))}
         </div>
+      ) : isLibraryEmpty ? (
+        <div className="glass rounded-2xl p-10 sm:p-12 text-center space-y-3 max-w-xl mx-auto" style={{ borderStyle: "dashed" }}>
+          <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+            <BookOpen className="h-6 w-6 text-primary" />
+          </div>
+          <p className="text-lg font-display font-semibold text-foreground">No materials yet</p>
+          <p className="text-sm text-muted-foreground">Shared study materials will appear here. Be the first to share yours.</p>
+          {canUpload && (
+            <div className="pt-1">
+              <Button onClick={() => navigate("/teacher-dashboard")} className="rounded-xl gradient-primary text-primary-foreground gap-2">
+                <Upload className="h-4 w-4" /> Upload material
+              </Button>
+            </div>
+          )}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">
           <BookOpen className="mx-auto h-12 w-12 mb-3 opacity-40" />
@@ -133,7 +161,7 @@ const StudyMaterialsPage = () => {
           {filtered.map((m) => (
             <div
               key={m.id}
-              className="group relative rounded-xl border border-white/10 bg-card/40 backdrop-blur-md p-5 flex flex-col gap-3 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
+              className="group relative rounded-xl glass p-5 flex flex-col gap-3 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
             >
               {/* Delete button for admin/teacher */}
               {canDelete && (
@@ -176,14 +204,14 @@ const StudyMaterialsPage = () => {
                 <p className="text-sm text-muted-foreground line-clamp-2">{m.description}</p>
               )}
 
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-auto pt-2 border-t border-white/5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-auto pt-2 border-t border-border/40">
                 <FileText className="h-3.5 w-3.5" />
                 <span className="truncate">{m.file_name}</span>
               </div>
 
               <Button
                 size="sm"
-                className="w-full mt-1"
+                className="w-full mt-1 rounded-xl gradient-primary text-primary-foreground"
                 onClick={() => handleDownload(m.file_url, m.file_name)}
               >
                 <Download className="h-4 w-4 mr-1.5" />

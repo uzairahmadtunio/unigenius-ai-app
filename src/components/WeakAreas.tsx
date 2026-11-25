@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, Lightbulb, Loader2, Sparkles, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { AlertTriangle, Lightbulb, Loader2, Sparkles, TrendingDown, TrendingUp, Minus, Target } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -115,7 +116,7 @@ const WeakAreas = ({ compact = false }: { compact?: boolean }) => {
       .order("created_at", { ascending: false })
       .limit(200)
       .then(({ data }) => {
-        setRows((data as QuizRow[]) || []);
+        setRows((data as unknown as QuizRow[]) || []);
         setLoading(false);
       });
     // Load today's cached AI tips (no AI call on page load).
@@ -169,10 +170,15 @@ const WeakAreas = ({ compact = false }: { compact?: boolean }) => {
   if (rows.length === 0) {
     if (compact) return null;
     return (
-      <div className="glass rounded-2xl p-8 text-center space-y-2">
-        <div className="text-4xl">🎯</div>
+      <div className="glass rounded-2xl p-8 text-center space-y-3">
+        <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+          <Target className="w-6 h-6 text-primary" />
+        </div>
         <h3 className="font-display font-semibold text-foreground">No weak areas yet</h3>
         <p className="text-sm text-muted-foreground">Take a practice quiz and this section will show where to focus, based on your real results.</p>
+        <Button asChild className="rounded-xl gradient-primary text-primary-foreground gap-2">
+          <Link to="/practice">Take a quiz</Link>
+        </Button>
       </div>
     );
   }

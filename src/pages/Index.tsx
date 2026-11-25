@@ -18,6 +18,9 @@ import NoticeBoard from "@/components/NoticeBoard";
 import ExamCountdown from "@/components/ExamCountdown";
 import VivaReminder from "@/components/VivaReminder";
 import DailyStreakWidget from "@/components/DailyStreakWidget";
+import QuizOfDayCard from "@/components/QuizOfDayCard";
+import ContinueLearningCard from "@/components/ContinueLearningCard";
+import BadgesRow from "@/components/BadgesRow";
 import { useDepartment, departmentInfo } from "@/contexts/DepartmentContext";
 import { useCurrentSemester } from "@/hooks/use-current-semester";
 
@@ -48,23 +51,39 @@ const Index = () => {
       <AttendanceAlert />
       <Navbar />
 
-      <main className="flex-1 container mx-auto px-4 md:px-6 lg:px-10 py-6 md:py-8 space-y-4 md:space-y-6 pb-32 md:pb-8">
+      <main className="flex-1 container mx-auto px-4 md:px-6 lg:px-10 py-6 md:py-8 space-y-6 pb-32 md:pb-8">
         {/* Hero */}
-        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="text-center space-y-3">
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 text-xs font-medium text-muted-foreground">
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="relative overflow-hidden text-center space-y-3">
+          {/* Restrained violet aurora — decorative only, clipped to the
+              hero so it adds no height or layout shift. */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -top-28 left-1/2 -translate-x-1/2 h-64 w-[36rem] max-w-none rounded-full bg-primary/20 blur-3xl opacity-60" />
+            <div className="absolute -top-12 left-[12%] h-40 w-40 rounded-full bg-violet-500/15 blur-3xl" />
+            <div className="absolute -top-12 right-[12%] h-40 w-40 rounded-full bg-indigo-500/15 blur-3xl" />
+          </div>
+          <div className="relative inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 text-xs font-medium text-muted-foreground">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
             AI-Powered Study Assistant — {deptInfo.name}
           </div>
-          <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground">
-            Learn Smarter. <span className="gradient-text">Score Higher.</span> Grow Faster.
+          <h1 className="relative font-display font-bold text-4xl md:text-5xl text-center text-foreground leading-tight">
+            <span className="block">Learn Smarter.</span>
+            <span className="block headline-text">Score Higher.</span>
+            <span className="block">Grow Faster.</span>
           </h1>
-          <p className="text-muted-foreground max-w-lg mx-auto text-sm">
+          <p className="relative text-muted-foreground max-w-lg mx-auto text-sm">
             Your intelligent companion for {deptInfo.fullName} — from assignments to career prep.
           </p>
         </motion.section>
 
-        {/* Daily Streak */}
-        <DailyStreakWidget />
+        {/* Streak + Career Readiness */}
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="grid lg:grid-cols-5 gap-4 md:gap-6">
+          <div className="lg:col-span-3">
+            <DailyStreakWidget />
+          </div>
+          <div className="lg:col-span-2">
+            <CareerReadinessWidget />
+          </div>
+        </motion.section>
 
         {/* Global Search */}
         <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="flex justify-center">
@@ -76,15 +95,15 @@ const Index = () => {
           <VivaReminder semester={semester} />
         </motion.section>
 
+        {/* Quiz of the Day + Exam Countdown */}
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="grid md:grid-cols-2 gap-4 md:gap-6">
+          <QuizOfDayCard />
+          <ExamCountdown semester={semester} />
+        </motion.section>
+
         {/* Notice Board */}
         <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
           <NoticeBoard />
-        </motion.section>
-
-        {/* Exam Countdown + Career Readiness */}
-        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
-          <ExamCountdown semester={semester} />
-          <CareerReadinessWidget />
         </motion.section>
 
         {/* Quick Actions */}
@@ -94,14 +113,19 @@ const Index = () => {
 
         {/* Semester Selector */}
         <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="space-y-4">
-          <h2 className="font-display font-bold text-lg text-foreground">Select Semester</h2>
+          <h2 className="font-display font-bold text-lg tracking-tight text-foreground">Select Semester</h2>
           <SemesterSelector selected={semester} onSelect={handleSemesterChange} />
+        </motion.section>
+
+        {/* Continue Learning */}
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+          <ContinueLearningCard />
         </motion.section>
 
         {/* Subject Grid */}
         <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display font-bold text-lg text-foreground">Semester {semester} Subjects</h2>
+            <h2 className="font-display font-bold text-lg tracking-tight text-foreground">Semester {semester} Subjects</h2>
             <Button
               variant="outline"
               size="sm"
@@ -113,6 +137,12 @@ const Index = () => {
           </div>
           <SubjectGrid semester={semester} />
         </motion.section>
+
+        {/* Badges */}
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+          <BadgesRow />
+        </motion.section>
+
         {/* Feedback */}
         <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="flex justify-end">
           <FeedbackWidget />

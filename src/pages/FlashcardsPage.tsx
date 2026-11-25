@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Sparkles, RotateCcw, ChevronLeft, ChevronRight, Trash2, Upload, PenLine, Plus, X, Save, Clock } from "lucide-react";
+import { BookOpen, Sparkles, RotateCcw, ChevronLeft, ChevronRight, Trash2, Upload, PenLine, Plus, X, Save, Clock, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -124,6 +124,12 @@ const FlashcardsPage = () => {
     set.cards.reduce((n, _, i) => n + (isDue(set.id, i) ? 1 : 0), 0);
 
   const totalDue = sets.reduce((n, s) => n + dueCountFor(s), 0);
+
+  // Next scheduled review, derived from the real review rows: the
+  // earliest next_review still in the future. Null = nothing scheduled.
+  const nextScheduledReview = reviews
+    .filter((r) => r.next_review > todayStr())
+    .sort((a, b) => a.next_review.localeCompare(b.next_review))[0]?.next_review ?? null;
 
   // Open a study session. With dueFirst, due cards come first in the order.
   const openSet = (set: FlashcardSet, dueFirst = false) => {
@@ -329,7 +335,7 @@ const FlashcardsPage = () => {
       <PageShell
         title="Flashcards"
         subtitle={activeSet.subject}
-        icon={<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center"><BookOpen className="w-5 h-5 text-primary-foreground" /></div>}
+        icon={<div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center"><BookOpen className="w-5 h-5 text-primary" /></div>}
       >
         <div className="max-w-lg mx-auto space-y-6">
           <div className="flex items-center justify-between">
@@ -435,9 +441,9 @@ const FlashcardsPage = () => {
     <PageShell
       title="Quick Revision"
       subtitle="AI Flashcards from your materials"
-      icon={<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center"><BookOpen className="w-5 h-5 text-primary-foreground" /></div>}
+      icon={<div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center"><BookOpen className="w-5 h-5 text-primary" /></div>}
     >
-      <div className="space-y-6">
+      <div className="space-y-6 pb-24">
         {/* Due for Review is ALWAYS rendered — even with no sets and no
             reviews yet — so the spaced-repetition feature stays visible
             and discoverable. Previously it only appeared when
@@ -446,6 +452,11 @@ const FlashcardsPage = () => {
           <h3 className="font-display font-semibold text-foreground flex items-center gap-2">
             <Clock className="w-4 h-4 text-primary" /> Due for Review
           </h3>
+          {/* Stat-led: the real due count up front. */}
+          <div className="flex items-end gap-2">
+            <span className="font-display font-bold text-4xl leading-none text-foreground">{totalDue}</span>
+            <span className="text-sm text-muted-foreground pb-0.5">card{totalDue !== 1 ? "s" : ""} due today</span>
+          </div>
           {totalDue > 0 ? (
             <>
               <p className="text-sm text-muted-foreground">
@@ -470,9 +481,17 @@ const FlashcardsPage = () => {
               </div>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No cards are due yet. Review a set and your schedule will appear here.
-            </p>
+            <>
+              <p className="text-sm text-muted-foreground">
+                No cards are due yet. Review a set and your schedule will appear here.
+              </p>
+              {!nextScheduledReview && (
+                <div className="flex items-center gap-2 border-t border-border/50 pt-3 text-xs text-muted-foreground">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>Next review — nothing scheduled</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -488,19 +507,24 @@ const FlashcardsPage = () => {
                 {subjects.map(s => <SelectItem key={s.id} value={s.name}>{s.icon} {s.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-2">
-              <label className="flex-1 cursor-pointer">
-                <div className="glass rounded-xl border border-dashed border-border/50 p-3 text-center hover:border-primary/50 transition-colors">
-                  <Upload className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">{uploadFile ? uploadFile.name : "Upload material (optional)"}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <label className="flex-1 cursor-pointer min-w-0">
+                <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-center hover:border-primary/70 transition-colors">
+                  <Upload className="w-4 h-4 mx-auto mb-1 text-primary" />
+                  <p className="text-xs text-muted-foreground break-words">{uploadFile ? uploadFile.name : "Upload material (optional)"}</p>
                 </div>
                 <input type="file" className="hidden" accept=".txt,.md,.pdf,.jpg,.jpeg,.png,.webp" onChange={e => e.target.files?.[0] && handleFileRead(e.target.files[0])} />
               </label>
             </div>
           </div>
-          <Button onClick={generateFlashcards} disabled={!selectedSubject || !user || generating} className="rounded-xl gap-2">
-            <Sparkles className="w-4 h-4" /> {generating ? "Generating..." : "Generate Flashcards"}
-          </Button>
+          <div className="space-y-1.5">
+            <Button onClick={generateFlashcards} disabled={!selectedSubject || !user || generating} className="rounded-xl gap-2 disabled:opacity-50">
+              <Sparkles className="w-4 h-4" /> {generating ? "Generating..." : "Generate Flashcards"}
+            </Button>
+            {!selectedSubject && (
+              <p className="text-xs text-muted-foreground">Select a subject first</p>
+            )}
+          </div>
         </div>
 
         {/* Manual deck creation */}
@@ -517,8 +541,8 @@ const FlashcardsPage = () => {
           />
           <div className="space-y-3">
             {manualCards.map((card, i) => (
-              <div key={i} className="flex gap-2 items-start">
-                <span className="text-xs text-muted-foreground font-medium w-6 pt-3 text-center flex-shrink-0">{i + 1}</span>
+              <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-start">
+                <span className="text-xs text-muted-foreground font-medium sm:w-6 sm:pt-3 sm:text-center flex-shrink-0">Card {i + 1}</span>
                 <Input
                   placeholder="Front — question or term"
                   value={card.front}
@@ -527,7 +551,7 @@ const FlashcardsPage = () => {
                     next[i] = { ...next[i], front: e.target.value };
                     setManualCards(next);
                   }}
-                  className="rounded-xl flex-1"
+                  className="rounded-xl flex-1 w-full min-w-0"
                 />
                 <Textarea
                   placeholder="Back — answer or definition"
@@ -538,12 +562,12 @@ const FlashcardsPage = () => {
                     setManualCards(next);
                   }}
                   rows={1}
-                  className="rounded-xl flex-1 resize-y"
+                  className="rounded-xl flex-1 w-full min-w-0 resize-y"
                 />
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-lg flex-shrink-0"
+                  className="h-9 w-9 rounded-lg flex-shrink-0 self-end sm:self-auto"
                   disabled={manualCards.length === 1}
                   onClick={() => setManualCards(prev => prev.filter((_, idx) => idx !== i))}
                 >
@@ -570,7 +594,9 @@ const FlashcardsPage = () => {
           <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>
         ) : sets.length === 0 ? (
           <div className="glass rounded-2xl p-12 text-center space-y-3">
-            <div className="text-4xl">🃏</div>
+            <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+              <Layers className="w-7 h-7 text-primary" />
+            </div>
             <p className="text-muted-foreground">No flashcard sets yet. Generate your first set above!</p>
           </div>
         ) : (
@@ -598,7 +624,7 @@ const FlashcardsPage = () => {
                   </Button>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>🃏 {set.cards.length} cards</span>
+                  <span className="inline-flex items-center gap-1"><Layers className="w-3.5 h-3.5" /> {set.cards.length} cards</span>
                   <span>•</span>
                   <span>{new Date(set.created_at).toLocaleDateString()}</span>
                   {dueCountFor(set) > 0 && (

@@ -26,6 +26,9 @@ interface ChatSidebarProps {
 
 const ChatSidebar = ({ activeChatId, onSelectChat, onNewChat, refreshTrigger, subject, mobileOpen, onMobileClose }: ChatSidebarProps) => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  // Display-only fallback labels for sessions still titled "New Chat":
+  // the first user message of the chat, truncated. Never written to DB.
+  const [fallbackTitles, setFallbackTitles] = useState<Record<string, string>>({});
   const [collapsed, setCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -49,8 +52,41 @@ const ChatSidebar = ({ activeChatId, onSelectChat, onNewChat, refreshTrigger, su
       }
     }
     const { data, error } = await query;
-    if (!error && data) setSessions(data);
+    if (!error && data) {
+      setSessions(data);
+      // Sessions whose title is exactly "New Chat" (or empty) get a
+      // readable label from their first user message — chat_messages is
+      // linked to chat_sessions via chat_id, so this is a real data path.
+      const untitled = data.filter((s) => !s.title || s.title.trim() === "" || s.title === "New Chat");
+      if (untitled.length > 0) {
+        const ids = untitled.map((s) => s.id);
+        const { data: msgs } = await supabase
+          .from("chat_messages")
+          .select("chat_id, content, created_at")
+          .in("chat_id", ids)
+          .eq("role", "user")
+          .order("created_at", { ascending: true });
+        if (msgs) {
+          const map: Record<string, string> = {};
+          for (const m of msgs as { chat_id: string; content: string }[]) {
+            if (map[m.chat_id]) continue;
+            const clean = (m.content || "")
+              .replace(/[#*_`>~]/g, "")
+              .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+              .replace(/\s+/g, " ")
+              .trim();
+            if (clean) map[m.chat_id] = clean.length > 64 ? `${clean.slice(0, 64)}…` : clean;
+          }
+          setFallbackTitles(map);
+        }
+      }
+    }
     setLoading(false);
+  };
+
+  const displayTitle = (session: ChatSession) => {
+    if (session.title && session.title.trim() !== "" && session.title !== "New Chat") return session.title;
+    return fallbackTitles[session.id] || session.title || "New Chat";
   };
 
   useEffect(() => { fetchSessions(); }, [user, refreshTrigger]);
@@ -74,7 +110,7 @@ const ChatSidebar = ({ activeChatId, onSelectChat, onNewChat, refreshTrigger, su
   const startEditing = (e: React.MouseEvent, session: ChatSession) => {
     e.stopPropagation();
     setEditingId(session.id);
-    setEditValue(session.title);
+    setEditValue(session.title || "");
   };
 
   const saveTitle = async (chatId: string) => {
@@ -136,13 +172,13 @@ const ChatSidebar = ({ activeChatId, onSelectChat, onNewChat, refreshTrigger, su
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
               onClick={() => handleSelectChat(session.id)}
-              className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-2 group transition-colors ${
+              className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-2 group transition-colors border ${
                 activeChatId === session.id
-                  ? "bg-primary/15 text-foreground"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  ? "bg-primary/15 text-foreground border-primary/25"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground border-transparent"
               }`}
             >
-              <MessageSquare className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <MessageSquare className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${activeChatId === session.id ? "text-primary" : ""}`} />
               <div className="flex-1 min-w-0">
                 {editingId === session.id ? (
                   <input
@@ -158,7 +194,7 @@ const ChatSidebar = ({ activeChatId, onSelectChat, onNewChat, refreshTrigger, su
                     className="text-xs font-medium w-full bg-background/60 border border-border/50 rounded-md px-1.5 py-0.5 outline-none focus:border-primary/50 text-foreground"
                   />
                 ) : (
-                  <p className="text-xs font-medium truncate">{session.title}</p>
+                  <p className="text-xs font-medium truncate" title={displayTitle(session)}>{displayTitle(session)}</p>
                 )}
                 <p className="text-[10px] opacity-60 flex items-center gap-1 mt-0.5">
                   <Clock className="w-2.5 h-2.5" />

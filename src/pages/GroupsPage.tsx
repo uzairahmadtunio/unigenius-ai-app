@@ -278,40 +278,39 @@ const GroupsPage = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
                   onClick={() => navigate(`/groups/${g.id}`)}
-                  className="glass rounded-2xl p-5 cursor-pointer hover:border-primary/30 border-2 border-transparent transition-all group"
+                  className="glass rounded-2xl p-4 cursor-pointer hover:border-primary/30 border-2 border-transparent transition-all group"
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
                     <GroupAvatar url={g.avatar_url} name={g.name} />
-                    {g.is_owner && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-500/15 rounded-full px-2 py-0.5 uppercase tracking-wider">
-                        <Crown className="w-2.5 h-2.5" /> Owner
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="font-display font-bold text-foreground truncate">{g.name}</h3>
-                  {g.description && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{g.description}</p>
-                  )}
-
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3 h-3" /> {g.member_count ?? 0}
-                      </span>
-                      {g.is_owner && (
-                        <button
-                          onClick={e => { e.stopPropagation(); copyInviteCode(g.id); }}
-                          className="flex items-center gap-1 hover:text-primary transition-colors"
-                          title="Copy invite code"
-                        >
-                          <Hash className="w-3 h-3" /> Copy code
-                          <Copy className="w-2.5 h-2.5" />
-                        </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-display font-bold text-foreground truncate">{g.name}</h3>
+                        {g.is_owner && (
+                          <span className="flex items-center gap-1 shrink-0 text-[10px] font-bold text-amber-400 bg-amber-500/15 rounded-full px-2 py-0.5 uppercase tracking-wider">
+                            <Crown className="w-2.5 h-2.5" /> Owner
+                          </span>
+                        )}
+                      </div>
+                      {g.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{g.description}</p>
                       )}
-
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1.5">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3 h-3" /> {g.member_count ?? 0} {(g.member_count ?? 0) === 1 ? "member" : "members"}
+                        </span>
+                        {g.is_owner && (
+                          <button
+                            onClick={e => { e.stopPropagation(); copyInviteCode(g.id); }}
+                            className="flex items-center gap-1 hover:text-primary transition-colors"
+                            title="Copy invite code"
+                          >
+                            <Hash className="w-3 h-3" /> Copy code
+                            <Copy className="w-2.5 h-2.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
                 </motion.div>
               ))}

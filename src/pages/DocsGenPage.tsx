@@ -32,6 +32,7 @@ const DocsGenPage = () => {
   const [teacherName, setTeacherName] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [content, setContent] = useState("");
+  const [outputFormat, setOutputFormat] = useState<"docx" | "pdf">("docx");
   const [isGenerating, setIsGenerating] = useState(false);
   const [attachments, setAttachments] = useState<Array<{ name: string; mimeType: string; data: string; size: number }>>([]);
 
@@ -251,14 +252,14 @@ const DocsGenPage = () => {
     <PageShell
       title="Docs Generator"
       subtitle="Lab Manuals & Assignments"
-      icon={<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center"><FileText className="w-5 h-5 text-primary-foreground" /></div>}
+      icon={<div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center"><FileText className="w-5 h-5 text-primary" /></div>}
     >
       <div className="relative min-h-[400px]">
         {!isPro && !proLoading && <ProPaywall feature="professional lab manuals and AI document generation" />}
-        <div className="grid lg:grid-cols-3 gap-4">
+        <div className="grid lg:grid-cols-3 gap-4 pb-6">
         {/* Form */}
         <div className="space-y-4">
-          <div className="glass rounded-2xl p-6 space-y-4">
+          <div id="docs-gen-form" className="glass rounded-2xl p-6 space-y-4 scroll-mt-24">
             <h3 className="font-display font-semibold text-foreground">Configure Document</h3>
 
             {/* Two separate studios — Lab Manual and Assignment are
@@ -318,7 +319,7 @@ const DocsGenPage = () => {
                 <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select subject" /></SelectTrigger>
                 <SelectContent>
                   {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.name}>{s.icon} {s.name}</SelectItem>
+                    <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -329,6 +330,7 @@ const DocsGenPage = () => {
                 {docType === "lab" ? "Experiment / Topic" : "Assignment Topic"}
               </label>
               <Input
+                id="docs-topic-input"
                 placeholder={docType === "lab" ? "e.g., Linked List Implementation" : "e.g., OOP Concepts Report"}
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
@@ -401,7 +403,7 @@ const DocsGenPage = () => {
               )}
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g., Sir Soban ka format"
+                  placeholder="e.g., Soban Lab Format"
                   value={newTemplateName}
                   onChange={(e) => setNewTemplateName(e.target.value)}
                   className="rounded-xl flex-1"
@@ -475,21 +477,52 @@ const DocsGenPage = () => {
 
             {content && (
               <div className="flex gap-2">
-                <Button onClick={handlePDF} variant="outline" className="flex-1 rounded-xl gap-2 text-red-400 border-red-500/30 hover:bg-red-500/10">
+                <Button
+                  onClick={handlePDF}
+                  variant={outputFormat === "pdf" ? "default" : "outline"}
+                  className={`flex-1 rounded-xl gap-2 ${outputFormat === "pdf" ? "gradient-button text-primary-foreground" : "text-primary border-primary/30 hover:bg-primary/10"}`}
+                >
                   <FileDown className="w-4 h-4" /> PDF
                 </Button>
-                <Button onClick={handleDOCX} variant="outline" className="flex-1 rounded-xl gap-2 text-blue-400 border-blue-500/30 hover:bg-blue-500/10">
+                <Button
+                  onClick={handleDOCX}
+                  variant={outputFormat === "docx" ? "default" : "outline"}
+                  className={`flex-1 rounded-xl gap-2 ${outputFormat === "docx" ? "gradient-button text-primary-foreground" : "text-primary border-primary/30 hover:bg-primary/10"}`}
+                >
                   <File className="w-4 h-4" /> DOCX
                 </Button>
               </div>
             )}
           </div>
 
-          {/* Mode info */}
+          {/* Mode info — the generation flow already produces both DOCX
+              and PDF, so the format choice is a real segmented control:
+              it marks which download is primary after generation. */}
           <div className="glass rounded-2xl p-4 space-y-2">
-            <h4 className="font-display font-semibold text-foreground text-sm">
-              {docType === "lab" ? "🔬 Lab Manual Mode" : "📝 Assignment Mode"}
-            </h4>
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="font-display font-semibold text-foreground text-sm flex items-center gap-2">
+                {docType === "lab"
+                  ? <FlaskConical className="w-4 h-4 text-primary" />
+                  : <NotebookPen className="w-4 h-4 text-primary" />}
+                {docType === "lab" ? "Lab Manual Mode" : "Assignment Mode"}
+              </h4>
+              <div className="inline-flex items-center rounded-full border border-border bg-muted/30 p-0.5 shrink-0" role="group" aria-label="Output format">
+                {(["docx", "pdf"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setOutputFormat(f)}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase transition-all ${
+                      outputFormat === f
+                        ? "gradient-button text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               {docType === "lab"
                 ? "Generates: Cover Page → TOC → All Tasks (Code + Output) → Conclusion"
@@ -497,7 +530,7 @@ const DocsGenPage = () => {
             </p>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {["Cover Page", "Table of Contents", "Page Numbers", "Code Formatting", "Clean DOCX"].map(f => (
-                <span key={f} className="text-[9px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{f}</span>
+                <span key={f} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20 font-medium">{f}</span>
               ))}
             </div>
           </div>
@@ -518,7 +551,9 @@ const DocsGenPage = () => {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center gap-4 py-16">
-              <FileText className="w-12 h-12 text-muted-foreground/30" />
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <FileText className="w-7 h-7 text-primary" />
+              </div>
               <div>
                 <p className="font-display font-semibold text-foreground">Document Preview</p>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -527,6 +562,15 @@ const DocsGenPage = () => {
                     : "Configure your assignment — generates a professional document with cover page, TOC, academic formatting, references, and originality report."}
                 </p>
               </div>
+              <Button
+                className="rounded-xl gradient-button text-primary-foreground gap-2"
+                onClick={() => {
+                  document.getElementById("docs-gen-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  document.getElementById("docs-topic-input")?.focus({ preventScroll: true });
+                }}
+              >
+                <FileText className="w-4 h-4" /> Generate your first document
+              </Button>
             </div>
           )}
         </div>
