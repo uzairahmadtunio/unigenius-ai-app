@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, lazy, Suspense } from "react";
+import { speak as speakTts, stopSpeaking } from "@/lib/tts";
 import { Presentation, Sparkles, Download, Loader2, Edit3, Check, X, Plus, Minus, Trash2, Volume2, Square, Palette, ArrowUp, MessageSquareText, ImageIcon, FileText, Upload, Wand2, RefreshCw, Eye } from "lucide-react";
 import dynamicIconImports from "lucide-react/dynamicIconImports";
 import type { LucideProps } from "lucide-react";
@@ -370,20 +371,16 @@ const PresentationPage = () => {
   }, [slides, generateImageForSlide]);
 
   const handleReadSlide = useCallback((idx: number) => {
-    if (speakingIdx === idx) { window.speechSynthesis.cancel(); setSpeakingIdx(null); return; }
-    window.speechSynthesis.cancel();
+    if (speakingIdx === idx) { stopSpeaking(); setSpeakingIdx(null); return; }
     const slide = slides[idx];
     const text = slide.speakerNotes ? `${slide.title}. ${slide.speakerNotes}` : `${slide.title}. ${slide.bullets.join(". ")}`;
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const enVoices = voices.filter(v => v.lang.startsWith("en"));
-    const best = enVoices.find(v => v.name.includes("Google") || v.name.includes("Natural")) || enVoices[0] || voices[0];
-    if (best) utterance.voice = best;
-    utterance.lang = "en-US"; utterance.rate = 0.95; utterance.pitch = 1.0;
-    utterance.onend = () => setSpeakingIdx(null);
-    utterance.onerror = () => setSpeakingIdx(null);
     setSpeakingIdx(idx);
-    window.speechSynthesis.speak(utterance);
+    // Shared TTS path (src/lib/tts.ts): persisted gender, best-voice
+    // resolution, sentence chunking.
+    speakTts(text, {
+      onend: () => setSpeakingIdx(null),
+      onerror: () => setSpeakingIdx(null),
+    });
   }, [speakingIdx, slides]);
 
   const downloadPPTX = useCallback(async () => {

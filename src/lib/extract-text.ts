@@ -22,8 +22,8 @@ function cap(text: string): ExtractedText {
 /** Strip RTF control words/groups down to readable plain text. */
 function rtfToText(rtf: string): string {
   return rtf
-    .replace(/\\par[d]?\b/g, "\n")
-    .replace(/\\tab\b/g, "\t")
+    .replace(/\\par[d]?\b ?/g, "\n")
+    .replace(/\\tab\b ?/g, "\t")
     .replace(/\\'[0-9a-fA-F]{2}/g, " ")
     .replace(/\\[a-zA-Z]+-?\d* ?/g, "")
     .replace(/[{}]/g, "")

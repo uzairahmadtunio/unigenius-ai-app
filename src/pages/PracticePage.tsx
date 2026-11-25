@@ -11,11 +11,13 @@ import { useCurrentSemester } from "@/hooks/use-current-semester";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { authHeader } from "@/lib/auth-header";
+import { normalizeMcqs, normalizeSaQuestions, asText } from "@/lib/quiz-questions";
 import { notifyAiTier } from "@/lib/ai-tier-notifier";
 import { useAdmin } from "@/hooks/use-admin";
 import PageShell from "@/components/PageShell";
 import WeakAreas from "@/components/WeakAreas";
 import { quizPercent } from "@/lib/utils";
+import { deriveLevel, extractWeakTopics, bumpLevel, type Difficulty } from "@/lib/adaptive-difficulty";
 
 interface MCQ {
   question: string;
@@ -126,12 +128,10 @@ export function computeTopicStats(items: any[]): TopicStat[] {
 }
 
 /* ─── Adaptive level system ──────────────────────────────────────────
- * The student's level for a subject is derived from their real
- * quiz_results history: accuracy over the last 5 attempts decides the
- * difficulty sent to generate-quiz (no history or <50% → Easy,
- * 50–75% → Medium, >75% → Hard). Weak topics come from the topicStats
- * saved with each attempt's results. */
-type Difficulty = "Easy" | "Medium" | "Hard";
+ * deriveLevel / extractWeakTopics / bumpLevel live in
+ * src/lib/adaptive-difficulty.ts (unit-tested): accuracy over the
+ * student's last 5 quiz_results attempts decides the difficulty sent
+ * to generate-quiz; weak topics come from each attempt's topicStats. */
 
 interface SubjectAdaptive {
   /** Attempts in the selected semester (card history line). */
@@ -146,39 +146,6 @@ interface SubjectAdaptive {
 /** "Object-Oriented Programming (OOP)" -> "objectorientedprogramming" */
 const normSubject = (s: string) =>
   (s || "").toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9]+/g, "");
-
-const deriveLevel = (rows: { score: number; total: number }[]): Difficulty => {
-  const last5 = rows.slice(0, 5);
-  const totalScore = last5.reduce((a, r) => a + (r.score || 0), 0);
-  const totalMax = last5.reduce((a, r) => a + (r.total || 0), 0);
-  if (!last5.length || totalMax <= 0) return "Easy";
-  const accuracy = totalScore / totalMax;
-  if (accuracy < 0.5) return "Easy";
-  if (accuracy <= 0.75) return "Medium";
-  return "Hard";
-};
-
-/** Weak topics from the most recent attempts that carry topicStats
- *  (latest first, merged across attempts, at most 3). */
-const extractWeakTopics = (rows: any[]): string[] => {
-  const out: string[] = [];
-  for (const row of rows) {
-    const stats = Array.isArray(row?.details?.topicStats) ? row.details.topicStats : [];
-    for (const st of stats) {
-      if (st?.verdict === "weak" && st?.topic && !out.includes(st.topic)) {
-        out.push(st.topic);
-        if (out.length >= 3) return out;
-      }
-    }
-  }
-  return out;
-};
-
-const bumpLevel = (level: Difficulty, dir: 1 | -1): Difficulty => {
-  const order: Difficulty[] = ["Easy", "Medium", "Hard"];
-  const i = order.indexOf(level);
-  return order[Math.min(2, Math.max(0, i + dir))];
-};
 
 /** Keyword-matched line icon + soft tinted tile for a subject — mirrors
  *  the mapping used in src/components/SubjectGrid.tsx. */
@@ -347,7 +314,7 @@ const PracticePage = () => {
     callGenerateQuiz({ ...f.base, count: f.want, bankFirst: false, difficulty, weakTopics: f.weakTopics })
       .then((aiData) => {
         if (quizSessionRef.current !== f.session) return;
-        const aiQs: MCQ[] = aiData.questions ?? [];
+        const aiQs = normalizeMcqs(aiData.questions) as MCQ[];
         if (aiQs.length) {
           setQuestions((prev) => [...prev, ...aiQs]);
           setBankMeta({ bank: f.bankCount, ai: aiQs.length });
@@ -420,21 +387,38 @@ const PracticePage = () => {
     e.target.value = "";
   };
 
+  // Bug #3 fix: generation gets a hard 90 s ceiling and a user-cancellable
+  // abort, so a stalled AI pool can never hang the loading screen forever —
+  // it ends in the normal error path (toast + back to setup) or the user
+  // cancels back to setup themselves.
+  const genAbortRef = useRef<AbortController | null>(null);
   const callGenerateQuiz = async (body: any) => {
-    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-quiz`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `${await authHeader()}`,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error || "Failed to generate quiz");
+    const ctrl = new AbortController();
+    genAbortRef.current = ctrl;
+    const timer = setTimeout(() => ctrl.abort(), 90_000);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-quiz`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${await authHeader()}`,
+        },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        if (resp.status === 401) throw new Error("Session expired — please sign in again");
+        throw new Error(err.error || "Failed to generate quiz");
+      }
+      notifyAiTier(resp, isAdmin);
+      return resp.json();
+    } catch (e: any) {
+      if (e?.name === "AbortError") throw new Error("Generation timed out — please try again");
+      throw e;
+    } finally {
+      clearTimeout(timer);
     }
-    notifyAiTier(resp, isAdmin);
-    return resp.json();
   };
 
   // Topic catalogue for a subject: bank topics (with instant-question
@@ -528,9 +512,10 @@ const PracticePage = () => {
     try {
       if (quizType === "subjective") {
         const data = await callGenerateQuiz({ ...base, mode: "subjective", count: SA_COUNT.subjective, difficulty: baseDifficulty, weakTopics });
-        if (data.questions?.length) {
-          setSaQuestions(data.questions);
-          setSaAnswers(new Array(data.questions.length).fill(""));
+        const saNorm = normalizeSaQuestions(data.questions);
+        if (saNorm.length) {
+          setSaQuestions(saNorm as SAQuestion[]);
+          setSaAnswers(new Array(saNorm.length).fill(""));
           setSaStage("answering");
           startTimer(data.questions.length * SA_TIME_SEC);
         } else throw new Error("No questions generated");
@@ -549,7 +534,7 @@ const PracticePage = () => {
       if (!uploadedFile) {
         // Phase 1 — instant bank questions (no AI call server-side).
         const bankData = await callGenerateQuiz({ ...base, count: wantMcq, bankOnly: true });
-        const bankQs: MCQ[] = bankData.questions ?? [];
+        const bankQs = normalizeMcqs(bankData.questions) as MCQ[];
         if (bankQs.length > 0) {
           setQuestions(bankQs);
           setBankMeta({ bank: bankQs.length, ai: 0 });
@@ -576,9 +561,10 @@ const PracticePage = () => {
             try {
               const saData = await saPromise;
               if (quizSessionRef.current !== session) return;
-              if (saData?.questions?.length) {
-                setSaQuestions(saData.questions);
-                setSaAnswers(new Array(saData.questions.length).fill(""));
+              const saNorm = normalizeSaQuestions(saData?.questions);
+              if (saNorm.length) {
+                setSaQuestions(saNorm as SAQuestion[]);
+                setSaAnswers(new Array(saNorm.length).fill(""));
               }
             } catch {
               toast.info("Written questions could not be generated — continuing with MCQs only.");
@@ -592,35 +578,40 @@ const PracticePage = () => {
           callGenerateQuiz({ ...base, count: wantMcq, difficulty: baseDifficulty, weakTopics }),
           saPromise,
         ]);
-        if (!mcqData.questions?.length) throw new Error("No questions generated");
-        if (wantSa && !saData?.questions?.length) throw new Error("No questions generated");
-        setQuestions(mcqData.questions);
-        setBankMeta({ bank: mcqData.bankCount ?? 0, ai: mcqData.aiCount ?? mcqData.questions.length });
+        const mcqNorm = normalizeMcqs(mcqData.questions) as MCQ[];
+        const saNorm = normalizeSaQuestions(saData?.questions) as SAQuestion[];
+        if (!mcqNorm.length) throw new Error("No questions generated");
+        if (wantSa && !saNorm.length) throw new Error("No questions generated");
+        setQuestions(mcqNorm);
+        setBankMeta({ bank: mcqData.bankCount ?? 0, ai: mcqData.aiCount ?? mcqNorm.length });
         if (wantSa) {
-          setSaQuestions(saData.questions);
-          setSaAnswers(new Array(saData.questions.length).fill(""));
+          setSaQuestions(saNorm);
+          setSaAnswers(new Array(saNorm.length).fill(""));
         }
-        startTimer(mcqData.questions.length * MCQ_TIME_SEC + wantSa * SA_TIME_SEC);
+        startTimer(mcqNorm.length * MCQ_TIME_SEC + wantSa * SA_TIME_SEC);
         return;
       }
 
       // File-based quiz: questions come only from the uploaded file.
       if (quizType === "objective") {
         const data = await callGenerateQuiz({ ...base, count: wantMcq, difficulty: baseDifficulty, weakTopics });
-        if (data.questions?.length) {
-          setQuestions(data.questions);
-          startTimer(data.questions.length * MCQ_TIME_SEC);
+        const fileNorm = normalizeMcqs(data.questions) as MCQ[];
+        if (fileNorm.length) {
+          setQuestions(fileNorm);
+          startTimer(fileNorm.length * MCQ_TIME_SEC);
         } else throw new Error("No questions generated");
       } else {
         const [mcqData, saData] = await Promise.all([
           callGenerateQuiz({ ...base, count: wantMcq, difficulty: baseDifficulty, weakTopics }),
           saPromise,
         ]);
-        if (!mcqData.questions?.length || !saData?.questions?.length) throw new Error("No questions generated");
-        setQuestions(mcqData.questions);
-        setSaQuestions(saData.questions);
-        setSaAnswers(new Array(saData.questions.length).fill(""));
-        startTimer(mcqData.questions.length * MCQ_TIME_SEC + saData.questions.length * SA_TIME_SEC);
+        const mcqNorm = normalizeMcqs(mcqData.questions) as MCQ[];
+        const saNorm = normalizeSaQuestions(saData?.questions) as SAQuestion[];
+        if (!mcqNorm.length || !saNorm.length) throw new Error("No questions generated");
+        setQuestions(mcqNorm);
+        setSaQuestions(saNorm);
+        setSaAnswers(new Array(saNorm.length).fill(""));
+        startTimer(mcqNorm.length * MCQ_TIME_SEC + saNorm.length * SA_TIME_SEC);
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to generate quiz");
@@ -862,6 +853,80 @@ const PracticePage = () => {
   const strongTopics = topicStats.filter((t) => t.verdict === "strong");
   const weakTopics = topicStats.filter((t) => t.verdict === "weak");
 
+  // ─── Deep links (Quiz of the Day F-19 + Exam Prep weak topics) ────
+  // The dashboard's Quiz of the Day card now passes the EXACT question
+  // id it displayed; Exam Prep passes a subject/topic to practise.
+  const startDailyQuestion = async (questionId: string, subjectName: string) => {
+    const session = ++quizSessionRef.current;
+    setLoading(true);
+    setSelectedSubject(subjectName);
+    setQuizTopic(null);
+    setQuestions([]);
+    setCurrentQ(0);
+    setScore(0);
+    setQuizDone(false);
+    setAnswers([]);
+    setShowBreakdown(false);
+    setSaQuestions([]);
+    setSaAnswers([]);
+    setSaIndex(0);
+    setSaStage("idle");
+    setSaGrades([]);
+    setFinalTotals(null);
+    setBankMeta(null);
+    setPendingFill(false);
+    setTimeLeft(null);
+    setTimeLimitSec(0);
+    mcqTimesRef.current = [];
+    saTimesRef.current = [];
+    answersRef.current = [];
+    fillRef.current = null;
+    fillFiredRef.current = false;
+    if (fillTimerRef.current) { clearTimeout(fillTimerRef.current); fillTimerRef.current = null; }
+    timeUpHandledRef.current = false;
+    try {
+      const data = await callGenerateQuiz({
+        mode: "question",
+        questionId,
+        subject: subjectName,
+        department: department ? departmentInfo[department].fullName : "Software Engineering",
+        semester,
+      });
+      const qs = normalizeMcqs(data.questions) as MCQ[];
+      if (quizSessionRef.current !== session) return;
+      if (!qs.length) throw new Error("That question is no longer available");
+      setQuestions(qs);
+      setQuizTopic(qs[0].topic || null);
+      setBankMeta({ bank: qs.length, ai: 0 });
+      startTimer(qs.length * MCQ_TIME_SEC);
+    } catch (e: any) {
+      toast.error(e.message || "Could not load the Quiz of the Day");
+      setSelectedSubject(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const location = useLocation();
+  const deepLinkRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkRef.current) return;
+    const st = (location.state || {}) as {
+      dailyQuestionId?: string;
+      dailySubject?: string;
+      subject?: string;
+      topic?: string;
+    };
+    if (!st.dailyQuestionId && !st.subject) return;
+    deepLinkRef.current = true;
+    if (st.dailyQuestionId) {
+      void startDailyQuestion(st.dailyQuestionId, st.dailySubject || "Quiz of the Day");
+    } else if (st.subject) {
+      void startQuiz(st.subject, st.topic ?? null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Final scorecard
   if (quizDone && selectedSubject) {
     return (
@@ -943,17 +1008,17 @@ const PracticePage = () => {
                             : <XCircle className="w-5 h-5 text-destructive" />}
                         </span>
                         <div className="flex-1 min-w-0 space-y-1">
-                          <p className="text-sm font-medium text-foreground">Q{i + 1}: {q.question}</p>
+                          <p className="text-sm font-medium text-foreground">Q{i + 1}: {asText(q.question)}</p>
                           {!ans.isCorrect && (
                             <p className="text-xs text-destructive">
-                              Your answer: {ans.selected} — {q.options[ans.selected as keyof typeof q.options]}
+                              Your answer: {ans.selected} — {asText(q.options[ans.selected as keyof typeof q.options])}
                             </p>
                           )}
                           <p className="text-xs text-emerald-400">
-                            Correct: {ans.correct} — {q.options[ans.correct as keyof typeof q.options]}
+                            Correct: {ans.correct} — {asText(q.options[ans.correct as keyof typeof q.options])}
                           </p>
                           {q.explanation && (
-                            <p className="text-xs text-muted-foreground italic mt-1">💡 {q.explanation}</p>
+                            <p className="text-xs text-muted-foreground italic mt-1">💡 {asText(q.explanation)}</p>
                           )}
                         </div>
                       </div>
@@ -1045,7 +1110,7 @@ const PracticePage = () => {
                     className="glass rounded-xl p-4 space-y-2.5"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-medium text-foreground">Q{i + 1}: {q.question}</p>
+                      <p className="text-sm font-medium text-foreground">Q{i + 1}: {asText(q.question)}</p>
                       <span className={`flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${chip}`}>
                         {label} • {g.score}/{g.maxScore}
                       </span>
@@ -1117,7 +1182,7 @@ const PracticePage = () => {
             <motion.div key={saIndex} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
               <div className="glass rounded-2xl p-6">
                 <p className="text-sm text-muted-foreground mb-2">Written Question {saIndex + 1} • {SA_MAX_MARKS} marks{(q.topic || quizTopic) ? ` • Topic: ${q.topic || quizTopic}` : ""}</p>
-                <h3 className="font-display font-semibold text-foreground text-lg">{q.question}</h3>
+                <h3 className="font-display font-semibold text-foreground text-lg">{asText(q.question)}</h3>
               </div>
 
               <Textarea
@@ -1201,7 +1266,7 @@ const PracticePage = () => {
             <motion.div key={currentQ} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
               <div className="glass rounded-2xl p-6">
                 <p className="text-sm text-muted-foreground mb-2">Question {currentQ + 1}{(q.topic || quizTopic) ? ` • Topic: ${q.topic || quizTopic}` : ""}</p>
-                <h3 className="font-display font-semibold text-foreground text-lg">{q.question}</h3>
+                <h3 className="font-display font-semibold text-foreground text-lg">{asText(q.question)}</h3>
               </div>
 
               <div className="grid gap-3">
@@ -1224,7 +1289,7 @@ const PracticePage = () => {
                       className={`glass rounded-xl p-4 text-left flex items-center gap-3 transition-all border-2 ${borderClass} ${!showResult ? "hover:border-primary/50 cursor-pointer" : ""}`}
                     >
                       <span className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-sm font-bold text-foreground">{key}</span>
-                      <span className="text-sm text-foreground flex-1">{q.options[key]}</span>
+                      <span className="text-sm text-foreground flex-1">{asText(q.options[key])}</span>
                       {showResult && isCorrect && <CheckCircle className="w-5 h-5 text-emerald-500" />}
                       {showResult && isSelected && !isCorrect && <XCircle className="w-5 h-5 text-destructive" />}
                     </motion.button>
@@ -1237,7 +1302,7 @@ const PracticePage = () => {
                   {q.explanation && (
                     <div className="glass rounded-xl p-4 border-l-4 border-l-primary">
                       <p className="text-xs text-muted-foreground font-medium mb-1">💡 Explanation</p>
-                      <p className="text-sm text-foreground">{q.explanation}</p>
+                      <p className="text-sm text-foreground">{asText(q.explanation)}</p>
                     </div>
                   )}
                   <Button onClick={nextQuestion} className="w-full rounded-xl gradient-primary text-primary-foreground gap-2">
@@ -1256,79 +1321,6 @@ const PracticePage = () => {
     );
   }
 
-  // ─── Deep links (Quiz of the Day F-19 + Exam Prep weak topics) ────
-  // The dashboard's Quiz of the Day card now passes the EXACT question
-  // id it displayed; Exam Prep passes a subject/topic to practise.
-  const startDailyQuestion = async (questionId: string, subjectName: string) => {
-    const session = ++quizSessionRef.current;
-    setLoading(true);
-    setSelectedSubject(subjectName);
-    setQuizTopic(null);
-    setQuestions([]);
-    setCurrentQ(0);
-    setScore(0);
-    setQuizDone(false);
-    setAnswers([]);
-    setShowBreakdown(false);
-    setSaQuestions([]);
-    setSaAnswers([]);
-    setSaIndex(0);
-    setSaStage("idle");
-    setSaGrades([]);
-    setFinalTotals(null);
-    setBankMeta(null);
-    setPendingFill(false);
-    setTimeLeft(null);
-    setTimeLimitSec(0);
-    mcqTimesRef.current = [];
-    saTimesRef.current = [];
-    answersRef.current = [];
-    fillRef.current = null;
-    fillFiredRef.current = false;
-    if (fillTimerRef.current) { clearTimeout(fillTimerRef.current); fillTimerRef.current = null; }
-    timeUpHandledRef.current = false;
-    try {
-      const data = await callGenerateQuiz({
-        mode: "question",
-        questionId,
-        subject: subjectName,
-        department: department ? departmentInfo[department].fullName : "Software Engineering",
-        semester,
-      });
-      const qs: MCQ[] = data.questions ?? [];
-      if (quizSessionRef.current !== session) return;
-      if (!qs.length) throw new Error("That question is no longer available");
-      setQuestions(qs);
-      setQuizTopic(qs[0].topic || null);
-      setBankMeta({ bank: qs.length, ai: 0 });
-      startTimer(qs.length * MCQ_TIME_SEC);
-    } catch (e: any) {
-      toast.error(e.message || "Could not load the Quiz of the Day");
-      setSelectedSubject(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const location = useLocation();
-  const deepLinkRef = useRef(false);
-  useEffect(() => {
-    if (deepLinkRef.current) return;
-    const st = (location.state || {}) as {
-      dailyQuestionId?: string;
-      dailySubject?: string;
-      subject?: string;
-      topic?: string;
-    };
-    if (!st.dailyQuestionId && !st.subject) return;
-    deepLinkRef.current = true;
-    if (st.dailyQuestionId) {
-      void startDailyQuestion(st.dailyQuestionId, st.dailySubject || "Quiz of the Day");
-    } else if (st.subject) {
-      void startQuiz(st.subject, st.topic ?? null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Subject selection (setup)
   return (
@@ -1350,6 +1342,14 @@ const PracticePage = () => {
                   : "Generating MCQs + written questions with AI..."}
           </p>
           <p className="text-xs text-muted-foreground">This may take a moment</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl"
+            onClick={() => { genAbortRef.current?.abort(); setLoading(false); setSelectedSubject(null); }}
+          >
+            Cancel
+          </Button>
         </div>
       ) : (
         <div className="space-y-6">
@@ -1368,19 +1368,28 @@ const PracticePage = () => {
               { value: "objective", label: "Objective", desc: "30 MCQs", icon: ListOrdered, tile: "bg-violet-500/10 text-violet-400 border-violet-500/20" },
               { value: "subjective", label: "Subjective", desc: "5 written, AI-graded", icon: PenLine, tile: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
               { value: "mixed", label: "Mixed", desc: "10 MCQs + 3 written", icon: Layers, tile: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
-            ] as const).map((opt) => (
+            ] as const).map((opt) => {
+              const selected = quizType === opt.value;
+              return (
               <button
                 key={opt.value}
                 onClick={() => setQuizType(opt.value)}
-                className={`glass rounded-2xl p-3 sm:p-4 text-left border-2 transition-all ${quizType === opt.value ? "border-primary bg-primary/5" : "border-transparent hover:border-primary/40"}`}
+                aria-pressed={selected}
+                className={`relative rounded-2xl p-3 sm:p-4 text-left border-2 transition-all ${selected ? "gradient-primary border-primary text-primary-foreground shadow-lg shadow-primary/30" : "glass border-transparent hover:border-primary/40"}`}
               >
-                <span className={`w-9 h-9 rounded-lg border flex items-center justify-center mb-2 ${opt.tile}`}>
+                {selected && (
+                  <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-white/25 flex items-center justify-center">
+                    <CheckCircle className="w-3.5 h-3.5 text-white" />
+                  </span>
+                )}
+                <span className={`w-9 h-9 rounded-lg border flex items-center justify-center mb-2 ${selected ? "bg-white/20 text-white border-white/30" : opt.tile}`}>
                   <opt.icon className="w-[18px] h-[18px]" />
                 </span>
-                <p className="text-sm font-semibold text-foreground">{opt.label}</p>
-                <p className="text-[11px] text-muted-foreground">{opt.desc}</p>
+                <p className={`text-sm font-semibold ${selected ? "text-white" : "text-foreground"}`}>{opt.label}</p>
+                <p className={`text-[11px] ${selected ? "text-white/80" : "text-muted-foreground"}`}>{opt.desc}</p>
               </button>
-            ))}
+              );
+            })}
           </div>
 
           {/* Adaptive rule strip */}

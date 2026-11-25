@@ -65,6 +65,10 @@ export const useMySubjects = (semester: number): UseMySubjectsResult => {
     setRows(null);
     (async () => {
       const { data, error } = await supabase
+        // user_subjects exists in the DB but is missing from the
+        // generated types (drift, audit F-07) — cast is deliberate;
+        // the result is fully typed immediately below.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .from("user_subjects" as any)
         .select("*")
         .eq("user_id", user.id)

@@ -24,7 +24,7 @@ export const usePWA = () => {
   useEffect(() => {
     const mql = window.matchMedia("(display-mode: standalone)");
     const update = () =>
-      setIsInstalled(mql.matches || (window.navigator as any).standalone === true);
+      setIsInstalled(mql.matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true);
     update();
     mql.addEventListener?.("change", update);
     return () => mql.removeEventListener?.("change", update);

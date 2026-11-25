@@ -78,6 +78,9 @@ const sameSubject = (a: string, b: string) => {
 
 export async function fetchSubjectTopics(subjectName: string): Promise<SubjectTopic[]> {
   const { data } = await supabase
+    // subject_topics is missing from the generated types (drift, audit
+    // F-07) — cast is deliberate; the result is typed immediately below.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .from("subject_topics" as any)
     .select("id, subject, semester, topic_no, title, slug, has_lab")
     .order("topic_no", { ascending: true });
@@ -88,6 +91,8 @@ export async function fetchSubjectTopics(subjectName: string): Promise<SubjectTo
 /** topic_id -> status for every topic page of this subject (published or not). */
 export async function fetchTopicPageStatuses(subjectName: string): Promise<Map<string, string>> {
   const { data } = await supabase
+    // topic_pages is missing from the generated types (drift, F-07).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .from("topic_pages" as any)
     .select("topic_id, subject, status");
   const map = new Map<string, string>();
@@ -100,6 +105,8 @@ export async function fetchTopicPageStatuses(subjectName: string): Promise<Map<s
 
 export async function fetchTopicPage(topicId: string): Promise<TopicPageData | null> {
   const { data } = await supabase
+    // topic_pages is missing from the generated types (drift, F-07).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .from("topic_pages" as any)
     .select("id, topic_id, subject, title, body_md, code_examples, key_points, common_mistakes, diagram_md, status")
     .eq("topic_id", topicId)
@@ -117,6 +124,8 @@ export async function fetchTopicPage(topicId: string): Promise<TopicPageData | n
 
 export async function fetchSubjectBooks(subjectName: string): Promise<LibraryBook[]> {
   const { data } = await supabase
+    // library_books is missing from the generated types (drift, F-07).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .from("library_books" as any)
     .select("id, subject, semester, title, author, source, license, hosted_url, official_url, size_mb, page_count")
     .order("title", { ascending: true });
@@ -128,16 +137,16 @@ export async function fetchSubjectBooks(subjectName: string): Promise<LibraryBoo
 export async function fetchSubjectReferences(subjectName: string): Promise<SubjectReference[]> {
   const refs: SubjectReference[] = [];
   const [notesRes, papersRes] = await Promise.all([
-    supabase.from("notes" as any).select("title, subject, file_url, uploader_name").order("upvotes", { ascending: false }),
-    supabase.from("past_papers" as any).select("title, subject, file_url, paper_type, year").order("created_at", { ascending: false }),
+    supabase.from("notes").select("title, subject, file_url, uploader_name").order("upvotes", { ascending: false }),
+    supabase.from("past_papers").select("title, subject, file_url, paper_type, year").order("created_at", { ascending: false }),
   ]);
   if (notesRes.data) {
-    (notesRes.data as any[])
+    notesRes.data
       .filter((n) => n.file_url && sameSubject(n.subject || "", subjectName))
       .forEach((n) => refs.push({ kind: "note", title: n.title, url: n.file_url, meta: n.uploader_name || "Community note" }));
   }
   if (papersRes.data) {
-    (papersRes.data as any[])
+    papersRes.data
       .filter((p) => p.file_url && sameSubject(p.subject || "", subjectName))
       .forEach((p) =>
         refs.push({

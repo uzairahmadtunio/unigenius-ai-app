@@ -2,6 +2,8 @@ import { Download, ExternalLink, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { bookDownloadUrl, type LibraryBook } from "@/lib/notes-reader";
+import { downloadFile } from "@/lib/file-delivery";
+import { toast } from "sonner";
 
 /**
  * In-app reader for a mirrored library book. The hosted file (Google
@@ -51,11 +53,13 @@ const BookViewer = ({ book, onClose }: { book: LibraryBook; onClose: () => void 
 
         <div className="flex flex-wrap gap-2 px-4 py-3 border-t border-border">
           {downloadUrl && (
-            <a href={downloadUrl} target="_blank" rel="noreferrer">
-              <Button size="sm" className="rounded-xl text-xs gap-1.5 gradient-primary text-primary-foreground">
-                <Download className="w-3.5 h-3.5" /> Download PDF
-              </Button>
-            </a>
+            <Button
+              size="sm"
+              className="rounded-xl text-xs gap-1.5 gradient-primary text-primary-foreground"
+              onClick={async () => { await downloadFile(downloadUrl, `${book.title}.pdf`); toast.success("Download started"); }}
+            >
+              <Download className="w-3.5 h-3.5" /> Download PDF
+            </Button>
           )}
           {book.official_url && (
             <a href={book.official_url} target="_blank" rel="noreferrer">

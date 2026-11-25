@@ -8,6 +8,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import PageShell from "@/components/PageShell";
+import FileViewerDialog from "@/components/FileViewerDialog";
+import { downloadFile, downloadName } from "@/lib/file-delivery";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartment } from "@/contexts/DepartmentContext";
 import { getSubjects } from "@/data/subjects";
@@ -44,6 +46,8 @@ const PastPapersPage = () => {
   const [papers, setPapers] = useState<PastPaper[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [semesterFilter, setSemesterFilter] = useState<string>("all");
+  const [viewing, setViewing] = useState<PastPaper | null>(null);
   const [filterSubject, setFilterSubject] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [search, setSearch] = useState("");
@@ -56,15 +60,14 @@ const PastPapersPage = () => {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
   const fetchPapers = async () => {
-    let query = supabase.from("past_papers").select("*").eq("semester", semester).order("created_at", { ascending: false });
-    if (filterSubject !== "all") query = query.eq("subject", filterSubject);
-    if (filterType !== "all") query = query.eq("paper_type", filterType);
+    let query = supabase.from("past_papers").select("*").order("created_at", { ascending: false });
+    if (semesterFilter !== "all") query = query.eq("semester", Number(semesterFilter));
     const { data, error } = await query;
     if (!error && data) setPapers(data as PastPaper[]);
     setLoading(false);
   };
 
-  useEffect(() => { fetchPapers(); }, [semester, filterSubject, filterType]);
+  useEffect(() => { fetchPapers(); }, [semesterFilter]);
 
   const handleUpload = async () => {
     if (!user || !uploadFile || !uploadTitle || !uploadSubject) {
@@ -113,9 +116,18 @@ const PastPapersPage = () => {
     toast.success("Paper deleted");
   };
 
-  const filtered = papers.filter(p =>
-    search ? p.title.toLowerCase().includes(search.toLowerCase()) || p.subject.toLowerCase().includes(search.toLowerCase()) : true
-  );
+  const subjectOptions = [...new Set(papers.map(p => p.subject))].sort();
+  const filtered = papers.filter(p => {
+    if (filterSubject !== "all" && p.subject !== filterSubject) return false;
+    if (filterType !== "all" && p.paper_type !== filterType) return false;
+    if (search && !(p.title.toLowerCase().includes(search.toLowerCase()) || p.subject.toLowerCase().includes(search.toLowerCase()))) return false;
+    return true;
+  });
+
+  const handleDownload = async (paper: PastPaper) => {
+    await downloadFile(paper.file_url, downloadName(paper.title, paper.file_name, paper.file_url));
+    toast.success("Download started");
+  };
 
   return (
     <PageShell
@@ -130,8 +142,18 @@ const PastPapersPage = () => {
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search papers..." className="pl-9 rounded-xl" />
         </div>
 
-        {/* One even filter row */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Filter row: semester (default All — the full vault), subject, type */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <Select value={semesterFilter} onValueChange={setSemesterFilter}>
+            <SelectTrigger className="w-full rounded-xl" aria-label="Filter by semester">
+              <GraduationCap className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+              <SelectValue placeholder="Semester" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Semesters</SelectItem>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <SelectItem key={n} value={String(n)}>Semester {n}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Select value={filterSubject} onValueChange={setFilterSubject}>
             <SelectTrigger className="w-full rounded-xl">
               <Filter className="w-3.5 h-3.5 mr-1.5 shrink-0" />
@@ -139,7 +161,7 @@ const PastPapersPage = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Subjects</SelectItem>
-              {subjects.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+              {subjectOptions.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterType} onValueChange={setFilterType}>
@@ -251,22 +273,26 @@ const PastPapersPage = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <a href={paper.file_url} target="_blank" rel="noopener noreferrer" className="flex-1">
-                      <Button variant="ghost" size="sm" className="w-full rounded-xl gap-1.5 text-xs border border-border/60">
-                        <Eye className="w-3.5 h-3.5" /> View
-                      </Button>
-                    </a>
-                    <a href={paper.file_url} download={paper.file_name} target="_blank" rel="noopener noreferrer" className="flex-1">
-                      <Button size="sm" className="w-full rounded-xl gap-1.5 text-xs gradient-button text-primary-foreground">
-                        <Download className="w-3.5 h-3.5" /> Download
-                      </Button>
-                    </a>
+                    <Button variant="ghost" size="sm" className="flex-1 w-full rounded-xl gap-1.5 text-xs border border-border/60" onClick={() => setViewing(paper)}>
+                      <Eye className="w-3.5 h-3.5" /> View
+                    </Button>
+                    <Button size="sm" className="flex-1 w-full rounded-xl gap-1.5 text-xs gradient-button text-primary-foreground" onClick={() => handleDownload(paper)}>
+                      <Download className="w-3.5 h-3.5" /> Download
+                    </Button>
                   </div>
                 </motion.div>
               ))}
             </div>
           </>
         )}
+
+        <FileViewerDialog
+          open={!!viewing}
+          onOpenChange={(o) => { if (!o) setViewing(null); }}
+          title={viewing?.title ?? ""}
+          url={viewing?.file_url ?? null}
+          fileName={viewing?.file_name}
+        />
 
         {/* Help the vault grow — wired to the existing upload flow */}
         <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-6 text-center space-y-3">

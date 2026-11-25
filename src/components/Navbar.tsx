@@ -124,7 +124,7 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
       <div className="w-full mx-auto flex items-center justify-between h-16 px-4 gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {onMenuToggle && (
-            <Button variant="ghost" size="icon" className="rounded-lg md:hidden shrink-0" onClick={onMenuToggle}>
+            <Button variant="ghost" size="icon" className="rounded-lg md:hidden shrink-0" onClick={onMenuToggle} aria-label="Open navigation menu">
               <Menu className="w-5 h-5" />
             </Button>
           )}
@@ -168,14 +168,14 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
               <RefreshCw className="w-3 h-3" /> Change Dept
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={() => setIsDark(!isDark)} className="rounded-lg hidden sm:flex">
+          <Button variant="ghost" size="icon" onClick={() => setIsDark(!isDark)} className="rounded-lg hidden sm:flex" aria-label="Toggle dark mode">
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
 
           {user && (
             <Popover onOpenChange={handleBellOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-lg relative">
+                <Button variant="ghost" size="icon" className="rounded-lg relative" aria-label="Notifications">
                   <Bell className="w-4 h-4" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
@@ -244,6 +244,7 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
                       variant="ghost"
                       size="icon"
                       className="rounded-lg hidden md:flex"
+                      aria-label="Invite friends via WhatsApp"
                       onClick={() => {
                         const msg = `Check out UniGenius AI – The ultimate assistant for Software Engineering students. Fix C++ code, generate lab manuals, track attendance, and more. Join here: ${window.location.origin} — Built by Uzair Ahmad`;
                         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
@@ -255,7 +256,7 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
                   <TooltipContent><p className="text-xs">Invite Friends</p></TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <Button variant="ghost" size="icon" className="rounded-lg hidden md:flex" onClick={() => navigate("/profile")}>
+              <Button variant="ghost" size="icon" className="rounded-lg hidden md:flex" onClick={() => navigate("/profile")} aria-label="Profile settings">
                 <Settings className="w-4 h-4" />
               </Button>
               <Avatar className="w-8 h-8 cursor-pointer ring-2 ring-primary/40 ring-offset-1 ring-offset-background transition-transform duration-200 hover:scale-105 active:scale-95" onClick={() => navigate("/profile")}>
@@ -264,7 +265,7 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
                   {user.email?.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <Button variant="ghost" size="icon" className="rounded-lg hidden md:flex" onClick={signOut}>
+              <Button variant="ghost" size="icon" className="rounded-lg hidden md:flex" onClick={signOut} aria-label="Sign out">
                 <LogOut className="w-4 h-4" />
               </Button>
             </div>

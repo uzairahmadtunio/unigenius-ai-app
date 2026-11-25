@@ -584,7 +584,7 @@ function codeBlock(lines: string[]) {
 }
 
 function markdownToDocxChildren(markdown: string) {
-  const children: any[] = [];
+  const children: (Paragraph | Table)[] = [];
   const lines = markdown.split("\n").map(sanitizeLine);
   let inCode = false;
   let codeLines: string[] = [];

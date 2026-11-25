@@ -42,12 +42,12 @@ export const DepartmentProvider = ({ children }: { children: ReactNode }) => {
         .select("department")
         .eq("user_id", user.id)
         .maybeSingle();
-      const remote = (data as any)?.department as Department | null;
+      const remote = data?.department as Department | null | undefined;
       if (remote && remote !== department) {
         localStorage.setItem(STORAGE_KEY, remote);
         setDepartmentState(remote);
       } else if (!remote && department) {
-        await supabase.from("profiles").update({ department } as any).eq("user_id", user.id);
+        await supabase.from("profiles").update({ department }).eq("user_id", user.id);
       }
     })();
     return () => { cancelled = true; };
@@ -60,7 +60,7 @@ export const DepartmentProvider = ({ children }: { children: ReactNode }) => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from("profiles").update({ department: dept } as any).eq("user_id", user.id);
+        await supabase.from("profiles").update({ department: dept }).eq("user_id", user.id);
       }
     })();
   }, []);

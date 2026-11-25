@@ -7,6 +7,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import BookViewer from "@/components/BookViewer";
+import { downloadFile } from "@/lib/file-delivery";
+import { toast } from "sonner";
 import {
   bookDownloadUrl,
   fetchSubjectBooks,
@@ -158,11 +160,15 @@ const SubjectStudySection = ({ subjectName, subjectId }: { subjectName: string; 
                   Read
                 </Button>
                 {bookDownloadUrl(book) && (
-                  <a href={bookDownloadUrl(book)!} target="_blank" rel="noreferrer" className="shrink-0">
-                    <Button size="sm" variant="outline" className="rounded-xl text-xs gap-1">
-                      <Download className="w-3.5 h-3.5" />
-                    </Button>
-                  </a>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl text-xs gap-1 shrink-0"
+                    aria-label={`Download ${book.title}`}
+                    onClick={async () => { await downloadFile(bookDownloadUrl(book)!, `${book.title}.pdf`); toast.success("Download started"); }}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </Button>
                 )}
               </div>
             ))}

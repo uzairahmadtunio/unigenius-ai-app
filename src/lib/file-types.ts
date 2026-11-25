@@ -81,13 +81,20 @@ export const DROP_ZONE_TEXT = "PDF, Images, Word (DOCX), PowerPoint (PPTX), Text
 // their extracted text is sent as a text part. If extraction fails
 // or yields nothing, the student gets an honest note in the prompt
 // instead of a silent unreadable blob.
+// AI content-part shapes understood by the chat edge function
+// (text / OpenAI-style image_url / inline file payload).
+export type FileContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } }
+  | { type: "file"; file: { name: string; mime_type: string; data: string } };
+
 export async function buildFileContentParts(
   file: { name: string; type: string; dataUrl: string; file?: File },
   index: number,
   total: number,
   subjectContext?: string,
-): Promise<any[]> {
-  const parts: any[] = [];
+): Promise<FileContentPart[]> {
+  const parts: FileContentPart[] = [];
   const cat = getFileCategory(file.type || file.name);
   const ctx = subjectContext ? ` for ${subjectContext}` : "";
   const label = `${index + 1}/${total}: ${file.name}`;

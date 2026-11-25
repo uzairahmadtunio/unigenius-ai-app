@@ -44,12 +44,89 @@ function shuffle<T>(arr: T[]): T[] {
 
 /** Find the subject string as stored in question_bank for a requested name. */
 async function findBankSubject(sb: any, subject: string): Promise<string | null> {
-  const { data, error } = await sb.from("question_bank").select("subject");
-  if (error || !data) return null;
+  // PostgREST caps a single response at 1,000 rows, and the bank holds
+  // ~2,500 — an unpaginated select silently hid every subject whose rows
+  // sit past row 1,000 (ICT, Multivariable Calculus, …), forcing those
+  // subjects down the AI path. Page through all rows (Bug #3 fix).
   const target = norm(subject);
-  const subjects: string[] = [...new Set((data as any[]).map((r: any) => String(r.subject)))];
-  const hit = subjects.find((s) => norm(s) === target);
-  return hit ?? null;
+  for (let from = 0; from < 10_000; from += 1000) {
+    const { data, error } = await sb
+      .from("question_bank")
+      .select("subject")
+      .range(from, from + 999);
+    if (error || !data || data.length === 0) break;
+    const hit = (data as any[]).find((r: any) => norm(String(r.subject)) === target);
+    if (hit) return String(hit.subject);
+    if (data.length < 1000) break;
+  }
+  return null;
+}
+
+/**
+ * Coerce any AI-returned value into display text. Gemini's function-call
+ * args occasionally arrive misshapen (explanation as an array of parts,
+ * an option as an object); rendering such a value directly is what threw
+ * React error #300 ("Objects are not valid as a React child") and crashed
+ * Practice. Returns null when the value cannot be sensibly flattened.
+ */
+function toText(v: unknown): string | null {
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (Array.isArray(v)) {
+    const parts = v.map(toText);
+    return parts.every((p) => p !== null) ? parts.join("") : null;
+  }
+  if (v && typeof v === "object") {
+    const t = (v as any).text ?? (v as any).content ?? (v as any).value;
+    if (typeof t === "string") return t;
+  }
+  return null;
+}
+
+/** Normalise one AI MCQ into the canonical shape, or null to drop it. */
+function normalizeMcq(q: any): any | null {
+  if (!q || typeof q !== "object") return null;
+  const question = toText(q.question);
+  if (!question || !question.trim()) return null;
+  let rawOptions: any[] = [];
+  if (Array.isArray(q.options)) rawOptions = q.options;
+  else if (q.options && typeof q.options === "object") {
+    rawOptions = ["A", "B", "C", "D"].map((k) => q.options[k] ?? q.options[k.toLowerCase()]);
+  }
+  const opts = rawOptions.map(toText);
+  if (opts.length !== 4 || opts.some((o) => o === null || !String(o).trim())) return null;
+  const options = { A: opts[0]!, B: opts[1]!, C: opts[2]!, D: opts[3]! };
+  let correct = toText(q.correct) ?? "";
+  correct = correct.trim().toUpperCase();
+  if (!(["A", "B", "C", "D"] as const).includes(correct as any)) {
+    // The model sometimes returns the full answer text instead of a letter.
+    const idx = opts.findIndex((o) => o !== null && o.trim().toLowerCase() === correct.toLowerCase());
+    if (idx === -1) return null;
+    correct = "ABCD"[idx];
+  }
+  return {
+    question,
+    options,
+    correct,
+    explanation: toText(q.explanation) ?? "",
+    topic: toText(q.topic) ?? "",
+    source: "ai" as const,
+  };
+}
+
+/** Normalise one AI subjective question, or null to drop it. */
+function normalizeSaQuestion(q: any): any | null {
+  if (!q || typeof q !== "object") return null;
+  const question = toText(q.question);
+  if (!question || !question.trim()) return null;
+  const keyPointsRaw = Array.isArray(q.keyPoints) ? q.keyPoints : [q.keyPoints];
+  const keyPoints = keyPointsRaw.map(toText).filter((k): k is string => !!k && !!k.trim());
+  return {
+    question,
+    modelAnswer: toText(q.modelAnswer) ?? "",
+    keyPoints,
+    topic: toText(q.topic) ?? "",
+  };
 }
 
 interface BankMcq {
@@ -77,11 +154,16 @@ async function fetchBankMcqs(
   return shuffle(rows)
     .slice(0, limit)
     .map((r) => ({
-      question: r.question,
-      options: { A: r.option_a, B: r.option_b, C: r.option_c, D: r.option_d },
-      correct: r.correct_answer,
-      explanation: r.explanation ?? "",
-      topic: r.topic ?? "",
+      question: toText(r.question) ?? "",
+      options: {
+        A: toText(r.option_a) ?? "",
+        B: toText(r.option_b) ?? "",
+        C: toText(r.option_c) ?? "",
+        D: toText(r.option_d) ?? "",
+      },
+      correct: toText(r.correct_answer) ?? "",
+      explanation: toText(r.explanation) ?? "",
+      topic: toText(r.topic) ?? "",
       source: "bank" as const,
     }));
 }
@@ -193,11 +275,16 @@ serve(async (req) => {
         .maybeSingle();
       if (!data) return json({ questions: [] });
       const q = {
-        question: data.question,
-        options: { A: data.option_a, B: data.option_b, C: data.option_c, D: data.option_d },
-        correct: data.correct_answer,
-        explanation: data.explanation ?? "",
-        topic: data.topic ?? "",
+        question: toText(data.question) ?? "",
+        options: {
+          A: toText(data.option_a) ?? "",
+          B: toText(data.option_b) ?? "",
+          C: toText(data.option_c) ?? "",
+          D: toText(data.option_d) ?? "",
+        },
+        correct: toText(data.correct_answer) ?? "",
+        explanation: toText(data.explanation) ?? "",
+        topic: toText(data.topic) ?? "",
         source: "bank" as const,
       };
       return json({ questions: [q], bankCount: 1, aiCount: 0 }, { "x-ai-tier": "bank" });
@@ -273,7 +360,13 @@ serve(async (req) => {
 
       const saFc = saResult.data.candidates?.[0]?.content?.parts?.find((p: any) => p.functionCall);
       if (!saFc) throw new Error("No function call in response");
-      return json(saFc.functionCall.args, {
+      // Normalise at the boundary (Bug #3): never hand the client raw
+      // tool-call args — a misshapen field crashes the session renderer.
+      const saArgs = saFc.functionCall.args ?? {};
+      const saQuestions = (Array.isArray(saArgs.questions) ? saArgs.questions : [])
+        .map(normalizeSaQuestion)
+        .filter(Boolean);
+      return json({ ...saArgs, questions: saQuestions }, {
         "x-ai-tier": saResult.tier,
         "x-ai-key-index": String(saResult.keyIndex),
       });
@@ -403,11 +496,13 @@ STRICT ANSWER-VALIDITY RULES:
     const fc = result.data.candidates?.[0]?.content?.parts?.find((p: any) => p.functionCall);
     if (!fc) throw new Error("No function call in response");
 
-    const aiQs = (fc.functionCall.args?.questions ?? []).map((q: any) => ({
-      ...q,
-      topic: q.topic || topic || "General",
-      source: "ai" as const,
-    }));
+    // Normalise at the boundary (Bug #3): coerce every AI question into
+    // the canonical shape and drop irreparable ones — raw args with an
+    // object/array in a rendered field crashed Practice with React #300.
+    const aiQs = (fc.functionCall.args?.questions ?? [])
+      .map(normalizeMcq)
+      .filter(Boolean)
+      .map((q: any) => ({ ...q, topic: q.topic || topic || "General" }));
 
     // Grow the bank with the fresh subject/topic questions (never file ones).
     if (!fileData && sb && aiQs.length) {

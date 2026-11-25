@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { fetchWithRetry } from "@/lib/fetch-with-retry";
+import { speak as speakTts, stopSpeaking, getVoiceGender, setVoiceGender as persistVoiceGender, type VoiceGender } from "@/lib/tts";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Bot, User, Sparkles, BookOpen, Code, ListChecks, FileQuestion, ArrowLeft, Paperclip, X, Upload, ArrowUp, ArrowDown, Volume2, Square, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -85,7 +86,7 @@ const ChatPage = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
-  const [voiceGender, setVoiceGender] = useState<"female" | "male">("female");
+  const [voiceGender, setVoiceGender] = useState<VoiceGender>(() => getVoiceGender());
   // Last quick-action chip tapped — drives the violet selected state.
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const { semester: currentSemester, loaded: semesterLoaded } = useCurrentSemester();
@@ -123,59 +124,27 @@ const ChatPage = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // Get best available neural/natural voice
-  const getBestVoice = useCallback((gender: "female" | "male"): SpeechSynthesisVoice | null => {
-    const voices = window.speechSynthesis.getVoices();
-    const enVoices = voices.filter(v => v.lang.startsWith("en"));
-    // Priority: Google > Microsoft Natural > any English
-    const priority = ["Google", "Natural", "Neural", "Premium", "Enhanced"];
-    const femaleHints = ["Female", "Zira", "Jenny", "Aria", "Sara"];
-    const maleHints = ["Male", "David", "Guy", "Mark", "Roger"];
-    const genderHints = gender === "female" ? femaleHints : maleHints;
-
-    // Try to find a neural voice matching gender
-    for (const p of priority) {
-      const match = enVoices.find(v => v.name.includes(p) && genderHints.some(h => v.name.includes(h)));
-      if (match) return match;
-    }
-    // Try any neural voice
-    for (const p of priority) {
-      const match = enVoices.find(v => v.name.includes(p));
-      if (match) return match;
-    }
-    // Fallback to first English voice
-    return enVoices[0] || voices[0] || null;
-  }, []);
-
-  // TTS Read Aloud with neural voice
+  // TTS Read Aloud — shared path (src/lib/tts.ts): async voice loading,
+  // gender-aware best-voice pick, pitch fallback, sentence chunking.
   const handleReadAloud = useCallback((msgId: string, text: string) => {
     if (speakingMsgId === msgId) {
-      window.speechSynthesis.cancel();
+      stopSpeaking();
       setSpeakingMsgId(null);
       return;
     }
-    window.speechSynthesis.cancel();
     const clean = text.replace(/```[\s\S]*?```/g, " code block ").replace(/[*#_`~>|]/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
-    const utterance = new SpeechSynthesisUtterance(clean);
-    const voice = getBestVoice(voiceGender);
-    if (voice) utterance.voice = voice;
-    utterance.lang = "en-US";
-    utterance.rate = 0.95;
-    utterance.pitch = voiceGender === "male" ? 0.85 : 1.05;
-    utterance.onend = () => setSpeakingMsgId(null);
-    utterance.onerror = () => setSpeakingMsgId(null);
     setSpeakingMsgId(msgId);
-    window.speechSynthesis.speak(utterance);
-  }, [speakingMsgId, voiceGender, getBestVoice]);
+    speakTts(clean, {
+      gender: voiceGender,
+      onend: () => setSpeakingMsgId(null),
+      onerror: () => setSpeakingMsgId(null),
+    });
+  }, [speakingMsgId, voiceGender]);
 
-  // Preload voices & cleanup TTS on unmount
+  // Stop any speech when leaving the page
   useEffect(() => {
-    window.speechSynthesis.getVoices(); // trigger async load
-    const onVoicesChanged = () => window.speechSynthesis.getVoices();
-    window.speechSynthesis.addEventListener?.("voiceschanged", onVoicesChanged);
     return () => {
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.removeEventListener?.("voiceschanged", onVoicesChanged);
+      stopSpeaking();
     };
   }, []);
 
@@ -519,7 +488,7 @@ const ChatPage = () => {
           {/* Sticky chat header */}
           <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/30 px-4 py-2.5">
             <div className="max-w-3xl mx-auto flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="rounded-xl flex-shrink-0" onClick={() => goBack("/")}>
+              <Button variant="ghost" size="icon" className="rounded-xl flex-shrink-0" onClick={() => goBack("/")} aria-label="Back to home">
                 <ArrowLeft className="w-4 h-4" />
               </Button>
               <div className="min-w-0">
@@ -612,7 +581,7 @@ const ChatPage = () => {
                             )}
                           </button>
                           <button
-                            onClick={() => setVoiceGender(prev => prev === "female" ? "male" : "female")}
+                            onClick={() => { const next = voiceGender === "female" ? "male" : "female"; setVoiceGender(next); persistVoiceGender(next); }}
                             className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded-md border border-border/50"
                             title="Switch voice"
                           >
@@ -763,7 +732,7 @@ const ChatPage = () => {
               {/* Text input */}
               <div className="glass rounded-2xl p-2 flex gap-2 items-end">
                 <input type="file" ref={fileInputRef} onChange={handleFileSelect} multiple accept={ACCEPT_EXTENSIONS} className="hidden" />
-                <Button variant="ghost" size="icon" className="rounded-xl flex-shrink-0 relative" onClick={() => fileInputRef.current?.click()} disabled={isStreaming || attachedFiles.length >= MAX_FILES}>
+                <Button variant="ghost" size="icon" className="rounded-xl flex-shrink-0 relative" onClick={() => fileInputRef.current?.click()} disabled={isStreaming || attachedFiles.length >= MAX_FILES} aria-label="Attach a file">
                   <Paperclip className="w-4 h-4" />
                   {attachedFiles.length > 0 && (
                     <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">{attachedFiles.length}</span>
@@ -778,7 +747,7 @@ const ChatPage = () => {
                   className="flex-1 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none min-h-[40px] max-h-[160px]"
                   rows={1}
                 />
-                <Button size="icon" className="rounded-xl gradient-primary flex-shrink-0" onClick={() => handleSend()} disabled={(!input.trim() && attachedFiles.length === 0) || isStreaming}>
+                <Button size="icon" className="rounded-xl gradient-primary flex-shrink-0" onClick={() => handleSend()} disabled={(!input.trim() && attachedFiles.length === 0) || isStreaming} aria-label="Send message">
                   <Send className="w-4 h-4" />
                 </Button>
               </div>

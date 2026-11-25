@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 
@@ -19,12 +20,12 @@ export const recordCareerActivity = async (
   _userId: string,
   activityType: "dsa_solve" | "interview_complete" | "cv_score",
   _points: number,
-  metadata: Record<string, any> = {}
+  metadata: Record<string, Json> = {}
 ) => {
-  const { error } = await supabase.rpc("record_career_activity" as any, {
+  const { error } = await supabase.rpc("record_career_activity", {
     _activity_type: activityType,
     _metadata: metadata,
-  } as any);
+  });
 
   if (error) {
     console.error("Failed to record career activity:", error);
@@ -46,18 +47,20 @@ const BADGES: Record<string, BadgeDef> = {
 
 export const checkAndAwardBadges = async (userId: string) => {
   const { data: activities } = await supabase
-    .from("career_activity" as any)
+    .from("career_activity")
     .select("activity_type, metadata")
     .eq("user_id", userId);
 
   if (!activities) return;
 
-  const dsaCount = activities.filter((a: any) => a.activity_type === "dsa_solve").length;
-  const interviewCount = activities.filter((a: any) => a.activity_type === "interview_complete").length;
-  const hasCvUpload = activities.some((a: any) => a.activity_type === "cv_score");
-  const hasCvAbove80 = activities.some(
-    (a: any) => a.activity_type === "cv_score" && (a.metadata as any)?.score >= 80
-  );
+  const dsaCount = activities.filter((a) => a.activity_type === "dsa_solve").length;
+  const interviewCount = activities.filter((a) => a.activity_type === "interview_complete").length;
+  const hasCvUpload = activities.some((a) => a.activity_type === "cv_score");
+  const hasCvAbove80 = activities.some((a) => {
+    if (a.activity_type !== "cv_score") return false;
+    const score = (a.metadata as { score?: unknown } | null)?.score;
+    return typeof score === "number" && score >= 80;
+  });
 
   const badgesToAward: BadgeDef[] = [];
 
@@ -72,15 +75,15 @@ export const checkAndAwardBadges = async (userId: string) => {
 
   // Fetch existing badges to know which are new
   const { data: existingBadges } = await supabase
-    .from("user_badges" as any)
+    .from("user_badges")
     .select("badge_id")
     .eq("user_id", userId);
 
-  const existingIds = new Set((existingBadges || []).map((b: any) => b.badge_id));
+  const existingIds = new Set((existingBadges || []).map((b) => b.badge_id));
 
   for (const badge of badgesToAward) {
     if (!existingIds.has(badge.id)) {
-      const { data, error } = await supabase.rpc("award_badge" as any, { _badge_id: badge.id } as any);
+      const { data, error } = await supabase.rpc("award_badge", { _badge_id: badge.id });
       if (!error && data === true) {
         toast.success(`🏅 New Badge Unlocked: ${badge.icon} ${badge.name}!`, { duration: 5000 });
       }
@@ -98,16 +101,15 @@ export const checkProfileBadge = async (userId: string) => {
 
   if (!profile) return;
 
-  const p = profile as any;
   const fields = [
-    p.display_name, p.roll_number, p.avatar_url, p.headline,
-    p.github_url || p.linkedin_url, p.section,
+    profile.display_name, profile.roll_number, profile.avatar_url, profile.headline,
+    profile.github_url || profile.linkedin_url, profile.section,
   ];
   const allFilled = fields.every(Boolean);
 
   if (allFilled) {
     const { data: existing } = await supabase
-      .from("user_badges" as any)
+      .from("user_badges")
       .select("id")
       .eq("user_id", userId)
       .eq("badge_id", "profile_pro")
@@ -115,7 +117,7 @@ export const checkProfileBadge = async (userId: string) => {
 
     if (!existing) {
       const badge = BADGES.profile_pro;
-      const { data, error } = await supabase.rpc("award_badge" as any, { _badge_id: badge.id } as any);
+      const { data, error } = await supabase.rpc("award_badge", { _badge_id: badge.id });
       if (!error && data === true) {
         toast.success(`🏅 New Badge Unlocked: ${badge.icon} ${badge.name}!`, { duration: 5000 });
       }

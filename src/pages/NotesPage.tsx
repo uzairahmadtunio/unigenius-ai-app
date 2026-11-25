@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { FileUp, Download, ThumbsUp, FileText, Loader2, Trash2, NotebookPen, Plus, Pencil, Save, X } from "lucide-react";
+import { FileUp, Download, ThumbsUp, FileText, Loader2, Trash2, NotebookPen, Plus, Pencil, Save, X, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,8 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartment } from "@/contexts/DepartmentContext";
 import { getSubjects } from "@/data/subjects";
+import { useMySubjects } from "@/hooks/use-my-subjects";
+import { useCurrentSemester } from "@/hooks/use-current-semester";
 import { supabase } from "@/integrations/supabase/client";
 import PageShell from "@/components/PageShell";
+import FileViewerDialog from "@/components/FileViewerDialog";
+import { downloadFile, downloadName, sourceFromTitle } from "@/lib/file-delivery";
 import { toast } from "sonner";
 
 interface Note {
@@ -34,17 +38,51 @@ interface TextNote {
   updated_at: string;
 }
 
+/** Same normalisation the Practice bank matching uses: case/space/
+ *  punctuation-insensitive, parenthetical suffixes ("(DLD)") stripped. */
+const normSubject = (s: string) =>
+  (s || "").toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9]+/g, "");
+
 const NotesPage = () => {
   const { user } = useAuth();
   const { department } = useDepartment();
-  const [semester, setSemester] = useState(1);
+  const { semester: currentSemester, loaded: semesterLoaded } = useCurrentSemester();
+
+  // ── BROWSE state (Feature #7 + separation refinement, 2026-11-25) ──
+  // The marketplace filter is its OWN system: it drives only the browsed
+  // list and never touches the upload form (and vice versa). It opens on
+  // the student's own current semester with their own subjects.
+  const [browseSemester, setBrowseSemester] = useState(1);
+  const browseSemesterTouched = useRef(false);
+  const [browseSubject, setBrowseSubject] = useState<string>("all");
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [title, setTitle] = useState("");
-  const [subject, setSubject] = useState("");
-  const [file, setFile] = useState<File | null>(null);
   const [userVotes, setUserVotes] = useState<Set<string>>(new Set());
+  const [viewing, setViewing] = useState<Note | null>(null);
+
+  useEffect(() => {
+    if (semesterLoaded && !browseSemesterTouched.current) setBrowseSemester(currentSemester);
+  }, [semesterLoaded, currentSemester]);
+
+  const { subjects: mySubjects } = useMySubjects(browseSemester);
+  const browseSubjectNames = mySubjects.map((s) => s.name);
+
+  // ── UPLOAD state (fully independent of the browse filter) ──
+  const [uploadSemester, setUploadSemester] = useState(1);
+  const uploadSemesterInit = useRef(false);
+  const [uploadSubject, setUploadSubject] = useState("");
+  const [title, setTitle] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (semesterLoaded && !uploadSemesterInit.current) {
+      uploadSemesterInit.current = true;
+      setUploadSemester(currentSemester);
+    }
+  }, [semesterLoaded, currentSemester]);
+
+  const uploadSubjects = department ? getSubjects(department, uploadSemester) : [];
 
   // Personal text notes (user_notes, owner-only)
   const [myNotes, setMyNotes] = useState<TextNote[]>([]);
@@ -54,14 +92,12 @@ const NotesPage = () => {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [savingNote, setSavingNote] = useState(false);
 
-  const subjects = department ? getSubjects(department, semester) : [];
-
   const fetchNotes = async () => {
     setLoading(true);
     const { data } = await supabase
       .from("notes" as any)
       .select("*")
-      .eq("semester", semester)
+      .eq("semester", browseSemester)
       .order("upvotes", { ascending: false });
 
     if (data) setNotes(data as any);
@@ -80,7 +116,12 @@ const NotesPage = () => {
   useEffect(() => {
     fetchNotes();
     fetchVotes();
-  }, [semester, user]);
+  }, [browseSemester, user]);
+
+  const visibleNotes =
+    browseSubject === "all"
+      ? notes
+      : notes.filter((n) => normSubject(n.subject) === normSubject(browseSubject));
 
   const fetchMyNotes = async () => {
     if (!user) { setMyNotesLoading(false); return; }
@@ -148,7 +189,7 @@ const NotesPage = () => {
   };
 
   const uploadNote = async () => {
-    if (!user || !file || !title.trim() || !subject) {
+    if (!user || !file || !title.trim() || !uploadSubject) {
       toast.error("Fill all fields and select a PDF");
       return;
     }
@@ -163,8 +204,8 @@ const NotesPage = () => {
 
       const { error: insertErr } = await supabase.from("notes" as any).insert({
         title: title.trim(),
-        subject,
-        semester,
+        subject: uploadSubject,
+        semester: uploadSemester,
         file_url: urlData.publicUrl,
         file_name: file.name,
         user_id: user.id,
@@ -174,7 +215,7 @@ const NotesPage = () => {
       toast.success("Notes uploaded!");
       setTitle("");
       setFile(null);
-      setSubject("");
+      setUploadSubject("");
       fetchNotes();
     } catch (e: any) {
       toast.error(e.message || "Upload failed");
@@ -183,17 +224,26 @@ const NotesPage = () => {
     }
   };
 
+  // Toggle upvote (Bug #6C): the RPC returns the NEW state — voting and
+  // un-voting both work, and the count comes from the server.
   const upvote = async (noteId: string) => {
     if (!user) { toast.error("Login to upvote"); return; }
-    if (userVotes.has(noteId)) { toast.info("Already upvoted"); return; }
-
     const { data, error } = await supabase.rpc("toggle_note_upvote" as any, { _note_id: noteId } as any);
     if (error) { toast.error("Failed to upvote"); return; }
     const row: any = Array.isArray(data) ? data[0] : data;
-    const total = row?.total ?? notes.find((n) => n.id === noteId)!.upvotes + 1;
-
-    setUserVotes((prev) => new Set([...prev, noteId]));
+    const total = row?.total ?? notes.find((n) => n.id === noteId)!.upvotes;
+    const nowVoted = row?.upvoted ?? !userVotes.has(noteId);
+    setUserVotes((prev) => {
+      const next = new Set(prev);
+      if (nowVoted) next.add(noteId); else next.delete(noteId);
+      return next;
+    });
     setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, upvotes: total } : n)));
+  };
+
+  const handleDownload = async (note: Note) => {
+    await downloadFile(note.file_url, downloadName(cleanNoteTitle(note.title), note.file_name, note.file_url));
+    toast.success("Download started");
   };
 
   // Display-only cleanup: some stored titles carry a raw
@@ -201,6 +251,17 @@ const NotesPage = () => {
   // never shows (or overflows) in the card. DB rows are not rewritten.
   const cleanNoteTitle = (t: string) =>
     t.replace(/\s*\(official source:.*$/i, "").trim() || t;
+
+  // Attribution (Bug #6B): surface the creator/source recorded in the
+  // data — the title's source segment when present, plus the uploader
+  // when they are a real named user. Nothing is invented.
+  const attribution = (note: Note) => {
+    const source = sourceFromTitle(cleanNoteTitle(note.title));
+    const named = note.uploader_name && note.uploader_name !== "Anonymous" ? note.uploader_name : null;
+    if (source && named) return `Source: ${source} • Shared by ${named}`;
+    if (source) return `Source: ${source}`;
+    return `by ${note.uploader_name || "Anonymous"}`;
+  };
 
   return (
     <PageShell
@@ -224,14 +285,14 @@ const NotesPage = () => {
 
         <TabsContent value="marketplace" className="mt-0 min-w-0">
       <div className="grid lg:grid-cols-3 gap-4 min-w-0">
-        {/* Upload — min-w-0 on the grid child + w-full fields keep every
-            control inside the page padding at 390px (overflow fix). */}
+        {/* Upload — its OWN semester/subject state, completely separate
+            from the browse filter on the right. */}
         <div className="glass rounded-2xl p-5 sm:p-6 space-y-4 h-fit min-w-0 w-full max-w-full">
           <h3 className="font-display font-semibold text-foreground">Upload Notes</h3>
 
           <Input placeholder="Title (e.g., DSA Chapter 3 Notes)" value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl w-full min-w-0" />
 
-          <Select value={String(semester)} onValueChange={(v) => setSemester(Number(v))}>
+          <Select value={String(uploadSemester)} onValueChange={(v) => { setUploadSemester(Number(v)); setUploadSubject(""); }}>
             <SelectTrigger className="rounded-xl w-full min-w-0"><SelectValue /></SelectTrigger>
             <SelectContent>
               {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
@@ -240,10 +301,10 @@ const NotesPage = () => {
             </SelectContent>
           </Select>
 
-          <Select value={subject} onValueChange={setSubject}>
+          <Select value={uploadSubject} onValueChange={setUploadSubject}>
             <SelectTrigger className="rounded-xl w-full min-w-0"><SelectValue placeholder="Select subject" /></SelectTrigger>
             <SelectContent>
-              {subjects.map((s) => (
+              {uploadSubjects.map((s) => (
                 <SelectItem key={s.id} value={s.name}>{s.icon} {s.name}</SelectItem>
               ))}
             </SelectContent>
@@ -264,21 +325,65 @@ const NotesPage = () => {
           </Button>
         </div>
 
-        {/* Notes List */}
+        {/* Browse — its OWN cascading filter: semester chips rebuild the
+            subject chips from the student's own subjects (My Subjects /
+            scheme), and the chips filter only this list. */}
         <div className="lg:col-span-2 space-y-3 min-w-0 w-full max-w-full">
-          <h3 className="font-display font-semibold text-foreground">Semester {semester} Notes</h3>
+          <div className="space-y-2.5">
+            <div className="flex gap-1.5 flex-wrap" role="group" aria-label="Browse by semester">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                <Button
+                  key={s}
+                  size="sm"
+                  variant={browseSemester === s ? "default" : "outline"}
+                  aria-pressed={browseSemester === s}
+                  className={`rounded-full h-8 px-3 text-xs ${browseSemester === s ? "gradient-primary text-primary-foreground" : ""}`}
+                  onClick={() => { browseSemesterTouched.current = true; setBrowseSemester(s); setBrowseSubject("all"); }}
+                >
+                  Sem {s}
+                </Button>
+              ))}
+            </div>
+            <div className="flex gap-1.5 flex-wrap" role="group" aria-label="Browse by subject">
+              <Button
+                size="sm"
+                variant={browseSubject === "all" ? "default" : "outline"}
+                aria-pressed={browseSubject === "all"}
+                className={`rounded-full h-8 px-3 text-xs ${browseSubject === "all" ? "gradient-primary text-primary-foreground" : ""}`}
+                onClick={() => setBrowseSubject("all")}
+              >
+                All Subjects
+              </Button>
+              {browseSubjectNames.map((name) => (
+                <Button
+                  key={name}
+                  size="sm"
+                  variant={browseSubject === name ? "default" : "outline"}
+                  aria-pressed={browseSubject === name}
+                  className={`rounded-full h-8 px-3 text-xs ${browseSubject === name ? "gradient-primary text-primary-foreground" : ""}`}
+                  onClick={() => setBrowseSubject(name)}
+                >
+                  {name}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <h3 className="font-display font-semibold text-foreground">
+            Semester {browseSemester} Notes{browseSubject !== "all" ? ` — ${browseSubject}` : ""} ({visibleNotes.length})
+          </h3>
 
           {loading ? (
             <div className="glass rounded-2xl p-8 text-center">
               <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
             </div>
-          ) : notes.length === 0 ? (
+          ) : visibleNotes.length === 0 ? (
             <div className="glass rounded-2xl p-8 text-center space-y-2">
               <FileText className="w-10 h-10 text-muted-foreground/30 mx-auto" />
-              <p className="text-sm text-muted-foreground">No notes yet. Be the first to upload!</p>
+              <p className="text-sm text-muted-foreground">No notes here yet. Be the first to upload!</p>
             </div>
           ) : (
-            notes.map((note, i) => (
+            visibleNotes.map((note, i) => (
               <motion.div
                 key={note.id}
                 initial={{ opacity: 0, y: 10 }}
@@ -288,6 +393,8 @@ const NotesPage = () => {
               >
                 <button
                   onClick={() => upvote(note.id)}
+                  aria-pressed={userVotes.has(note.id)}
+                  aria-label={userVotes.has(note.id) ? "Remove upvote" : "Upvote this note"}
                   className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-full border shrink-0 transition-colors ${
                     userVotes.has(note.id)
                       ? "bg-primary text-primary-foreground border-primary"
@@ -301,15 +408,18 @@ const NotesPage = () => {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground text-sm line-clamp-2 break-words">{cleanNoteTitle(note.title)}</p>
                   <p className="text-xs text-muted-foreground break-words mt-0.5">
-                    {note.subject} • by {note.uploader_name} • {new Date(note.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                    {note.subject} • {attribution(note)} • {new Date(note.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                   </p>
                 </div>
 
-                <a href={note.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                  <Button size="sm" variant="outline" className="rounded-lg gap-1.5 text-xs">
+                <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
+                  <Button size="sm" variant="outline" className="rounded-lg gap-1.5 text-xs" onClick={() => setViewing(note)}>
+                    <Eye className="w-3 h-3" /> View
+                  </Button>
+                  <Button size="sm" variant="outline" className="rounded-lg gap-1.5 text-xs" onClick={() => handleDownload(note)}>
                     <Download className="w-3 h-3" /> Download
                   </Button>
-                </a>
+                </div>
               </motion.div>
             ))
           )}
@@ -404,6 +514,14 @@ const NotesPage = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      <FileViewerDialog
+        open={!!viewing}
+        onOpenChange={(o) => { if (!o) setViewing(null); }}
+        title={viewing ? cleanNoteTitle(viewing.title) : ""}
+        url={viewing?.file_url ?? null}
+        fileName={viewing?.file_name}
+      />
     </PageShell>
   );
 };

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchWithRetry } from "@/lib/fetch-with-retry";
 import { authHeader } from "@/lib/auth-header";
+import { parseAiTaskText, buildDeterministicTasks, type DailyTaskDraft } from "@/lib/planner-tasks";
 import { CalendarDays, Sparkles, Loader2, RefreshCw, Save, Clock, Trash2, FolderOpen, Plus, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -125,77 +126,77 @@ const PlannerPage = () => {
     const todayStr = pktTodayStr();
     const endStr = addDaysStr(todayStr, 6);
     try {
-      const auth = await authHeader();
-      const resp = await fetchWithRetry(CHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: auth },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content: `You break a weekly study timetable into daily tasks. Respond with ONLY a JSON array (no markdown, no code fences, no extra text). Each item: {"date": "YYYY-MM-DD", "subject": string, "title": string}. Every date must be between ${todayStr} and ${endStr} inclusive. Create 1-3 short, concrete tasks per day.`,
-            },
-            {
-              role: "user",
-              content: `Today is ${todayStr}. Subjects: ${selected.map((s) => canonicalSubject(s)).join(", ") || "general study"}.\n\nWeekly schedule:\n${schedule}\n\nBreak this week into daily tasks for ${todayStr} to ${endStr}.`,
-            },
-          ],
-        }),
-      });
-      if (!resp.ok) {
-        if (resp.status === 401) toast.error("Session expired — please sign in again");
-        else if (resp.status === 429) toast.error("Rate limited, try again shortly");
-        else if (resp.status === 402) toast.error("AI credits exhausted");
-        else toast.error(`Break-down failed (${resp.status})`);
-        return;
-      }
-      // Same streaming (SSE) response shape as generatePlan — collect full text.
-      let text = "";
-      const contentType = resp.headers.get("content-type") || "";
-      if (resp.body && contentType.includes("text/event-stream")) {
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          let nl: number;
-          while ((nl = buf.indexOf("\n")) !== -1) {
-            let line = buf.slice(0, nl);
-            buf = buf.slice(nl + 1);
-            if (line.endsWith("\r")) line = line.slice(0, -1);
-            if (!line.startsWith("data: ")) continue;
-            const json = line.slice(6).trim();
-            if (json === "[DONE]") break;
-            try {
-              const c = JSON.parse(json).choices?.[0]?.delta?.content;
-              if (c) text += c;
-            } catch { /* skip malformed SSE chunk */ }
+      // Primary path: ask the AI to split the week. If the AI pool is
+      // unavailable (503) or its answer cannot be parsed, fall back to a
+      // deterministic distribution of the weekly schedule so the button
+      // never dead-ends (Bug #2 fix, 2026-11-25).
+      let drafts: DailyTaskDraft[] = [];
+      try {
+        const auth = await authHeader();
+        const resp = await fetchWithRetry(CHAT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: auth },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: "system",
+                content: `You break a weekly study timetable into daily tasks. Respond with ONLY a JSON array (no markdown, no code fences, no extra text). Each item: {"date": "YYYY-MM-DD", "subject": string, "title": string}. Every date must be between ${todayStr} and ${endStr} inclusive. Create 1-3 short, concrete tasks per day.`,
+              },
+              {
+                role: "user",
+                content: `Today is ${todayStr}. Subjects: ${selected.map((s) => canonicalSubject(s)).join(", ") || "general study"}.\n\nWeekly schedule:\n${schedule}\n\nBreak this week into daily tasks for ${todayStr} to ${endStr}.`,
+              },
+            ],
+          }),
+        });
+        if (resp.status === 401) { toast.error("Session expired — please sign in again"); return; }
+        if (resp.status === 429) { toast.error("Rate limited, try again shortly"); return; }
+        if (resp.ok) {
+          // Same streaming (SSE) response shape as generatePlan — collect full text.
+          let text = "";
+          const contentType = resp.headers.get("content-type") || "";
+          if (resp.body && contentType.includes("text/event-stream")) {
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let buf = "";
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buf += decoder.decode(value, { stream: true });
+              let nl: number;
+              while ((nl = buf.indexOf("\n")) !== -1) {
+                let line = buf.slice(0, nl);
+                buf = buf.slice(nl + 1);
+                if (line.endsWith("\r")) line = line.slice(0, -1);
+                if (!line.startsWith("data: ")) continue;
+                const json = line.slice(6).trim();
+                if (json === "[DONE]") break;
+                try {
+                  const c = JSON.parse(json).choices?.[0]?.delta?.content;
+                  if (c) text += c;
+                } catch { /* skip malformed SSE chunk */ }
+              }
+            }
+          } else {
+            text = await resp.text();
           }
+          drafts = parseAiTaskText(text, todayStr, endStr, canonicalSubject);
         }
-      } else {
-        text = await resp.text();
+      } catch (aiErr) {
+        console.warn("[Planner] AI break-down unavailable, using deterministic fallback:", aiErr);
       }
-      // Defensive parse: strip code fences / surrounding prose, take the array.
-      const cleaned = text.replace(/```(?:json)?/gi, "").trim();
-      const start = cleaned.indexOf("[");
-      const end = cleaned.lastIndexOf("]");
-      if (start === -1 || end === -1 || end <= start) { toast.error("Couldn't parse AI tasks — please retry"); return; }
-      let parsed: any;
-      try { parsed = JSON.parse(cleaned.slice(start, end + 1)); } catch { toast.error("Couldn't parse AI tasks — please retry"); return; }
-      if (!Array.isArray(parsed)) { toast.error("Couldn't parse AI tasks — please retry"); return; }
-      const rows = parsed
-        .filter((r: any) => r && typeof r.title === "string" && r.title.trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(r.date || "")) && String(r.date) >= todayStr && String(r.date) <= endStr)
-        .map((r: any) => ({
-          user_id: user.id, plan_id: currentPlanId, task_date: String(r.date),
-          subject: typeof r.subject === "string" && r.subject.trim() ? canonicalSubject(r.subject.trim()) : null,
-          title: String(r.title).trim(), done: false,
-        }));
-      if (!rows.length) { toast.error("AI returned no valid tasks — please retry"); return; }
+      const usedFallback = drafts.length === 0;
+      if (usedFallback) {
+        drafts = buildDeterministicTasks(schedule, selected, todayStr, canonicalSubject);
+      }
+      if (!drafts.length) { toast.error("Couldn't create tasks — pick subjects or generate a weekly plan first"); return; }
+      const rows = drafts.map((d) => ({
+        user_id: user.id, plan_id: currentPlanId, task_date: d.date,
+        subject: d.subject, title: d.title, done: false,
+      }));
       const { error } = await supabase.from("plan_tasks" as any).insert(rows as any);
       if (error) { toast.error(`Couldn't save tasks: ${error.message}`); return; }
-      toast.success(`${rows.length} daily tasks created`);
+      toast.success(usedFallback ? `${rows.length} daily tasks created from your weekly schedule` : `${rows.length} daily tasks created`);
       loadPlanTasks();
     } catch (e: any) {
       console.error("[Planner] Break-week exception:", e);

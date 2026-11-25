@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
+type SupportMessage = Database["public"]["Tables"]["support_messages"]["Row"];
 import { motion, AnimatePresence } from "framer-motion";
 
 // Only show the floating help widget on these low-distraction pages.
@@ -21,7 +24,7 @@ const SupportChatWidgetInner = () => {
     () => typeof window !== "undefined" && sessionStorage.getItem("support_widget_dismissed") === "1"
   );
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [ticketId, setTicketId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [unreadAdmin, setUnreadAdmin] = useState(0);
@@ -34,7 +37,7 @@ const SupportChatWidgetInner = () => {
     if (!user || !open) return;
     const init = async () => {
       const { data: existing } = await supabase
-        .from("support_tickets" as any)
+        .from("support_tickets")
         .select("id")
         .eq("user_id", user.id)
         .eq("status", "open")
@@ -42,7 +45,7 @@ const SupportChatWidgetInner = () => {
         .limit(1);
 
       if (existing && existing.length > 0) {
-        setTicketId((existing[0] as any).id);
+        setTicketId(existing[0].id);
       }
     };
     init();
@@ -53,14 +56,14 @@ const SupportChatWidgetInner = () => {
     if (!ticketId) return;
     const fetch = async () => {
       const { data } = await supabase
-        .from("support_messages" as any)
+        .from("support_messages")
         .select("*")
         .eq("ticket_id", ticketId)
         .order("created_at", { ascending: true });
       setMessages(data || []);
 
       // Mark admin messages as read
-      await (supabase.from("support_messages" as any) as any)
+      await supabase.from("support_messages")
         .update({ is_read: true })
         .eq("ticket_id", ticketId)
         .eq("sender_role", "admin")
@@ -81,8 +84,8 @@ const SupportChatWidgetInner = () => {
         table: "support_messages",
         filter: `ticket_id=eq.${ticketId}`,
       }, (payload) => {
-        setMessages((prev) => [...prev, payload.new]);
-        if ((payload.new as any).sender_role === "admin" && !open) {
+        setMessages((prev) => [...prev, payload.new as SupportMessage]);
+        if ((payload.new as SupportMessage).sender_role === "admin" && !open) {
           setUnreadAdmin((c) => c + 1);
         }
       })
@@ -95,15 +98,15 @@ const SupportChatWidgetInner = () => {
     if (!user) return;
     const check = async () => {
       const { data: tickets } = await supabase
-        .from("support_tickets" as any)
+        .from("support_tickets")
         .select("id")
         .eq("user_id", user.id)
         .eq("status", "open");
       if (!tickets || tickets.length === 0) return;
-      const tid = (tickets[0] as any).id;
+      const tid = tickets[0].id;
       setTicketId(tid);
       const { count } = await supabase
-        .from("support_messages" as any)
+        .from("support_messages")
         .select("id", { count: "exact", head: true })
         .eq("ticket_id", tid)
         .eq("sender_role", "admin")
@@ -123,7 +126,7 @@ const SupportChatWidgetInner = () => {
     let tid = ticketId;
 
     if (!tid) {
-      const { data } = await (supabase.from("support_tickets" as any) as any)
+      const { data } = await supabase.from("support_tickets")
         .insert({ user_id: user.id, subject: "Help Request" })
         .select("id")
         .single();
@@ -134,7 +137,7 @@ const SupportChatWidgetInner = () => {
     }
 
     if (tid) {
-      await (supabase.from("support_messages" as any) as any)
+      await supabase.from("support_messages")
         .insert({
           ticket_id: tid,
           sender_id: user.id,
@@ -142,7 +145,7 @@ const SupportChatWidgetInner = () => {
           message: message.trim(),
         });
       // Update ticket timestamp
-      await (supabase.from("support_tickets" as any) as any)
+      await supabase.from("support_tickets")
         .update({ updated_at: new Date().toISOString() })
         .eq("id", tid);
     }
@@ -227,7 +230,7 @@ const SupportChatWidgetInner = () => {
                   <p className="text-[10px] text-muted-foreground/60 mt-1">Admin jaldi reply karega 🚀</p>
                 </div>
               )}
-              {messages.map((m: any) => (
+              {messages.map((m) => (
                 <div
                   key={m.id}
                   className={`flex ${m.sender_role === "student" ? "justify-end" : "justify-start"}`}

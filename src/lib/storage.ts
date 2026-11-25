@@ -45,7 +45,7 @@ export async function signStorageUrls(
   if (!toSign.length) return urls;
   const { data } = await supabase.storage.from(bucket).createSignedUrls(toSign, expiresIn);
   const byPath = new Map<string, string>();
-  (data || []).forEach((d: any) => {
+  (data || []).forEach((d) => {
     if (d?.path && d?.signedUrl) byPath.set(d.path, d.signedUrl);
   });
   return urls.map((u, i) => {

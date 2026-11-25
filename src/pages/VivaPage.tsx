@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { speak as speakTts } from "@/lib/tts";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Send, GraduationCap, Volume2, XCircle, BookOpen, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -178,9 +179,9 @@ const VivaPage = () => {
   };
 
   const speakText = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text.replace(/[#*_`]/g, ""));
-    utterance.rate = 0.9;
-    speechSynthesis.speak(utterance);
+    // Shared TTS path (src/lib/tts.ts): persisted gender, best-voice
+    // resolution, sentence chunking; stops any line still playing.
+    speakTts(text.replace(/[#*_`]/g, ""));
   };
 
   // The seeded first message ("Start the viva examination for …") is an

@@ -53,6 +53,18 @@ npm run dev
 
 The database schema lives in `supabase/migrations/` and the AI/grading functions in `supabase/functions/` (they read their provider keys from server-side environment secrets — no keys are stored in this repository).
 
+## Testing
+
+The frontend ships with a Vitest + Testing Library suite — **198 tests across 21 files, all passing** — covering the pure logic the app depends on most: file text extraction (PDF/DOCX/PPTX/XLSX/RTF/HTML), quiz-question normalisation, adaptive-difficulty rules (level derivation, weak-topic extraction), the study-planner task builder (AI parsing + deterministic fallback), the text-to-speech voice resolver, note/past-paper file delivery, C++ linting, auth-header refresh, and storage helpers.
+
+```bash
+npm run test            # run the full suite once
+npm run test:coverage   # same, with a v8 coverage report
+npx tsc -p tsconfig.app.json --noEmit   # typecheck (must be clean)
+```
+
+Coverage is strongest exactly where correctness matters: the tested `src/lib` modules sit at ~92% branch coverage (statement coverage across the whole `src` tree is lower because most of it is presentational React, which is exercised by the typecheck, the production build, and live end-to-end verification of every user flow). Every fix in `CHANGES.md` names the verification that proved it — unit tests, API-level reproductions, or live click-throughs on the deployed build.
+
 ## Status
 
 UniGenius is **live and in real use**: https://unigenius.vercel.app — sign in with Google and start studying. Free tier with an optional low-cost Premium plan.

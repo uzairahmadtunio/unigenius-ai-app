@@ -247,10 +247,12 @@
     background-size: 56px 56px;
   }
 
-  .auth-grain {
-    pointer-events: none;
-  }
-
+  /* .auth-grain is applied to full-screen INTERACTIVE page containers
+     (SplashScreen, DepartmentSelector) — it must NOT set pointer-events:
+     none, or every button inside goes dead. Only the ::after texture
+     layer below is click-transparent. (Hotfix 2026-11-25: the
+     pointer-events: none that was here killed the landing page's
+     Get Started / Sign in buttons in production.) */
   .auth-grain::after {
     content: "";
     position: absolute;

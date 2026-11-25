@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
  * bank itself stays RLS-closed to guests). Falls back to the last
  * verified count when the RPC is unreachable.
  */
-export const QUESTION_COUNT_FALLBACK = 2435;
+export const QUESTION_COUNT_FALLBACK = 2495;
 
 export function useQuestionCount(): number {
   const { data } = useQuery({

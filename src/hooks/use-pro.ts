@@ -25,7 +25,7 @@ export const usePro = () => {
       .single()
       .then(({ data }) => {
         if (!live) return;
-        const row = data as any;
+        const row = data as { is_pro?: boolean | null; streak_pro_until?: string | null } | null;
         const streakActive = !!row?.streak_pro_until && new Date(row.streak_pro_until) > new Date();
         setFetched({ userId: user.id, isPro: !!row?.is_pro || streakActive });
       });

@@ -54,13 +54,13 @@ export const usePushNotifications = () => {
   const fetchSubscription = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
-      .from("push_subscriptions" as any)
+      .from("push_subscriptions")
       .select("*")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    setSubscription((data as any) || null);
+    setSubscription((data as unknown as PushSubscription | null) ?? null);
   }, [user]);
 
   useEffect(() => {
@@ -105,16 +105,16 @@ export const usePushNotifications = () => {
         notification_preferences: subscription?.notification_preferences ?? DEFAULT_PREFS,
       };
       const { data, error } = await supabase
-        .from("push_subscriptions" as any)
+        .from("push_subscriptions")
         .upsert(payload, { onConflict: "fcm_token" })
         .select()
         .single();
       if (error) throw error;
-      setSubscription(data as any);
+      setSubscription(data as unknown as PushSubscription);
       toast({ title: "Push notifications enabled" });
       return true;
-    } catch (e: any) {
-      toast({ title: "Failed to enable", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Failed to enable", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
       return false;
     } finally {
       setLoading(false);
@@ -125,8 +125,8 @@ export const usePushNotifications = () => {
     if (!user || !subscription) return;
     setLoading(true);
     const { error } = await supabase
-      .from("push_subscriptions" as any)
-      .update({ enabled: false } as any)
+      .from("push_subscriptions")
+      .update({ enabled: false })
       .eq("id", subscription.id);
     setLoading(false);
     if (!error) {
@@ -140,8 +140,8 @@ export const usePushNotifications = () => {
     const next = { ...subscription.notification_preferences, [category]: value };
     setSubscription({ ...subscription, notification_preferences: next });
     await supabase
-      .from("push_subscriptions" as any)
-      .update({ notification_preferences: next } as any)
+      .from("push_subscriptions")
+      .update({ notification_preferences: next })
       .eq("id", subscription.id);
   }, [user, subscription]);
 

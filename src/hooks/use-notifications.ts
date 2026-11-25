@@ -22,13 +22,13 @@ export const useNotifications = () => {
     enabled: !!user,
     queryFn: async (): Promise<Notification[]> => {
       const { data, error } = await supabase
-        .from("notifications" as any)
+        .from("notifications")
         .select("*")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return (data as any) || [];
+      return (data ?? []) as Notification[];
     },
     staleTime: 60_000,
   });
@@ -56,15 +56,15 @@ export const useNotifications = () => {
       (old || []).map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() }))
     );
     await supabase
-      .from("notifications" as any)
-      .update({ read_at: new Date().toISOString() } as any)
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
       .in("id", unread);
   };
 
   const remove = async (id: string) => {
     if (!user) return;
     qc.setQueryData<Notification[]>(["notifications", user.id], (old) => (old || []).filter((n) => n.id !== id));
-    await supabase.from("notifications" as any).delete().eq("id", id);
+    await supabase.from("notifications").delete().eq("id", id);
   };
 
   const unreadCount = (query.data || []).filter((n) => !n.read_at).length;

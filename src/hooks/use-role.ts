@@ -31,7 +31,7 @@ export const useRole = () => {
         if (!live) return;
         setFetched({
           userId: user.id,
-          roles: (data || []).map((r: any) => r.role as AppRole),
+          roles: (data || []).map((r: { role: string }) => r.role as AppRole),
         });
       });
     return () => {

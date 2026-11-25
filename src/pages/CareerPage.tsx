@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { fetchWithRetry } from "@/lib/fetch-with-retry";
+import { authHeader } from "@/lib/auth-header";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Briefcase, Code, FileText, Mic, MicOff, Send, Bot, User,
@@ -22,6 +23,14 @@ import { fireCelebration, recordCareerActivity, checkAndAwardBadges, PRESET_DSA_
 type ActiveTab = "interview" | "dsa" | "cv" | "skills";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+
+// Human-readable error for a failed chat-function call: a 401 means the
+// session is gone, not a raw "Unauthorized" (Bug #5 fix, 2026-11-25).
+async function chatError(resp: Response, fallback: string): Promise<string> {
+  if (resp.status === 401) return "Session expired — please sign in again";
+  const d: any = await resp.json().catch(() => ({}));
+  return d.error || `${fallback} (HTTP ${resp.status})`;
+}
 
 // ─── Interview Prep ───────────────────────────────────────────────
 const InterviewPrep = () => {
@@ -57,7 +66,7 @@ const InterviewPrep = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: await authHeader(),
         },
         body: JSON.stringify({
           mode: "interview",
@@ -69,8 +78,7 @@ const InterviewPrep = () => {
       if (!resp.ok) {
         // Surface the server's real reason (e.g. keys cooling down, rate
         // limit) instead of a generic "Failed to start interview".
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || `Failed to start interview (HTTP ${resp.status})`);
+        throw new Error(await chatError(resp, "Failed to start interview"));
       }
 
       let assistantText = "";
@@ -120,7 +128,7 @@ const InterviewPrep = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: await authHeader(),
         },
         body: JSON.stringify({
           mode: "interview",
@@ -130,8 +138,7 @@ const InterviewPrep = () => {
       });
 
       if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || `Request failed (HTTP ${resp.status})`);
+        throw new Error(await chatError(resp, "Request failed"));
       }
 
       let assistantText = "";
@@ -352,7 +359,7 @@ const DSAPractice = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: await authHeader(),
         },
         body: JSON.stringify({
           mode: "dsa_problem",
@@ -364,8 +371,7 @@ const DSAPractice = () => {
       });
 
       if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || `Request failed (HTTP ${resp.status})`);
+        throw new Error(await chatError(resp, "Request failed"));
       }
       let text = "";
       const reader = resp.body!.getReader();
@@ -410,7 +416,7 @@ const DSAPractice = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: await authHeader(),
         },
         body: JSON.stringify({
           mode: "dsa_review",
@@ -421,8 +427,7 @@ const DSAPractice = () => {
       });
 
       if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || `Request failed (HTTP ${resp.status})`);
+        throw new Error(await chatError(resp, "Request failed"));
       }
       let text = "";
       const reader = resp.body!.getReader();
@@ -709,7 +714,7 @@ const CVOptimizer = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: await authHeader(),
         },
         body: JSON.stringify({
           mode: "cv_review",
@@ -717,7 +722,7 @@ const CVOptimizer = () => {
         }),
       });
 
-      if (!resp.ok) throw new Error("Analysis failed");
+      if (!resp.ok) throw new Error(await chatError(resp, "Analysis failed"));
 
       let text = "";
       const reader = resp.body!.getReader();

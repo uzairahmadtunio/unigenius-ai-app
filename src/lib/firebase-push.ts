@@ -1,10 +1,10 @@
-import { initializeApp, type FirebaseApp } from "firebase/app";
-import { getMessaging, getToken, onMessage, type Messaging } from "firebase/messaging";
+import { initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
+import { getMessaging, getToken, onMessage, type Messaging, type MessagePayload } from "firebase/messaging";
 import { supabase } from "@/integrations/supabase/client";
 
 let appInstance: FirebaseApp | null = null;
 let messagingInstance: Messaging | null = null;
-let cachedConfig: { config: any; vapidKey: string } | null = null;
+let cachedConfig: { config: FirebaseOptions; vapidKey: string } | null = null;
 
 async function loadConfig() {
   if (cachedConfig) return cachedConfig;
@@ -22,7 +22,7 @@ export async function getFirebaseMessaging() {
   return { messaging: messagingInstance, vapidKey, config };
 }
 
-export async function registerMessagingSW(config: any) {
+export async function registerMessagingSW(config: FirebaseOptions) {
   if (!("serviceWorker" in navigator)) throw new Error("Service workers unsupported");
   // Pass config via query param so the SW can initialize Firebase with the same config.
   const swUrl = `/firebase-messaging-sw.js?config=${encodeURIComponent(JSON.stringify(config))}`;
@@ -40,7 +40,7 @@ export async function requestPushToken(): Promise<string | null> {
   return token || null;
 }
 
-export function listenForegroundMessages(handler: (payload: any) => void) {
+export function listenForegroundMessages(handler: (payload: MessagePayload) => void) {
   if (!messagingInstance) return () => {};
   const unsub = onMessage(messagingInstance, handler);
   return unsub;
