@@ -6,8 +6,7 @@ import {
   Presentation, Users, Trophy, FolderOpen, HelpCircle, Briefcase, ClipboardCheck,
   Shield, Crown, Settings, Youtube, Rocket, LibraryBig,
 } from "lucide-react";
-import { useAdmin } from "@/hooks/use-admin";
-import { useRole } from "@/hooks/use-role";
+import { useViewMode } from "@/contexts/ViewModeContext";
 import { cn } from "@/lib/utils";
 
 type Item = { to: string; label: string; icon: typeof Bot };
@@ -37,6 +36,7 @@ export const NAV_GROUPS: { label: string; items: Item[] }[] = [
     { to: "/presentations", label: "Presentations", icon: Presentation },
   ]},
   { label: "Community", items: [
+    { to: "/classes", label: "My Classes", icon: GraduationCap },
     { to: "/study-materials", label: "Study Materials", icon: FolderOpen },
     { to: "/question-bank", label: "Question Bank", icon: HelpCircle },
     { to: "/groups", label: "Groups", icon: Users },
@@ -46,8 +46,7 @@ export const NAV_GROUPS: { label: string; items: Item[] }[] = [
 ];
 
 export const NavItems = ({ onNavigate }: { onNavigate?: () => void }) => {
-  const { isAdmin } = useAdmin();
-  const { isTeacher } = useRole();
+  const { mode } = useViewMode();
   const link = (it: Item, extra?: ReactNode) => (
     <NavLink
       key={it.to}
@@ -72,8 +71,8 @@ export const NavItems = ({ onNavigate }: { onNavigate?: () => void }) => {
     <nav aria-label="Main" className="space-y-5">
       <div className="space-y-0.5">
         {link({ to: "/", label: "Dashboard", icon: LayoutDashboard })}
-        {isTeacher && !isAdmin && link({ to: "/teacher-dashboard", label: "Teacher Panel", icon: GraduationCap })}
-        {isAdmin &&
+        {mode === "teacher" && link({ to: "/teacher-home", label: "Teacher Panel", icon: GraduationCap })}
+        {mode === "admin" &&
           link(
             { to: "/admin", label: "Admin Dashboard", icon: Shield },
             <span className="ml-auto shrink-0 text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/25">

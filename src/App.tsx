@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { DepartmentProvider } from "@/contexts/DepartmentContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -42,6 +43,9 @@ const CalendarPage = lazyWithRetry(() => import("./pages/CalendarPage"));
 const NotesPage = lazyWithRetry(() => import("./pages/NotesPage"));
 const PresentationPage = lazyWithRetry(() => import("./pages/PresentationPage"));
 const TeacherDashboard = lazyWithRetry(() => import("./pages/TeacherDashboard"));
+const TeacherHome = lazyWithRetry(() => import("./pages/TeacherHome"));
+const ClassesPage = lazyWithRetry(() => import("./pages/ClassesPage"));
+const ClassPage = lazyWithRetry(() => import("./pages/ClassPage"));
 const StudyMaterialsPage = lazyWithRetry(() => import("./pages/StudyMaterialsPage"));
 const QuestionBankPage = lazyWithRetry(() => import("./pages/QuestionBankPage"));
 const LecturesPage = lazyWithRetry(() => import("./pages/LecturesPage"));
@@ -95,6 +99,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
+        <ViewModeProvider>
         <DepartmentProvider>
           <DarkModeInit>
             <Toaster />
@@ -142,6 +147,9 @@ const App = () => (
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
                 <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+                <Route path="/teacher-home" element={<RequireAuth><TeacherHome /></RequireAuth>} />
+                <Route path="/classes" element={<RequireAuth><ClassesPage /></RequireAuth>} />
+                <Route path="/classes/:classId" element={<RequireAuth><ClassPage /></RequireAuth>} />
                 {/* Discoverability alias: the panel lives at /teacher-dashboard;
                     /teacher used to 404 even though the About page advertises a Teacher Panel. */}
                 <Route path="/teacher" element={<Navigate to="/teacher-dashboard" replace />} />
@@ -161,6 +169,7 @@ const App = () => (
             </BrowserRouter>
           </DarkModeInit>
         </DepartmentProvider>
+        </ViewModeProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

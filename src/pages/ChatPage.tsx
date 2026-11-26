@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { fetchWithRetry } from "@/lib/fetch-with-retry";
-import { speak as speakTts, stopSpeaking, getVoiceGender, setVoiceGender as persistVoiceGender, type VoiceGender } from "@/lib/tts";
+import { speak as speakTts, stopSpeaking, getVoiceName, setVoiceName as persistVoiceName, GEMINI_VOICES, DEFAULT_VOICE_BY_GENDER } from "@/lib/tts";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Bot, User, Sparkles, BookOpen, Code, ListChecks, FileQuestion, ArrowLeft, Paperclip, X, Upload, ArrowUp, ArrowDown, Volume2, Square, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -86,7 +86,7 @@ const ChatPage = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
-  const [voiceGender, setVoiceGender] = useState<VoiceGender>(() => getVoiceGender());
+  const [voiceName, setVoiceName] = useState<string>(() => getVoiceName());
   // Last quick-action chip tapped — drives the violet selected state.
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const { semester: currentSemester, loaded: semesterLoaded } = useCurrentSemester();
@@ -124,8 +124,9 @@ const ChatPage = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // TTS Read Aloud — shared path (src/lib/tts.ts): async voice loading,
-  // gender-aware best-voice pick, pitch fallback, sentence chunking.
+  // TTS Read Aloud — shared path (src/lib/tts.ts): Gemini AI voice
+  // first (the picker below chooses the named voice), device voices
+  // only as the silent fallback, sentence chunking throughout.
   const handleReadAloud = useCallback((msgId: string, text: string) => {
     if (speakingMsgId === msgId) {
       stopSpeaking();
@@ -135,11 +136,11 @@ const ChatPage = () => {
     const clean = text.replace(/```[\s\S]*?```/g, " code block ").replace(/[*#_`~>|]/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
     setSpeakingMsgId(msgId);
     speakTts(clean, {
-      gender: voiceGender,
+      voice: voiceName,
       onend: () => setSpeakingMsgId(null),
       onerror: () => setSpeakingMsgId(null),
     });
-  }, [speakingMsgId, voiceGender]);
+  }, [speakingMsgId, voiceName]);
 
   // Stop any speech when leaving the page
   useEffect(() => {
@@ -608,13 +609,28 @@ const ChatPage = () => {
                               <><Volume2 className="w-3 h-3" /> Read Aloud</>
                             )}
                           </button>
-                          <button
-                            onClick={() => { const next = voiceGender === "female" ? "male" : "female"; setVoiceGender(next); persistVoiceGender(next); }}
-                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded-md border border-border/50"
-                            title="Switch voice"
+                          <select
+                            value={voiceName}
+                            onChange={(e) => { setVoiceName(e.target.value); persistVoiceName(e.target.value); }}
+                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded-md border border-border/50 bg-transparent cursor-pointer"
+                            title="Choose the read-aloud voice"
+                            aria-label="Read-aloud voice"
                           >
-                            {voiceGender === "female" ? "♀ Female" : "♂ Male"}
-                          </button>
+                            <optgroup label="Male voices">
+                              {GEMINI_VOICES.filter((v) => v.gender === "male").map((v) => (
+                                <option key={v.name} value={v.name}>
+                                  ♂ {v.name}{v.name === DEFAULT_VOICE_BY_GENDER.male ? " (default)" : ""}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Female voices">
+                              {GEMINI_VOICES.filter((v) => v.gender === "female").map((v) => (
+                                <option key={v.name} value={v.name}>
+                                  ♀ {v.name}{v.name === DEFAULT_VOICE_BY_GENDER.female ? " (default)" : ""}
+                                </option>
+                              ))}
+                            </optgroup>
+                          </select>
                         </div>
                       )}
                     </div>

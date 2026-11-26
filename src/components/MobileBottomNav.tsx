@@ -1,12 +1,24 @@
-import { Home, MessageSquare, Code, Brain, User } from "lucide-react";
+import { Home, MessageSquare, Code, Brain, User, GraduationCap, BookOpen, ClipboardCheck } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useViewMode } from "@/contexts/ViewModeContext";
 import { cn } from "@/lib/utils";
 
-const navItems = [
+const studentItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: MessageSquare, label: "AI Tutor", path: "/ai-tutor" },
   { icon: Code, label: "Code Lab", path: "/code-lab" },
   { icon: Brain, label: "Practice", path: "/practice" },
+  { icon: User, label: "Profile", path: "/profile" },
+];
+
+// Panels Program (Part A / F1.4): in Teacher Mode the bottom bar is a
+// teacher's bar, matching the approved preview — Home (teacher
+// dashboard), Classes, Bank, Grade (quiz-tools results), Profile.
+const teacherItems = [
+  { icon: Home, label: "Home", path: "/" },
+  { icon: GraduationCap, label: "Classes", path: "/classes" },
+  { icon: BookOpen, label: "Bank", path: "/question-bank" },
+  { icon: ClipboardCheck, label: "Grade", path: "/teacher-dashboard" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
 
@@ -15,6 +27,8 @@ const hiddenRoutes = ["/ai-tutor", "/chat", "/code-lab", "/teacher-dashboard", "
 const MobileBottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { mode } = useViewMode();
+  const navItems = mode === "teacher" ? teacherItems : studentItems;
 
   const shouldHide = hiddenRoutes.some((r) => location.pathname.startsWith(r));
 
@@ -26,7 +40,9 @@ const MobileBottomNav = () => {
     >
       <div className="flex items-center justify-around h-14">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = item.path === "/"
+            ? location.pathname === "/" || location.pathname === "/teacher-home"
+            : location.pathname.startsWith(item.path);
           return (
             <button
               key={item.path}

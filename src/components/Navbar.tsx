@@ -9,7 +9,8 @@ import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/use-admin";
-import { useRole } from "@/hooks/use-role";
+import { useViewMode } from "@/contexts/ViewModeContext";
+import ModeSwitcher from "@/components/ModeSwitcher";
 import { useDepartment, departmentInfo } from "@/contexts/DepartmentContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -29,7 +30,7 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
-  const { isTeacher } = useRole();
+  const { mode } = useViewMode();
   const { department, clearDepartment } = useDepartment();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -153,12 +154,20 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
           <Button variant="ghost" size="sm" className="rounded-lg text-xs hidden sm:flex" onClick={() => navigate("/contact")}>
             Contact
           </Button>
-          {isTeacher && !isAdmin && (
-            <Button variant="ghost" size="sm" className="rounded-lg text-xs gap-1.5 hidden md:flex text-primary" onClick={() => navigate("/teacher-dashboard")}>
+          {/* Role switch (Panels Program Part A): only multi-mode
+              accounts (teacher/admin) ever see this. In Student Mode
+              nothing teacher/admin is visible anywhere. */}
+          {user && (
+            <div className="hidden md:block">
+              <ModeSwitcher />
+            </div>
+          )}
+          {mode === "teacher" && (
+            <Button variant="ghost" size="sm" className="rounded-lg text-xs gap-1.5 hidden md:flex text-primary" onClick={() => navigate("/teacher-home")}>
               <GraduationCap className="w-3 h-3" /> Teacher Panel
             </Button>
           )}
-          {isAdmin && (
+          {mode === "admin" && isAdmin && (
             <Button variant="ghost" size="sm" className="rounded-lg text-xs gap-1.5 hidden md:flex text-primary" onClick={() => navigate("/admin")}>
               <Shield className="w-3 h-3" /> Admin
             </Button>
@@ -290,6 +299,11 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
               </SheetHeader>
               <div className="flex-1 overflow-y-auto p-3 space-y-1">
                 {user && (
+                  <div className="px-1 pb-2">
+                    <ModeSwitcher full />
+                  </div>
+                )}
+                {user && (
                   <button
                     onClick={() => { setMobileOpen(false); navigate("/profile"); }}
                     className="w-full flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/15 transition-colors text-left"
@@ -320,8 +334,8 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
 
                 <MobileMenuItem icon={Info} label="About" onClick={() => { setMobileOpen(false); navigate("/about"); }} />
                 <MobileMenuItem icon={MessageCircleIcon} label="Contact" onClick={() => { setMobileOpen(false); navigate("/contact"); }} />
-                {isTeacher && !isAdmin && (
-                  <MobileMenuItem icon={GraduationCap} label="Teacher Panel" highlight onClick={() => { setMobileOpen(false); navigate("/teacher-dashboard"); }} />
+                {mode === "teacher" && (
+                  <MobileMenuItem icon={GraduationCap} label="Teacher Panel" highlight onClick={() => { setMobileOpen(false); navigate("/teacher-home"); }} />
                 )}
                 {/* Admin + Settings live only in NavItems above — the old
                     duplicate "Admin Dashboard" and "Settings" rows that

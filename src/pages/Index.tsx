@@ -24,6 +24,13 @@ import BadgesRow from "@/components/BadgesRow";
 import { useDepartment, departmentInfo } from "@/contexts/DepartmentContext";
 import { useCurrentSemester } from "@/hooks/use-current-semester";
 import { useAuth } from "@/contexts/AuthContext";
+import { useViewMode } from "@/contexts/ViewModeContext";
+import { lazyWithRetry } from "@/lib/lazy-retry";
+import { Suspense } from "react";
+import MyClassesSection from "@/components/home/MyClassesSection";
+
+// Lazy so the teacher panel stays out of the student entry bundle.
+const TeacherHome = lazyWithRetry(() => import("@/pages/TeacherHome"));
 
 const SPLASH_KEY = "unigenius-splash-shown";
 
@@ -36,6 +43,7 @@ const Index = () => {
   const { semester, setSemester: handleSemesterChange } = useCurrentSemester();
   const { department } = useDepartment();
   const { user, loading: authLoading } = useAuth();
+  const { mode } = useViewMode();
   const navigate = useNavigate();
 
   const handleSplashComplete = useCallback(() => {
@@ -56,6 +64,17 @@ const Index = () => {
   }, [authLoading, user, showSplash]);
 
   if (showSplash) return <SplashScreen onComplete={handleSplashComplete} />;
+  // Panels Program (Part A): in Teacher Mode the home IS the teacher
+  // dashboard — the app behaves like a teacher's app end to end. This
+  // sits before the department gate on purpose: a teacher's classes do
+  // not depend on the student department onboarding.
+  if (user && mode === "teacher") {
+    return (
+      <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" /></div>}>
+        <TeacherHome />
+      </Suspense>
+    );
+  }
   if (!department) return <DepartmentSelector />;
 
   const deptInfo = departmentInfo[department];
@@ -114,6 +133,9 @@ const Index = () => {
           <QuizOfDayCard />
           <ExamCountdown semester={semester} />
         </motion.section>
+
+        {/* Classes: Due This Week + My Classes (signed-in students) */}
+        <MyClassesSection />
 
         {/* Notice Board */}
         <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>

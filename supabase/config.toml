@@ -56,5 +56,8 @@ verify_jwt = false
 [functions.study-suggestions]
 verify_jwt = false
 
+[functions.tts]
+verify_jwt = false
+
 [functions.viva-session]
 verify_jwt = false

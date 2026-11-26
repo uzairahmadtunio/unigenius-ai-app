@@ -416,7 +416,20 @@ export async function callGeminiWithRotation(
   modelPath: string,
   body: unknown,
   isStream: boolean,
-  opts?: { attemptTimeoutMs?: number; deadlineMs?: number },
+  opts?: {
+    attemptTimeoutMs?: number;
+    deadlineMs?: number;
+    /**
+     * Opt-in soft-failure check for non-stream calls: a 200 response
+     * whose JSON fails this predicate (e.g. a TTS reply with no audio
+     * part — some pool projects answer finishReason OTHER with empty
+     * content) is treated as a per-key failure and the rotation moves
+     * on instead of returning an unusable "success". The key is only
+     * benched locally in this worker for a minute — it may be perfectly
+     * healthy for other models, so nothing is reported to the DB pool.
+     */
+    acceptJson?: (json: any) => boolean;
+  },
 ): Promise<{ response: Response; keyIndex: number } | null> {
   // Defaults are tuned for chat (fast first byte). Long non-streamed
   // generations (e.g. a 30-question quiz) may pass a larger budget —
@@ -471,6 +484,18 @@ export async function callGeminiWithRotation(
           body: JSON.stringify(body),
         }, Math.min(attemptTimeoutMs, remaining), { headersOnly: isStream });
         if (resp.ok) {
+          if (!isStream && opts?.acceptJson) {
+            let accepted = false;
+            try {
+              const json = await resp.clone().json();
+              accepted = opts.acceptJson(json);
+            } catch { accepted = false; }
+            if (!accepted) {
+              console.warn(`Gemini key #${idx} returned a soft-empty response for ${modelPath}, rotating...`);
+              entry.localCooldownUntil = Date.now() + 60_000;
+              continue;
+            }
+          }
           lastWorkingKeyIndex = idx;
           reportKeyResult(entry, { success: true });
           return { response: resp, keyIndex: idx };
