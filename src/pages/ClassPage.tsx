@@ -1,22 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  ArrowLeft, CalendarClock, CheckCircle2, Copy, Download, FileText, Loader2, Lock,
-  Megaphone, MessageSquare, Paperclip, Plus, Send, Settings2, Trash2,
+  ArrowLeft, Ban, CalendarClock, CheckCircle2, Copy, Download, FileText, Loader2, Lock, LogOut,
+  Megaphone, MessageSquare, Paperclip, Plus, RotateCcw, Send, Settings2, Trash2, TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRole } from "@/hooks/use-role";
 import {
-  addComment, classCoverStyle, classFileUrl, createPost, dueLabel, fetchAttemptsForClass, fetchClass,
+  addComment, classCoverStyle, classFileUrl, createPost, deleteClass, dueLabel, fetchAttemptsForClass, fetchClass,
   fetchClassMembers, fetchClassPosts, fetchComments, fetchDisplayNames, fetchSubmissionsForClass,
-  pct, removeMember, setMemberStatus, updateClass,
+  logClassAudit, pct, removeMember, setMemberStatus, updateClass,
   type ClassCommentRow, type ClassPostRow, type ClassRow, type ClassPostType, type SubmissionRow, type TestAttemptRow,
 } from "@/lib/classes";
 import { cn } from "@/lib/utils";
@@ -95,7 +99,9 @@ const ClassPage = () => {
   const isTeacherOfClass = !!cls && !!user && (cls.teacher_id === user.id || myMember?.role === "teacher");
   const isActiveMember = isTeacherOfClass || myMember?.status === "active" || isAdmin;
   const isPending = myMember?.status === "pending" && !isTeacherOfClass;
+  const isSuspended = myMember?.status === "suspended" && !isTeacherOfClass && !isAdmin;
   const studentMembers = members.filter((m: any) => m.status === "active" && m.role === "student");
+  const suspendedMembers = members.filter((m: any) => m.status === "suspended" && m.role === "student");
   const pendingMembers = members.filter((m: any) => m.status === "pending");
 
   const commentsByPost = useMemo(() => {
@@ -115,6 +121,19 @@ const ClassPage = () => {
           <Lock className="w-9 h-9 text-primary mx-auto" />
           <p className="font-display font-bold text-lg">Class not found</p>
           <p className="text-sm text-muted-foreground">This class does not exist, or you do not have access to it.</p>
+          <Button className="rounded-xl gradient-primary" onClick={() => navigate("/classes")}>Go to My Classes</Button>
+        </main>
+      </div>
+    );
+  }
+  if (isSuspended) {
+    return (
+      <div className="min-h-screen gradient-hero"><Navbar />
+        <main className="container mx-auto px-4 py-20 text-center space-y-3 max-w-md">
+          <Ban className="w-9 h-9 text-destructive mx-auto" />
+          <p className="font-display font-bold text-lg">{cls.title}</p>
+          <p className="text-sm text-muted-foreground">You are suspended from this class — contact your teacher.</p>
+          <p className="text-xs text-muted-foreground">While you are suspended you cannot see this class's posts, homework or tests, and you cannot submit or comment. Your teacher can lift the suspension at any time.</p>
           <Button className="rounded-xl gradient-primary" onClick={() => navigate("/classes")}>Go to My Classes</Button>
         </main>
       </div>
@@ -205,7 +224,7 @@ const ClassPage = () => {
         )}
         {tab === "people" && (
           <PeopleTab
-            cls={cls} members={members} pending={pendingMembers} students={studentMembers} names={names}
+            cls={cls} members={members} pending={pendingMembers} students={studentMembers} suspended={suspendedMembers} names={names}
             userId={user.id} isTeacher={isTeacherOfClass} onChanged={load}
           />
         )}
@@ -431,13 +450,56 @@ const PostCard = ({ post, comments, names, userId, isTeacher, submissions, attem
 
 /* ================= People ================= */
 
-const PeopleTab = ({ cls, members, pending, students, names, userId, isTeacher, onChanged }: any) => {
+/** Small confirm-dialog button used by every class-management action. */
+const ConfirmBtn = ({ label, icon, title, description, confirmLabel, destructive, className, onConfirm }: any) => (
+  <AlertDialog>
+    <AlertDialogTrigger asChild>
+      <Button size="sm" variant="outline" className={className}>{icon}{label}</Button>
+    </AlertDialogTrigger>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{title}</AlertDialogTitle>
+        <AlertDialogDescription>{description}</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          className={destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
+          onClick={() => void onConfirm()}
+        >
+          {confirmLabel}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
+
+const PeopleTab = ({ cls, members, pending, students, suspended, names, userId, isTeacher, onChanged }: any) => {
+  const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const teacherRows = members.filter((m: any) => m.role === "teacher" && m.status === "active");
 
   const act = async (fn: () => Promise<void>, ok: string) => {
     try { await fn(); toast.success(ok); onChanged(); }
     catch (e: any) { toast.error(e?.message || "Something went wrong"); }
+  };
+
+  const audit = (action: "class_student_remove" | "class_student_suspend" | "class_student_unsuspend" | "class_delete" | "class_leave", details: Record<string, unknown>) =>
+    void logClassAudit(userId, action, { class_id: cls.id, class_title: cls.title, ...details });
+
+  const doDeleteClass = async () => {
+    setDeleting(true);
+    try {
+      const r = await deleteClass(cls.id);
+      audit("class_delete", { files_removed: r.filesRemoved, files_failed: r.filesFailed });
+      toast.success("Class deleted");
+      navigate("/classes");
+    } catch (e: any) {
+      toast.error(e?.message || "Could not delete the class");
+      setDeleting(false);
+    }
   };
 
   return (
@@ -467,26 +529,83 @@ const PeopleTab = ({ cls, members, pending, students, names, userId, isTeacher, 
 
       <section className="space-y-2">
         <h3 className="font-display font-bold text-sm tracking-wide text-muted-foreground uppercase">Students ({students.length})</h3>
-        {students.map((m: any) => (
-          <div key={m.id} className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
-            <PersonRow name={names.get(m.user_id) || "Student"} note={m.user_id === userId ? "You" : undefined} bare />
-            {isTeacher && (
-              <Button size="icon" variant="ghost" className="rounded-lg h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                aria-label={`Remove ${names.get(m.user_id) || "student"}`}
-                onClick={() => void act(() => removeMember(m.id), "Student removed from the class")}>
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
-        ))}
+        {students.map((m: any) => {
+          const sName = names.get(m.user_id) || "Student";
+          return (
+            <div key={m.id} className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
+              <PersonRow name={sName} note={m.user_id === userId ? "You" : undefined} bare />
+              {isTeacher && (
+                <span className="flex gap-1.5 shrink-0">
+                  <ConfirmBtn
+                    label="Suspend" icon={<Ban className="w-3.5 h-3.5 mr-1" />}
+                    className="rounded-lg h-8 text-amber-500 border-amber-500/40 hover:bg-amber-500/10"
+                    title={`Suspend ${sName}?`}
+                    description={`${sName} will keep seeing this class in their list, but will not see any posts, homework or tests, and cannot submit or comment until you unsuspend them. Their earlier submissions stay visible to you.`}
+                    confirmLabel="Suspend"
+                    onConfirm={() => act(async () => { await setMemberStatus(m.id, "suspended"); audit("class_student_suspend", { student_id: m.user_id, member_id: m.id }); }, "Student suspended")}
+                  />
+                  <ConfirmBtn
+                    label="Remove" icon={<Trash2 className="w-3.5 h-3.5 mr-1" />}
+                    className="rounded-lg h-8 text-destructive border-destructive/40 hover:bg-destructive/10"
+                    title={`Remove ${sName} from this class?`}
+                    description={`${sName} will lose access to this class and its content right away. They can join again with the class code if you allow it.`}
+                    confirmLabel="Remove" destructive
+                    onConfirm={() => act(async () => { await removeMember(m.id); audit("class_student_remove", { student_id: m.user_id, member_id: m.id }); }, "Student removed from the class")}
+                  />
+                </span>
+              )}
+            </div>
+          );
+        })}
         {students.length === 0 && <p className="text-sm text-muted-foreground">No students yet — share the class code <b className="text-foreground">{cls.code}</b> to invite them.</p>}
       </section>
 
+      {isTeacher && suspended.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="font-display font-bold text-sm tracking-wide text-destructive uppercase">Suspended ({suspended.length})</h3>
+          {suspended.map((m: any) => {
+            const sName = names.get(m.user_id) || "Student";
+            return (
+              <div key={m.id} className="flex items-center justify-between gap-2 rounded-xl border border-destructive/35 bg-destructive/5 px-3 py-2.5">
+                <PersonRow name={sName} note="Suspended — no access to class content" bare />
+                <span className="flex gap-1.5 shrink-0">
+                  <Button size="sm" variant="outline" className="rounded-lg h-8"
+                    onClick={() => void act(async () => { await setMemberStatus(m.id, "active"); audit("class_student_unsuspend", { student_id: m.user_id, member_id: m.id }); }, "Student unsuspended — access restored")}>
+                    <RotateCcw className="w-3.5 h-3.5 mr-1" /> Unsuspend
+                  </Button>
+                  <ConfirmBtn
+                    label="Remove" icon={<Trash2 className="w-3.5 h-3.5 mr-1" />}
+                    className="rounded-lg h-8 text-destructive border-destructive/40 hover:bg-destructive/10"
+                    title={`Remove ${sName} from this class?`}
+                    description={`${sName} will lose access to this class completely. They can join again with the class code if you allow it.`}
+                    confirmLabel="Remove" destructive
+                    onConfirm={() => act(async () => { await removeMember(m.id); audit("class_student_remove", { student_id: m.user_id, member_id: m.id }); }, "Student removed from the class")}
+                  />
+                </span>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
       {!isTeacher && (
-        <Button variant="outline" className="rounded-xl text-destructive border-destructive/40 hover:bg-destructive/10"
-          onClick={() => { const mine = members.find((m: any) => m.user_id === userId); if (mine) void act(() => removeMember(mine.id), "You left the class"); }}>
-          Leave this class
-        </Button>
+        <ConfirmBtn
+          label="Leave this class" icon={<LogOut className="w-4 h-4 mr-1.5" />}
+          className="rounded-xl h-10 px-4 text-destructive border-destructive/40 hover:bg-destructive/10"
+          title={`Leave “${cls.title}”?`}
+          description="You will lose access to this class, its posts, homework and tests. Work you already submitted stays in your teacher's records. You can join again with the class code."
+          confirmLabel="Leave class" destructive
+          onConfirm={async () => {
+            const mine = members.find((m: any) => m.user_id === userId);
+            if (!mine) return;
+            try {
+              await removeMember(mine.id);
+              audit("class_leave", { member_id: mine.id });
+              toast.success("You left the class");
+              navigate("/classes");
+            } catch (e: any) { toast.error(e?.message || "Could not leave the class"); }
+          }}
+        />
       )}
 
       {isTeacher && (
@@ -511,6 +630,36 @@ const PeopleTab = ({ cls, members, pending, students, names, userId, isTeacher, 
                 <Switch checked={cls.archived} onCheckedChange={(v) => void act(() => updateClass(cls.id, { archived: v }), v ? "Class archived" : "Class re-opened")} aria-label="Archive class" />
               </div>
               <p className="text-xs text-muted-foreground">Class code: <b className="text-foreground tracking-widest">{cls.code}</b></p>
+              <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 space-y-2.5">
+                <p className="text-sm font-semibold text-destructive flex items-center gap-1.5"><TriangleAlert className="w-4 h-4" /> Danger zone</p>
+                <p className="text-[11px] text-muted-foreground">Deleting this class permanently removes it for every member — all posts, comments, submissions and test results go with it. This cannot be undone.</p>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="rounded-lg h-9 text-destructive border-destructive/50 hover:bg-destructive/10" disabled={deleting}>
+                      <Trash2 className="w-4 h-4 mr-1.5" /> Delete this class
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete “{cls.title}” forever?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Every member loses the class immediately, with all its posts, submissions and results. To confirm, type the class name exactly: <b className="text-foreground">{cls.title}</b>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <Input value={deleteText} onChange={(e) => setDeleteText(e.target.value)} placeholder={cls.title} aria-label="Type the class name to confirm deletion" />
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setDeleteText("")}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        disabled={deleteText.trim() !== cls.title || deleting}
+                        onClick={(e) => { if (deleteText.trim() !== cls.title) { e.preventDefault(); return; } void doDeleteClass(); }}
+                      >
+                        {deleting ? "Deleting…" : "Delete class"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           )}
         </section>

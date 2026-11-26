@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
-import { MessageSquare, Brain, Code, FileText, Briefcase, ClipboardList, CalendarCheck, Trophy, Users, Crown, Presentation, Archive, CalendarDays, TrendingUp, Calendar, Youtube, MonitorPlay, Layers, NotebookPen } from "lucide-react";
+import { MessageSquare, Brain, Code, FileText, Briefcase, ClipboardList, CalendarCheck, Trophy, Users, Crown, Presentation, Archive, CalendarDays, TrendingUp, Calendar, Youtube, MonitorPlay, Layers, NotebookPen, GraduationCap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDepartment, departmentInfo } from "@/contexts/DepartmentContext";
 
 const actions = [
   { icon: MessageSquare, label: "AI Tutor", desc: "Chat with your Professor", path: "/ai-tutor", tint: "bg-blue-500/10 text-blue-500 dark:text-blue-300" },
+  { icon: GraduationCap, label: "Classes", desc: "Join classes · tests, homework & results", path: "/classes", tint: "bg-violet-500/10 text-violet-500 dark:text-violet-300" },
   { icon: Youtube, label: "Lectures", desc: "Subject-wise video lectures", path: "/lectures", tint: "bg-red-500/10 text-red-500 dark:text-red-300" },
   { icon: MonitorPlay, label: "Courses", desc: "Premium, Free & AI courses", path: "/courses", tint: "bg-indigo-500/10 text-indigo-500 dark:text-indigo-300" },
   { icon: CalendarDays, label: "Study Planner", desc: "AI-built weekly schedule", path: "/planner", tint: "bg-violet-500/10 text-violet-500 dark:text-violet-300" },

@@ -134,7 +134,9 @@ const Index = () => {
           <ExamCountdown semester={semester} />
         </motion.section>
 
-        {/* Classes: Due This Week + My Classes (signed-in students) */}
+        {/* Due This Week strip (signed-in students). The classes list +
+            join-by-code live on /classes via the Classes tile below —
+            not on Home (Uzair, 26 Nov 2026). */}
         <MyClassesSection />
 
         {/* Notice Board */}

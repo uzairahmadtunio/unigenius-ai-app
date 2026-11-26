@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { GraduationCap, Loader2, Plus } from "lucide-react";
+import { Ban, GraduationCap, Loader2, LogOut, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -14,7 +18,8 @@ import { useViewMode } from "@/contexts/ViewModeContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAttemptsForClass, fetchClassesByIds, fetchDisplayNames, fetchMyMemberships,
-  fetchMyTeachingClasses, joinClassByCode, pct, type ClassRow,
+  fetchMyTeachingClasses, joinClassByCode, logClassAudit, pct, removeMember,
+  type ClassMemberRow, type ClassRow,
 } from "@/lib/classes";
 
 /**
@@ -29,6 +34,8 @@ const ClassesPage = () => {
   const [teaching, setTeaching] = useState<ClassRow[]>([]);
   const [joined, setJoined] = useState<ClassRow[]>([]);
   const [pending, setPending] = useState<ClassRow[]>([]);
+  const [suspended, setSuspended] = useState<ClassRow[]>([]);
+  const [memberRows, setMemberRows] = useState<ClassMemberRow[]>([]);
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
   const [teacherNames, setTeacherNames] = useState<Map<string, string>>(new Map());
   const [myAvgs, setMyAvgs] = useState<Map<string, number>>(new Map());
@@ -45,14 +52,18 @@ const ClassesPage = () => {
     try {
       const [mine, memberships] = await Promise.all([fetchMyTeachingClasses(user.id), fetchMyMemberships(user.id)]);
       setTeaching(mine);
+      setMemberRows(memberships);
       const active = memberships.filter((m) => m.status === "active" && m.role === "student");
       const pend = memberships.filter((m) => m.status === "pending");
-      const [activeClasses, pendingClasses] = await Promise.all([
+      const susp = memberships.filter((m) => m.status === "suspended" && m.role === "student");
+      const [activeClasses, pendingClasses, suspendedClasses] = await Promise.all([
         fetchClassesByIds(active.map((m) => m.class_id)),
         fetchClassesByIds(pend.map((m) => m.class_id)),
+        fetchClassesByIds(susp.map((m) => m.class_id)),
       ]);
       setJoined(activeClasses);
       setPending(pendingClasses);
+      setSuspended(suspendedClasses);
       setTeacherNames(await fetchDisplayNames(activeClasses.map((c) => c.teacher_id)));
 
       const ids = [...mine, ...activeClasses].map((c) => c.id);
@@ -93,6 +104,9 @@ const ClassesPage = () => {
       } else if (r.status === "already_member") {
         toast.info("You are already in this class");
         if (r.classId) navigate(`/classes/${r.classId}`);
+      } else if (r.status === "suspended") {
+        toast.error("You are suspended from this class — contact your teacher.");
+        if (r.classId) navigate(`/classes/${r.classId}`);
       } else if (r.status === "own_class") {
         toast.info("This is your own class");
         if (r.classId) navigate(`/classes/${r.classId}`);
@@ -103,6 +117,19 @@ const ClassesPage = () => {
       toast.error(e?.message || "Could not join");
     } finally {
       setJoining(false);
+    }
+  };
+
+  const leave = async (cls: ClassRow) => {
+    const mine = memberRows.find((m) => m.class_id === cls.id && m.user_id === user?.id);
+    if (!mine || !user) return;
+    try {
+      await removeMember(mine.id);
+      void logClassAudit(user.id, "class_leave", { class_id: cls.id, class_title: cls.title, member_id: mine.id });
+      toast.success(`You left “${cls.title}”`);
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message || "Could not leave the class");
     }
   };
 
@@ -167,6 +194,22 @@ const ClassesPage = () => {
                   </section>
                 )}
 
+                {suspended.length > 0 && (
+                  <section className="space-y-2.5">
+                    <h2 className="font-display font-bold text-base flex items-center gap-1.5"><Ban className="w-4 h-4 text-destructive" /> Suspended</h2>
+                    {suspended.map((c) => (
+                      <button key={c.id} onClick={() => navigate(`/classes/${c.id}`)}
+                        className="w-full text-left rounded-2xl border border-destructive/40 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-2">
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium truncate">{c.title}</span>
+                          <span className="block text-[11px] text-muted-foreground mt-0.5">You are suspended from this class — contact your teacher.</span>
+                        </span>
+                        <span className="text-[11px] font-bold text-destructive shrink-0">SUSPENDED</span>
+                      </button>
+                    ))}
+                  </section>
+                )}
+
                 <section className="space-y-3">
                   <h2 className="font-display font-bold text-base">Joined classes</h2>
                   {joined.length === 0 ? (
@@ -177,9 +220,34 @@ const ClassesPage = () => {
                   ) : (
                     <div className="grid sm:grid-cols-2 gap-3.5">
                       {joined.map((c) => (
-                        <ClassCard key={c.id} cls={c} studentCount={counts.get(c.id) ?? 0}
-                          avgPct={myAvgs.get(c.id) ?? null} avgLabel="my avg"
-                          footerNote={teacherNames.get(c.teacher_id) ? `Teacher: ${teacherNames.get(c.teacher_id)}` : undefined} />
+                        <div key={c.id} className="space-y-1.5">
+                          <ClassCard cls={c} studentCount={counts.get(c.id) ?? 0}
+                            avgPct={myAvgs.get(c.id) ?? null} avgLabel="my avg"
+                            footerNote={teacherNames.get(c.teacher_id) ? `Teacher: ${teacherNames.get(c.teacher_id)}` : undefined} />
+                          <div className="flex justify-end">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] text-muted-foreground hover:text-destructive">
+                                  <LogOut className="w-3.5 h-3.5 mr-1" /> Leave class
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Leave “{c.title}”?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    You will lose access to this class, its posts, homework and tests. Work you already submitted stays in your teacher's records. You can join again with the class code.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void leave(c)}>
+                                    Leave class
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}

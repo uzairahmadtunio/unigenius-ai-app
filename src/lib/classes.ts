@@ -10,7 +10,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type ClassPostType = "announcement" | "material" | "homework" | "test";
-export type MemberStatus = "active" | "pending";
+export type MemberStatus = "active" | "pending" | "suspended";
 
 export interface ClassRow {
   id: string;
@@ -275,7 +275,7 @@ export async function createClass(teacherId: string, input: NewClassInput): Prom
 }
 
 export type JoinResult =
-  | { status: "joined" | "pending" | "already_member"; classId: string; title?: string }
+  | { status: "joined" | "pending" | "already_member" | "suspended"; classId: string; title?: string }
   | { status: "not_found" | "own_class" | "unauthenticated"; classId?: string };
 
 export async function joinClassByCode(code: string): Promise<JoinResult> {
@@ -386,6 +386,61 @@ export async function removeMember(memberId: string): Promise<void> {
 export async function updateClass(classId: string, patch: Partial<Pick<ClassRow, "title" | "join_requires_approval" | "archived" | "cover">>): Promise<void> {
   const { error } = await db().from("classes").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", classId);
   if (error) throw error;
+}
+
+/* ---------------- management: audit + delete ---------------- */
+
+/**
+ * Best-effort audit entry for class-management actions (remove / suspend /
+ * unsuspend / delete / leave) — same pattern as the mode-switch audit in
+ * ViewModeContext: a failed log insert must never block the action itself.
+ */
+export async function logClassAudit(
+  actorId: string,
+  action: "class_student_remove" | "class_student_suspend" | "class_student_unsuspend" | "class_delete" | "class_leave",
+  details: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await db().from("audit_log").insert({ actor_id: actorId, action, details } as any);
+  } catch { /* audit is best-effort */ }
+}
+
+/** Recursively collect every file path under a storage prefix. */
+async function listStorageFiles(prefix: string): Promise<string[]> {
+  const out: string[] = [];
+  const { data, error } = await supabase.storage.from("class-files").list(prefix, { limit: 1000 });
+  if (error || !data) return out;
+  for (const item of data) {
+    const path = prefix ? `${prefix}/${item.name}` : item.name;
+    if (item.id) out.push(path); // a real file
+    else out.push(...(await listStorageFiles(path))); // a folder — descend
+  }
+  return out;
+}
+
+/**
+ * Delete a class for good. Storage files are swept first (best-effort —
+ * the teacher's storage DELETE policy covers the whole class folder);
+ * the classes-row delete then cascades posts/comments/submissions/
+ * attempts/memberships in the database. Returns how many files were
+ * removed and whether the sweep hit a problem (reported, never hidden).
+ */
+export async function deleteClass(classId: string): Promise<{ filesRemoved: number; filesFailed: boolean }> {
+  let filesRemoved = 0;
+  let filesFailed = false;
+  try {
+    const paths = await listStorageFiles(classId);
+    if (paths.length > 0) {
+      const { data, error } = await supabase.storage.from("class-files").remove(paths);
+      if (error) filesFailed = true;
+      else filesRemoved = data?.length ?? 0;
+    }
+  } catch {
+    filesFailed = true;
+  }
+  const { error } = await db().from("classes").delete().eq("id", classId);
+  if (error) throw error;
+  return { filesRemoved, filesFailed };
 }
 
 /* ---------------- class test RPCs ---------------- */
