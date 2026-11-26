@@ -44,7 +44,12 @@ const FeedbackWidget = () => {
       user_email: user.email || "",
       feedback_type: selectedType,
       message: message.trim().slice(0, 1000),
-      rating: isAppreciate ? rating : null,
+      // D-8: the rating row is shown for every feedback type, and a
+      // rating the user picked is ALWAYS stored with it. The old code
+      // silently dropped the stars for non-"appreciate" types
+      // (rating: null), so a rated Suggestion reached the admin panel
+      // with no rating at all.
+      rating: rating > 0 ? rating : null,
     } as any);
 
     if (error) {
@@ -115,10 +120,13 @@ const FeedbackWidget = () => {
               ← {selected?.label}
             </button>
 
-            {isAppreciate && (
+            {/* Rating is offered for every type (and required only for
+                Appreciate, see canSubmit) so what the user picks is
+                always what gets stored — D-8. */}
+            {(
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Your Rating
+                  Your Rating{isAppreciate ? "" : " (optional)"}
                 </p>
                 <div className="mt-1.5 flex items-center gap-1">
                   {[1, 2, 3, 4, 5].map((value) => (

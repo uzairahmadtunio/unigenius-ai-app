@@ -1,5 +1,37 @@
-import { describe, it, expect } from "vitest";
-import { driveFileId, fileKind, previewUrl, directDownloadUrl, downloadName, sourceFromTitle } from "@/lib/file-delivery";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { driveFileId, fileKind, previewUrl, directDownloadUrl, downloadName, sourceFromTitle, downloadFile } from "@/lib/file-delivery";
+
+describe("downloadFile — web resources never eject the app tab (D-2)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("opens a web-page resource in a NEW TAB and never fetches it as a file", async () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    await downloadFile("https://ocw.mit.edu/courses/6-0001/", "MIT OCW page");
+    expect(open).toHaveBeenCalledWith(
+      "https://ocw.mit.edu/courses/6-0001/",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("still downloads real files (PDF) through the blob path", async () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const blob = new Blob(["%PDF"], { type: "application/pdf" });
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, blob: async () => blob } as any)));
+    const createUrl = vi.fn(() => "blob:fake");
+    const revoke = vi.fn();
+    (URL as any).createObjectURL = createUrl;
+    (URL as any).revokeObjectURL = revoke;
+    await downloadFile("https://x.edu/a.pdf", "a.pdf");
+    expect(createUrl).toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+  });
+});
 
 describe("driveFileId", () => {
   it("extracts ids from every Drive URL shape", () => {

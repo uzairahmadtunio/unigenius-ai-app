@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, Trash2, Download, Search, Filter, MoreVertical, Eye, Calendar, GraduationCap, BookOpen } from "lucide-react";
+import { Upload, FileText, Trash2, Download, Search, Filter, MoreVertical, Eye, Calendar, GraduationCap, BookOpen, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import PageShell from "@/components/PageShell";
 import FileViewerDialog from "@/components/FileViewerDialog";
-import { downloadFile, downloadName } from "@/lib/file-delivery";
+import { downloadFile, downloadName, fileKind } from "@/lib/file-delivery";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartment } from "@/contexts/DepartmentContext";
 import { getSubjects } from "@/data/subjects";
@@ -276,9 +276,18 @@ const PastPapersPage = () => {
                     <Button variant="ghost" size="sm" className="flex-1 w-full rounded-xl gap-1.5 text-xs border border-border/60" onClick={() => setViewing(paper)}>
                       <Eye className="w-3.5 h-3.5" /> View
                     </Button>
-                    <Button size="sm" className="flex-1 w-full rounded-xl gap-1.5 text-xs gradient-button text-primary-foreground" onClick={() => handleDownload(paper)}>
-                      <Download className="w-3.5 h-3.5" /> Download
-                    </Button>
+                    {fileKind(paper.file_url, paper.file_name) === "web" ? (
+                      // Web-page resources are pages, not files: open in
+                      // the in-app viewer instead of a "Download" that
+                      // used to eject the whole tab to the source (D-2).
+                      <Button size="sm" className="flex-1 w-full rounded-xl gap-1.5 text-xs gradient-button text-primary-foreground" onClick={() => setViewing(paper)}>
+                        <Globe className="w-3.5 h-3.5" /> Open
+                      </Button>
+                    ) : (
+                      <Button size="sm" className="flex-1 w-full rounded-xl gap-1.5 text-xs gradient-button text-primary-foreground" onClick={() => handleDownload(paper)}>
+                        <Download className="w-3.5 h-3.5" /> Download
+                      </Button>
+                    )}
                   </div>
                 </motion.div>
               ))}

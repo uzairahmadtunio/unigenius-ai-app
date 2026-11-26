@@ -470,14 +470,23 @@ const QuestionBankPage = () => {
           </Select>
         </div>
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className="text-sm text-muted-foreground">
-            Showing{" "}
-            <span className="font-bold text-foreground">
-              {rangeFrom}–{rangeTo}
-            </span>{" "}
-            of <span className="font-bold text-foreground">{displayTotal}</span> question
-            {displayTotal !== 1 && "s"}
-          </p>
+          {isLoading ? (
+            // D-5: while the bank is still loading, say so — the old
+            // line rendered "Showing 0–0 of 0 questions", which reads
+            // as an empty bank on slow connections.
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" /> Loading questions…
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Showing{" "}
+              <span className="font-bold text-foreground">
+                {rangeFrom}–{rangeTo}
+              </span>{" "}
+              of <span className="font-bold text-foreground">{displayTotal}</span> question
+              {displayTotal !== 1 && "s"}
+            </p>
+          )}
           <Button onClick={startPractice} disabled={filtered.length === 0}>
             <Play className="w-4 h-4 mr-1" /> Start Practice
           </Button>

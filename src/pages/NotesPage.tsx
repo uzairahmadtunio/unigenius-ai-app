@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { FileUp, Download, ThumbsUp, FileText, Loader2, Trash2, NotebookPen, Plus, Pencil, Save, X, Eye } from "lucide-react";
+import { FileUp, Download, ThumbsUp, FileText, Loader2, Trash2, NotebookPen, Plus, Pencil, Save, X, Eye, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +14,7 @@ import { useCurrentSemester } from "@/hooks/use-current-semester";
 import { supabase } from "@/integrations/supabase/client";
 import PageShell from "@/components/PageShell";
 import FileViewerDialog from "@/components/FileViewerDialog";
-import { downloadFile, downloadName, sourceFromTitle } from "@/lib/file-delivery";
+import { downloadFile, downloadName, sourceFromTitle, fileKind } from "@/lib/file-delivery";
 import { toast } from "sonner";
 
 interface Note {
@@ -189,8 +189,16 @@ const NotesPage = () => {
   };
 
   const uploadNote = async () => {
-    if (!user || !file || !title.trim() || !uploadSubject) {
-      toast.error("Fill all fields and select a PDF");
+    if (!user) return;
+    // PDF only — stated up front on the form (D-7); validate here too
+    // so a non-PDF picked any other way gets a clear reason, not a
+    // generic failure at submit time.
+    if (file && !/\.pdf$/i.test(file.name)) {
+      toast.error("Only PDF files are supported — please choose a PDF");
+      return;
+    }
+    if (!file || !title.trim() || !uploadSubject) {
+      toast.error("Add a title, pick a subject and select a PDF file");
       return;
     }
     setUploading(true);
@@ -311,12 +319,14 @@ const NotesPage = () => {
           </Select>
 
           <div className="min-w-0 w-full max-w-full overflow-hidden">
+            <label className="text-xs font-medium text-foreground mb-1 block">File (PDF only) *</label>
             <input
               type="file"
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+              accept=".pdf"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
               className="block w-full max-w-full text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
             />
+            <p className="text-[11px] text-muted-foreground mt-1">Only PDF files are accepted.</p>
           </div>
 
           <Button onClick={uploadNote} disabled={uploading} className="w-full rounded-xl gradient-primary text-primary-foreground gap-2">
@@ -416,9 +426,19 @@ const NotesPage = () => {
                   <Button size="sm" variant="outline" className="rounded-lg gap-1.5 text-xs" onClick={() => setViewing(note)}>
                     <Eye className="w-3 h-3" /> View
                   </Button>
-                  <Button size="sm" variant="outline" className="rounded-lg gap-1.5 text-xs" onClick={() => handleDownload(note)}>
-                    <Download className="w-3 h-3" /> Download
-                  </Button>
+                  {fileKind(note.file_url, note.file_name) === "web" ? (
+                    // Web-page resources are pages, not files: there is
+                    // nothing to download. Open them in the in-app viewer
+                    // instead of a "Download" that used to eject the
+                    // whole tab to the source site (D-2).
+                    <Button size="sm" variant="outline" className="rounded-lg gap-1.5 text-xs" onClick={() => setViewing(note)}>
+                      <Globe className="w-3 h-3" /> Open
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" className="rounded-lg gap-1.5 text-xs" onClick={() => handleDownload(note)}>
+                      <Download className="w-3 h-3" /> Download
+                    </Button>
+                  )}
                 </div>
               </motion.div>
             ))

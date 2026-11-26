@@ -212,7 +212,7 @@ TEACHING STYLE:
         rollNumber: profileData?.roll_number || "",
         department: deptName,
         section: profileData?.section || "",
-        university: profileData?.university || "University of Larkana",
+        university: profileData?.university || "The University of Larkano",
       },
     };
     if (format === "pdf") generateProfessionalPDF(content, opts);

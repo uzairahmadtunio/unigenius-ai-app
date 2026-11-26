@@ -45,6 +45,7 @@ const TeacherDashboard = lazyWithRetry(() => import("./pages/TeacherDashboard"))
 const StudyMaterialsPage = lazyWithRetry(() => import("./pages/StudyMaterialsPage"));
 const QuestionBankPage = lazyWithRetry(() => import("./pages/QuestionBankPage"));
 const LecturesPage = lazyWithRetry(() => import("./pages/LecturesPage"));
+const LibraryPage = lazyWithRetry(() => import("./pages/LibraryPage"));
 const CoursesPage = lazyWithRetry(() => import("./pages/CoursesPage"));
 const ProjectsPage = lazyWithRetry(() => import("./pages/ProjectsPage"));
 const ProjectDetailPage = lazyWithRetry(() => import("./pages/ProjectDetailPage"));
@@ -134,6 +135,9 @@ const App = () => (
                 <Route path="/study-materials" element={<StudyMaterialsPage />} />
                 <Route path="/question-bank" element={<QuestionBankPage />} />
                 <Route path="/lectures" element={<LecturesPage />} />
+                <Route path="/library" element={<LibraryPage />} />
+                {/* The books index lives at /library; /books used to 404. */}
+                <Route path="/books" element={<Navigate to="/library" replace />} />
                 <Route path="/courses" element={<CoursesPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:projectId" element={<ProjectDetailPage />} />

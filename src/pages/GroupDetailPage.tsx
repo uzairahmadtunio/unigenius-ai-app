@@ -467,12 +467,15 @@ const GroupDetailPage = () => {
           </div>
 
           <div className="flex gap-2">
-            {/* Edit Group (Owner) */}
+            {/* Edit Group (Owner) — labelled so the settings (and the
+                Delete Group action inside) are actually discoverable;
+                the old bare gear icon was effectively invisible (D-12). */}
             {isOwner && (
               <Dialog open={editOpen} onOpenChange={setEditOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-xl">
+                  <Button variant="ghost" size="sm" className="rounded-xl gap-1.5 text-xs" title="Group settings" aria-label="Group settings">
                     <Settings className="w-4 h-4" />
+                    <span>Settings</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="glass border-border/50">
@@ -535,12 +538,14 @@ const GroupDetailPage = () => {
               </Dialog>
             )}
 
-            {/* Leave Group (non-owner) */}
+            {/* Leave Group (non-owner) — labelled button, not a bare
+                icon, so members can actually find it (D-12). */}
             {!isOwner && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-xl text-destructive">
+                  <Button variant="ghost" size="sm" className="rounded-xl text-destructive gap-1.5 text-xs" title="Leave group" aria-label="Leave group">
                     <LogOut className="w-4 h-4" />
+                    <span>Leave</span>
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>

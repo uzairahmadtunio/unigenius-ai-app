@@ -86,7 +86,7 @@ function renderCoverPage(doc: jsPDF, opts: PDFOptions) {
   doc.setFont("times", "bold");
   doc.setFontSize(26);
   doc.setTextColor(15, 50, 110);
-  doc.text(studentInfo.university || "University of Larkana", CENTER_X, 55, { align: "center" });
+  doc.text(studentInfo.university || "The University of Larkano", CENTER_X, 55, { align: "center" });
 
   // ── Department ──
   doc.setFont("times", "normal");
@@ -667,7 +667,7 @@ export async function generateDOCX(content: string, opts: PDFOptions): Promise<v
       properties: { page: { size: { width: PAGE_W_DXA, height: PAGE_H_DXA }, margin: { top: DOC_TOP, right: DOC_RIGHT, bottom: DOC_BOTTOM, left: DOC_LEFT } } },
       footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], size: 18, color: "777777", font: "Times New Roman" })] })] }) },
       children: [
-        textPara(studentInfo.university || "University of Larkana", { bold: true, color: "0F326E", size: 52, align: "CENTER", spacingAfter: 80 }),
+        textPara(studentInfo.university || "The University of Larkano", { bold: true, color: "0F326E", size: 52, align: "CENTER", spacingAfter: 80 }),
         textPara(`Department of ${studentInfo.department || "Software Engineering"}`, { size: 26, align: "CENTER", spacingAfter: 420 }),
         textPara(opts.docType === "lab" ? "LAB MANUAL" : "ASSIGNMENT REPORT", { bold: true, size: 36, align: "CENTER", spacingAfter: 120 }),
         textPara(subject, { size: 28, align: "CENTER", spacingAfter: 300 }),

@@ -133,6 +133,16 @@ export async function fetchSubjectBooks(subjectName: string): Promise<LibraryBoo
   return (data as unknown as LibraryBook[]).filter((b) => sameSubject(b.subject, subjectName));
 }
 
+/** Every library book, for the standalone Library page (D-4). */
+export async function fetchAllBooks(): Promise<LibraryBook[]> {
+  const { data } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .from("library_books" as any)
+    .select("id, subject, semester, title, author, source, license, hosted_url, official_url, size_mb, page_count")
+    .order("title", { ascending: true });
+  return (data as unknown as LibraryBook[]) || [];
+}
+
 /** External notes + past papers for this subject (demoted reference strip). */
 export async function fetchSubjectReferences(subjectName: string): Promise<SubjectReference[]> {
   const refs: SubjectReference[] = [];

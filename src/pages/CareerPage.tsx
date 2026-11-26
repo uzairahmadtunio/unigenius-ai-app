@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import PageShell from "@/components/PageShell";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import { fireCelebration, recordCareerActivity, checkAndAwardBadges, PRESET_DSA_PROBLEMS, type DSAProblem } from "@/lib/career-points";
+import { formatFileSize } from "@/lib/utils";
 
 type ActiveTab = "interview" | "dsa" | "cv" | "skills";
 
@@ -785,7 +786,7 @@ const CVOptimizer = () => {
         {file ? (
           <>
             <p className="font-display font-semibold text-foreground">{file.name}</p>
-            <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB — Click to replace</p>
+            <p className="text-xs text-muted-foreground">{formatFileSize(file.size)} — Click to replace</p>
           </>
         ) : (
           <>
@@ -822,12 +823,8 @@ const tabs = [
   { id: "skills" as ActiveTab, icon: TrendingUp, label: "Skill Sync", desc: "Freelance Gigs" },
 ];
 
-import { usePro } from "@/hooks/use-pro";
-import ProPaywall from "@/components/ProPaywall";
-
 const CareerPage = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>("interview");
-  const { isPro, loading: proLoading } = usePro();
 
   return (
     <PageShell
@@ -839,8 +836,15 @@ const CareerPage = () => {
         </div>
       }
     >
+      {/* D-3 fix: Career Hub is NOT a Pro feature — it appears nowhere
+          in the Premium plan's Pro list, and the chat function's career
+          modes serve every signed-in user. The old blanket
+          "Pro Feature Locked" overlay sat on top of fully working
+          features (DSA analysis, CV scoring) and blurred the mock
+          interview AFTER a question had already been generated, which
+          was both misleading and wasteful. Removed: no lock UI on
+          features that are actually free. */}
       <div className="relative min-h-[400px]">
-        {!isPro && !proLoading && <ProPaywall feature="AI career tools, mock interviews, and CV optimizer" />}
         <div className="space-y-6 pb-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {tabs.map((tab) => (

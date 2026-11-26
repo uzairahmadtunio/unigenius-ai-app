@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Bot, GraduationCap, Target, BookOpenCheck, Mic, FileText,
   CalendarDays, TrendingUp, Calendar, Layers, StickyNote, Code2, FileCode2,
   Presentation, Users, Trophy, FolderOpen, HelpCircle, Briefcase, ClipboardCheck,
-  Shield, Crown, Settings, Youtube, Rocket,
+  Shield, Crown, Settings, Youtube, Rocket, LibraryBig,
 } from "lucide-react";
 import { useAdmin } from "@/hooks/use-admin";
 import { useRole } from "@/hooks/use-role";
@@ -15,6 +15,7 @@ export const NAV_GROUPS: { label: string; items: Item[] }[] = [
   { label: "Learn", items: [
     { to: "/ai-tutor", label: "AI Tutor", icon: Bot },
     { to: "/lectures", label: "Lectures", icon: Youtube },
+    { to: "/library", label: "Library", icon: LibraryBig },
     { to: "/courses", label: "Courses", icon: GraduationCap },
     { to: "/projects", label: "Projects", icon: Rocket },
     { to: "/practice", label: "Practice", icon: Target },

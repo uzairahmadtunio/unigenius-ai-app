@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sparkles, BookMarked } from "lucide-react";
@@ -23,6 +23,7 @@ import ContinueLearningCard from "@/components/ContinueLearningCard";
 import BadgesRow from "@/components/BadgesRow";
 import { useDepartment, departmentInfo } from "@/contexts/DepartmentContext";
 import { useCurrentSemester } from "@/hooks/use-current-semester";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SPLASH_KEY = "unigenius-splash-shown";
 
@@ -34,12 +35,25 @@ const Index = () => {
   // the old localStorage-only state disagreed with My Subjects/Progress.
   const { semester, setSemester: handleSemesterChange } = useCurrentSemester();
   const { department } = useDepartment();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const handleSplashComplete = useCallback(() => {
     sessionStorage.setItem(SPLASH_KEY, "true");
     setShowSplash(false);
   }, []);
+
+  // D-14: the marketing splash is for signed-out visitors. A returning
+  // user with a valid session used to get stuck on it in every new tab
+  // session — once auth resolves and a user exists, mark the splash
+  // shown and go straight to the app. The DepartmentSelector gate
+  // below is untouched (first-run onboarding stays exactly as is).
+  useEffect(() => {
+    if (!authLoading && user && showSplash) {
+      sessionStorage.setItem(SPLASH_KEY, "true");
+      setShowSplash(false);
+    }
+  }, [authLoading, user, showSplash]);
 
   if (showSplash) return <SplashScreen onComplete={handleSplashComplete} />;
   if (!department) return <DepartmentSelector />;

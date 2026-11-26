@@ -40,7 +40,7 @@ const DocsGenPage = () => {
   const [rollNumber, setRollNumber] = useState("");
   const [studentDept, setStudentDept] = useState("");
   const [studentSection, setStudentSection] = useState("");
-  const [studentUniversity, setStudentUniversity] = useState("University of Larkana");
+  const [studentUniversity, setStudentUniversity] = useState("The University of Larkano");
 
   // Saved teacher-format templates (per kind): a teacher's required
   // format saved once, re-applied to every new document.
@@ -124,7 +124,7 @@ const DocsGenPage = () => {
         setStudentName(p.display_name || "");
         setRollNumber(p.roll_number || "");
         setStudentSection(p.section || "");
-        setStudentUniversity(p.university || "University of Larkana");
+        setStudentUniversity(p.university || "The University of Larkano");
         if (p.current_semester) setSemester(p.current_semester);
       }
     };
@@ -187,7 +187,7 @@ const DocsGenPage = () => {
             rollNumber: rollNumber || "",
             department: studentDept || "",
             section: studentSection || "",
-            university: studentUniversity || "University of Larkana",
+            university: studentUniversity || "The University of Larkano",
           },
         }),
       });

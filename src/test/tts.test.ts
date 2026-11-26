@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   pickVoice,
   pitchFor,
+  qualityTier,
+  voiceScore,
   voiceGenderOf,
   chunkText,
   waitForVoices,
@@ -98,10 +100,84 @@ describe("voiceGenderOf / pickVoice", () => {
   });
 });
 
+describe("voice ranking — free-voice quality pass (2026-11-26)", () => {
+  it("ranks Google first, Natural second, legacy third, robotic last", () => {
+    expect(qualityTier(voice("Google US English"))).toBe(0);
+    expect(qualityTier(voice("Microsoft Aria Online (Natural) - English (United States)"))).toBe(1);
+    expect(qualityTier(voice("Microsoft David - English (United States)"))).toBe(2);
+    expect(qualityTier(voice("eSpeak English", "en-GB"))).toBe(3);
+    expect(qualityTier(voice("Samantha (Compact)"))).toBe(3);
+    expect(qualityTier(voice("Fred"))).toBe(3);
+  });
+
+  it("prefers a Google voice over a Natural voice regardless of OS list order", () => {
+    const naturalFirst = [
+      voice("Microsoft Aria Online (Natural) - English (United States)"),
+      voice("Google UK English Female", "en-GB"),
+    ];
+    expect(pickVoice(naturalFirst, "female").voice?.name).toBe("Google UK English Female");
+    expect(pickVoice([...naturalFirst].reverse(), "female").voice?.name).toBe("Google UK English Female");
+  });
+
+  it("prefers a Natural voice over a legacy voice of the same gender", () => {
+    const male = [
+      voice("Microsoft David - English (United States)"),
+      voice("Microsoft Guy Online (Natural) - English (United States)"),
+    ];
+    expect(pickVoice(male, "male").voice?.name).toContain("Guy");
+  });
+
+  it("prefers en-US over en-GB within the same quality tier", () => {
+    const googles = [
+      voice("Google UK English Female", "en-GB"),
+      voice("Google US English Female"),
+    ];
+    expect(pickVoice(googles, "female").voice?.name).toBe("Google US English Female");
+  });
+
+  it("handles Android-style underscore locales (en_US) in ranking", () => {
+    expect(voiceScore(voice("Google US English", "en_US"))).toBeLessThan(
+      voiceScore(voice("Google UK English Female", "en_GB")),
+    );
+  });
+
+  it("never lets a Compact variant beat a standard voice of the same gender", () => {
+    const female = [voice("Samantha (Compact)"), voice("Microsoft Zira - English (United States)")];
+    expect(pickVoice(female, "female").voice?.name).toContain("Zira");
+  });
+
+  it("falls back to a real opposite-gender voice rather than a novelty voice", () => {
+    // No female voice on the device; the only gender-neutral voice is
+    // the macOS novelty voice "Fred". A pitch-shifted real male voice
+    // sounds better than a joke voice.
+    const picked = pickVoice([voice("Fred"), voice("Microsoft David - English (United States)")], "female");
+    expect(picked.genderMatched).toBe(false);
+    expect(picked.voice?.name).toContain("David");
+  });
+
+  it("still uses a robotic voice when it is the only one available", () => {
+    const picked = pickVoice([voice("eSpeak English", "en-GB")], "female");
+    expect(picked.voice?.name).toBe("eSpeak English");
+    expect(picked.genderMatched).toBe(false);
+  });
+
+  it("on an Android-style list, male and female get the gendered Google voices", () => {
+    const android = [
+      voice("Google US English"),
+      voice("Google UK English Female", "en-GB"),
+      voice("Google UK English Male", "en-GB"),
+      voice("Google हिन्दी", "hi-IN"),
+      voice("English (United States)"),
+    ];
+    expect(pickVoice(android, "male").voice?.name).toBe("Google UK English Male");
+    expect(pickVoice(android, "female").voice?.name).toBe("Google UK English Female");
+  });
+});
+
 describe("pitchFor", () => {
-  it("uses mild, natural pitch when the voice matches the gender", () => {
-    expect(pitchFor("male", true)).toBe(0.9);
-    expect(pitchFor("female", true)).toBe(1.1);
+  it("stays near-natural when the voice matches the gender", () => {
+    expect(pitchFor("male", true)).toBe(0.95);
+    expect(pitchFor("female", true)).toBe(1.05);
   });
 
   it("uses the deliberate stronger shift when it does not", () => {
@@ -117,14 +193,14 @@ describe("speakWith — gender actually changes the spoken configuration", () =>
     await tick();
     expect(maleSynth.spoken).toHaveLength(1);
     expect(maleSynth.spoken[0].voice?.name).toBe("Google UK English Male");
-    expect(maleSynth.spoken[0].pitch).toBe(0.9);
+    expect(maleSynth.spoken[0].pitch).toBe(0.95);
 
     const femaleSynth = mockSynth(GENDERED);
     speakWith(femaleSynth as unknown as SynthLike, MockUtterance as any, "Assalam o alaikum, welcome to the lesson.", { gender: "female" });
     await tick();
     expect(femaleSynth.spoken).toHaveLength(1);
     expect(femaleSynth.spoken[0].voice?.name).toBe("Google UK English Female");
-    expect(femaleSynth.spoken[0].pitch).toBe(1.1);
+    expect(femaleSynth.spoken[0].pitch).toBe(1.05);
 
     expect(maleSynth.spoken[0].voice).not.toBe(femaleSynth.spoken[0].voice);
     expect(maleSynth.spoken[0].pitch).not.toBe(femaleSynth.spoken[0].pitch);

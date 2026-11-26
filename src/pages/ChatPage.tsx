@@ -193,6 +193,34 @@ const ChatPage = () => {
     } catch (e) { console.error("Title generation error:", e); }
   };
 
+  // D-11: restore the user's most recent conversation on load. Chat
+  // history was already persisted (chat_sessions/chat_messages) and
+  // the sidebar could reopen it, but /chat itself always restarted
+  // at the greeting — a page reload "lost" the conversation. Runs
+  // once per mount, only when the latest session actually has
+  // messages, and never overrides a chat the user opens manually.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (!user || restoredRef.current) return;
+    restoredRef.current = true;
+    (async () => {
+      const { data: session } = await supabase
+        .from("chat_sessions")
+        .select("id")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!session?.id) return;
+      const { count } = await supabase
+        .from("chat_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("chat_id", session.id);
+      if (count && count > 0) loadChat(session.id);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const loadChat = async (chatId: string) => {
     if (!user) return;
     setActiveChatId(chatId);

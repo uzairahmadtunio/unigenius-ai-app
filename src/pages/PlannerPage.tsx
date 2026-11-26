@@ -121,7 +121,24 @@ const PlannerPage = () => {
   };
 
   const breakIntoDailyTasks = async () => {
-    if (!user || !schedule) return;
+    if (!user) return;
+    // D-6: the button used to dead-end on return visits when no plan
+    // had been generated/loaded in THIS session, even though the
+    // student's subjects (and their earlier tasks) were right there.
+    // A saved plan is auto-loaded on mount; when there is still no
+    // schedule text, synthesize a weekday split from the selected
+    // subjects so the same AI/fallback pipeline can run.
+    let effectiveSchedule = schedule;
+    if (!effectiveSchedule) {
+      if (!selected.length) {
+        toast.error("Pick your subjects or generate a weekly plan first");
+        return;
+      }
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      effectiveSchedule = selected
+        .map((s, i) => `${days[i % days.length]}: ${canonicalSubject(s)}`)
+        .join("\n");
+    }
     setBreakingWeek(true);
     const todayStr = pktTodayStr();
     const endStr = addDaysStr(todayStr, 6);
@@ -144,7 +161,7 @@ const PlannerPage = () => {
               },
               {
                 role: "user",
-                content: `Today is ${todayStr}. Subjects: ${selected.map((s) => canonicalSubject(s)).join(", ") || "general study"}.\n\nWeekly schedule:\n${schedule}\n\nBreak this week into daily tasks for ${todayStr} to ${endStr}.`,
+                content: `Today is ${todayStr}. Subjects: ${selected.map((s) => canonicalSubject(s)).join(", ") || "general study"}.\n\nWeekly schedule:\n${effectiveSchedule}\n\nBreak this week into daily tasks for ${todayStr} to ${endStr}.`,
               },
             ],
           }),
@@ -187,7 +204,7 @@ const PlannerPage = () => {
       }
       const usedFallback = drafts.length === 0;
       if (usedFallback) {
-        drafts = buildDeterministicTasks(schedule, selected, todayStr, canonicalSubject);
+        drafts = buildDeterministicTasks(effectiveSchedule, selected, todayStr, canonicalSubject);
       }
       if (!drafts.length) { toast.error("Couldn't create tasks — pick subjects or generate a weekly plan first"); return; }
       const rows = drafts.map((d) => ({
@@ -512,10 +529,10 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
             <span className="text-xs text-muted-foreground">Today + next 7 days</span>
             <Button
               onClick={breakIntoDailyTasks}
-              disabled={!schedule || breakingWeek}
+              disabled={breakingWeek || (!schedule && selected.length === 0)}
               variant="outline"
               className="rounded-xl gap-2 ml-auto"
-              title={schedule ? "Use AI to break the weekly plan into daily tasks" : "Generate or load a weekly plan first"}
+              title={schedule ? "Use AI to break the weekly plan into daily tasks" : selected.length ? "Break your subjects into daily tasks" : "Pick your subjects or generate a weekly plan first"}
             >
               {breakingWeek ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               {breakingWeek ? "Breaking down..." : "Break my week into daily tasks"}

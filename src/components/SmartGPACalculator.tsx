@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Department } from "@/contexts/DepartmentContext";
 
-// University of Larkana grading scale
+// The University of Larkano grading scale
 const GRADING_SCALE = [
   { min: 85, grade: "A", gp: 4.0 },
   { min: 80, grade: "A-", gp: 3.67 },
@@ -245,7 +245,7 @@ const SmartGPACalculator = ({ department, userId, currentSemester = 1 }: SmartGP
               <Calculator className="w-5 h-5 text-primary" />
               <h3 className="font-display font-semibold text-foreground">Smart GPA Calculator</h3>
             </div>
-            <p className="text-xs text-muted-foreground">University of Larkana • 4.0 Scale • Enter marks to auto-calculate</p>
+            <p className="text-xs text-muted-foreground">The University of Larkano • 4.0 Scale • Enter marks to auto-calculate</p>
 
             <div className="flex gap-3 items-end">
               <div className="space-y-1">

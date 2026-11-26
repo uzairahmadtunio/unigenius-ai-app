@@ -1,5 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { cn, quizPercent } from "@/lib/utils";
+import { cn, quizPercent, formatFileSize } from "@/lib/utils";
+
+describe("formatFileSize (D-10)", () => {
+  it("shows real bytes for sub-1 KB files instead of \"0 KB\"", () => {
+    expect(formatFileSize(328)).toBe("328 B");
+    expect(formatFileSize(0)).toBe("0 B");
+    expect(formatFileSize(1023)).toBe("1023 B");
+  });
+  it("formats KB and MB with sensible precision", () => {
+    expect(formatFileSize(1024)).toBe("1.0 KB");
+    expect(formatFileSize(1536)).toBe("1.5 KB");
+    expect(formatFileSize(100 * 1024)).toBe("100 KB");
+    expect(formatFileSize(2.5 * 1024 * 1024)).toBe("2.50 MB");
+  });
+  it("survives junk input", () => {
+    expect(formatFileSize(-5)).toBe("0 B");
+    expect(formatFileSize(NaN)).toBe("0 B");
+  });
+});
 
 describe("cn", () => {
   it("joins plain class names", () => {

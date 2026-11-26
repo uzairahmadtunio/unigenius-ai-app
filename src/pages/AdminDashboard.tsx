@@ -248,7 +248,7 @@ const OverviewTab = () => {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 md:space-y-6">
       <div>
         <h2 className="text-xl font-display font-bold text-foreground">System Overview</h2>
-        <p className="text-xs text-muted-foreground">University of Larkana — UniGenius AI Platform</p>
+        <p className="text-xs text-muted-foreground">The University of Larkano — UniGenius AI Platform</p>
       </div>
 
       {stats ? (

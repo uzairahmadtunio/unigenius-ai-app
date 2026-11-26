@@ -124,7 +124,7 @@ const PublicProfilePage = () => {
                     {badges.length >= 3 && <span className="text-blue-500 text-sm">✓</span>}
                   </h1>
                   {p.headline && <p className="text-xs text-muted-foreground mt-0.5">{p.headline}</p>}
-                  <p className="text-[11px] text-muted-foreground">{p.university || "University of Larkana"} • {p.roll_number}</p>
+                  <p className="text-[11px] text-muted-foreground">{p.university || "The University of Larkano"} • {p.roll_number}</p>
                 </div>
               </div>
 

@@ -11,9 +11,16 @@
 //  • waits for the async voice list (voiceschanged) before choosing,
 //  • picks the best gender-matching voice by quality tier (Google →
 //    Microsoft Natural/Neural → other named voices → en/ur fallback),
+//    scored deterministically (see voiceScore) so the result never
+//    depends on the order the OS happens to list voices in,
+//  • demotes known robotic / novelty / compact voices (eSpeak,
+//    Eloquence, macOS novelty voices, "Compact" variants) to last
+//    resort — free voices only, tuned as natural as they can sound
+//    (free-voice quality pass, 2026-11-26; no paid TTS by decision),
 //  • when the device has NO voice of the requested gender, keeps the
 //    best voice but applies a stronger pitch shift as a deliberate
-//    fallback (male 0.85, female 1.15 — vs 0.9 / 1.1 when matched),
+//    fallback (male 0.85, female 1.15 — vs a near-natural 0.95 / 1.05
+//    when the voice itself matches the gender),
 //  • chunks long text at sentence boundaries (~180 chars) because
 //    Chrome/Android degrade or silently cut long utterances,
 //  • persists the gender selection across sessions.
@@ -52,8 +59,6 @@ const MALE_HINTS = [
   "arthur", "brian", "christopher", "eric", "jacob", "hemant", "madhur",
   "ravi", "salim", "aarav",
 ];
-const QUALITY_HINTS = ["google", "natural", "neural", "premium", "enhanced"];
-
 export function voiceGenderOf(voice: SpeechSynthesisVoice): VoiceGender | null {
   const name = voice.name.toLowerCase();
   if (FEMALE_HINTS.some((h) => name.includes(h))) return "female";
@@ -61,15 +66,53 @@ export function voiceGenderOf(voice: SpeechSynthesisVoice): VoiceGender | null {
   return null;
 }
 
-const isQuality = (v: SpeechSynthesisVoice) =>
-  QUALITY_HINTS.some((h) => v.name.toLowerCase().includes(h));
-const langRank = (v: SpeechSynthesisVoice) => {
-  const lang = (v.lang || "").toLowerCase();
-  if (lang.startsWith("en")) return 0;
-  if (lang.startsWith("ur")) return 1;
-  if (lang.startsWith("hi")) return 2;
-  return 3;
+// ─── Free-voice quality ranking (2026-11-26) ──────────────────────
+// The audience is ~90% Android Chrome, where the best free voices are
+// Google's; desktop Chrome offers the same Google voices plus OS
+// voices. Rank by a deterministic score instead of "first quality
+// voice in OS list order" (that order is arbitrary per device):
+//   tier 0  Google voices — the most natural free voices on both
+//           Android and desktop Chrome.
+//   tier 1  "Natural" / "Neural" / "Premium" / "Enhanced" voices
+//           (Microsoft Natural, Apple enhanced downloads).
+//   tier 2  standard named voices (legacy Microsoft David/Zira,
+//           Samantha, Daniel, Samsung/OEM engine voices, …).
+//   tier 3  known robotic / novelty / compact voices — last resort
+//           only, never chosen over a real voice of any gender.
+// Within a tier, prefer en-US → en-GB → other English → Urdu → Hindi.
+const ROBOTIC_HINTS = [
+  "espeak", "eloquence", "compact",
+  // macOS novelty voices (joke voices, not narration voices)
+  "fred", "albert", "zarvox", "trinoids", "bubbles", "bahh", "boing",
+  "cellos", "deranged", "good news", "bad news", "hysterical",
+  "pipe organ", "whisper", "grandma", "grandpa", "junior", "ralph",
+  "princess", "kathy", "agnes",
+];
+const ROBOTIC_TIER = 3;
+
+export function qualityTier(v: SpeechSynthesisVoice): number {
+  const name = v.name.toLowerCase();
+  if (ROBOTIC_HINTS.some((h) => name.includes(h))) return ROBOTIC_TIER;
+  if (name.includes("google")) return 0;
+  if (["natural", "neural", "premium", "enhanced"].some((h) => name.includes(h))) return 1;
+  return 2;
+}
+
+const langSubRank = (v: SpeechSynthesisVoice) => {
+  // Android engines sometimes report "en_US" — normalise separators.
+  const lang = (v.lang || "").toLowerCase().replace(/_/g, "-");
+  if (lang.startsWith("en-us")) return 0;
+  if (lang.startsWith("en-gb")) return 1;
+  if (lang.startsWith("en")) return 2;
+  if (lang.startsWith("ur")) return 3;
+  if (lang.startsWith("hi")) return 4;
+  return 5;
 };
+
+/** Lower is better: quality tier dominates, language breaks ties. */
+export function voiceScore(v: SpeechSynthesisVoice): number {
+  return qualityTier(v) * 10 + langSubRank(v);
+}
 
 export interface PickedVoice {
   voice: SpeechSynthesisVoice | null;
@@ -77,28 +120,33 @@ export interface PickedVoice {
   genderMatched: boolean;
 }
 
-/** Best voice for the requested gender, by quality tier. Pure — the
+/** Best voice for the requested gender, by quality score. Pure — the
  *  caller supplies the (already loaded) voice list. */
 export function pickVoice(voices: SpeechSynthesisVoice[], gender: VoiceGender): PickedVoice {
   if (!voices.length) return { voice: null, genderMatched: false };
-  const sorted = [...voices].sort((a, b) => langRank(a) - langRank(b));
-  const matched = sorted.filter((v) => voiceGenderOf(v) === gender);
+  const bestOf = (list: SpeechSynthesisVoice[]) =>
+    [...list].sort((a, b) => voiceScore(a) - voiceScore(b))[0];
+  const matched = voices.filter((v) => voiceGenderOf(v) === gender);
   if (matched.length) {
-    return { voice: matched.find(isQuality) || matched[0], genderMatched: true };
+    return { voice: bestOf(matched), genderMatched: true };
   }
   // No voice of this gender on the device: prefer a gender-NEUTRAL
   // voice (pitch shift works with it, not against a distinctly
-  // opposite-gender voice), quality first; only then fall back to the
-  // best voice of any kind. Pitch compensates (see pitchFor).
-  const neutral = sorted.filter((v) => voiceGenderOf(v) === null);
-  const best = neutral.find(isQuality) || neutral[0] || sorted.find(isQuality) || sorted[0];
-  return { voice: best, genderMatched: false };
+  // opposite-gender voice). Robotic/novelty neutrals do NOT count as
+  // usable — a real voice of the other gender, pitch-shifted, sounds
+  // better than a novelty voice. Pitch compensates (see pitchFor).
+  const neutral = voices.filter((v) => voiceGenderOf(v) === null);
+  const usableNeutral = neutral.filter((v) => qualityTier(v) < ROBOTIC_TIER);
+  const pool = usableNeutral.length ? usableNeutral : voices;
+  return { voice: bestOf(pool), genderMatched: false };
 }
 
-/** Pitch is a mild naturaliser when the voice itself matches the
- *  gender, and the deliberate differentiator when it does not. */
+/** Pitch stays close to 1.0 when the voice itself matches the gender
+ *  (a real male/female voice needs no acting — shifting it ±10% only
+ *  adds resampling artefacts), and is the deliberate differentiator
+ *  when no voice of the requested gender exists. */
 export function pitchFor(gender: VoiceGender, genderMatched: boolean): number {
-  if (genderMatched) return gender === "male" ? 0.9 : 1.1;
+  if (genderMatched) return gender === "male" ? 0.95 : 1.05;
   return gender === "male" ? 0.85 : 1.15;
 }
 
@@ -112,7 +160,7 @@ export interface SynthLike {
 
 /** Resolve the voice list, waiting for the async voiceschanged event
  *  when the first read comes back empty (Chrome/Android behaviour). */
-export function waitForVoices(synth: SynthLike, timeoutMs = 1000): Promise<SpeechSynthesisVoice[]> {
+export function waitForVoices(synth: SynthLike, timeoutMs = 1500): Promise<SpeechSynthesisVoice[]> {
   const now = synth.getVoices();
   if (now.length) return Promise.resolve(now);
   return new Promise((resolve) => {

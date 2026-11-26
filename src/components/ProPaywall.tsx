@@ -27,7 +27,7 @@ const ProPaywall = ({ feature = "this feature" }: { feature?: string }) => {
           className="rounded-xl gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25 animate-pulse hover:animate-none"
         >
           <Sparkles className="w-4 h-4" />
-          Upgrade Now — ₹300/mo
+          Upgrade Now — Rs 300/mo
         </Button>
       </div>
     </motion.div>

@@ -267,11 +267,24 @@ const PracticePage = () => {
       // Bank counts: rows in question_bank for this semester, counted
       // per subject with the same name normalisation the edge function
       // uses, so "Digital Logic Design (DLD)" style variants still hit.
+      // D-13: fetched through the list_question_bank_safe RPC, NOT the
+      // table — students have no select policy on question_bank
+      // (answers must stay hidden), so the direct query always
+      // returned 0 rows and every card fell through to the misleading
+      // "AI-generated questions" label.
       try {
-        const { data } = await supabase
-          .from("question_bank")
-          .select("subject")
-          .eq("semester", semester);
+        const rows: { subject?: string; semester?: number }[] = [];
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          // Same call shape as the Question Bank page: the RPC takes
+          // no arguments; pagination is the query builder's .range().
+          const { data: chunk, error } = await (supabase.rpc("list_question_bank_safe" as any) as any)
+            .range(from, from + PAGE - 1);
+          if (error || !chunk?.length) break;
+          rows.push(...(chunk as { subject?: string; semester?: number }[]));
+          if (chunk.length < PAGE) break;
+        }
+        const data = rows.filter((r) => Number(r.semester) === semester);
         if (!cancelled) {
           const byNorm = new Map<string, number>();
           (data ?? []).forEach((r: any) => {

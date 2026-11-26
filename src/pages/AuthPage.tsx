@@ -12,6 +12,7 @@ import {
   Layers,
   TrendingUp,
   Flame,
+  MailCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -26,6 +27,10 @@ const AuthPage = () => {
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  // D-15: after signup, a persistent "check your email" panel replaces
+  // the form (the old success toast vanished in seconds and students
+  // were left unsure whether the account was even created).
+  const [signupDone, setSignupDone] = useState(false);
   const navigate = useNavigate();
   const rawNext = new URLSearchParams(window.location.search).get("next") || "";
   const nextPath = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
@@ -58,7 +63,7 @@ const AuthPage = () => {
         }
         goNext();
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -67,7 +72,14 @@ const AuthPage = () => {
           },
         });
         if (error) throw error;
-        toast.success("Account created! Check your email to verify.");
+        if (data.session) {
+          // No confirmation step configured — the account is live.
+          goNext();
+        } else {
+          // Confirmation email sent: show the persistent panel (D-15)
+          // instead of only a toast that disappears in seconds.
+          setSignupDone(true);
+        }
       }
     } catch (err: any) {
       toast.error(err.message);
@@ -244,6 +256,31 @@ const AuthPage = () => {
               </p>
             </div>
 
+            {signupDone ? (
+              <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center space-y-3">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-violet-500/20">
+                  <MailCheck className="h-6 w-6 text-violet-300" />
+                </div>
+                <p className="text-[15px] font-semibold text-white">Account created — check your email</p>
+                <p className="text-sm leading-relaxed text-white/60">
+                  We sent a confirmation link to{" "}
+                  <span className="font-medium text-white">{email}</span>. Open it to verify
+                  your account, then come back and sign in. Didn&apos;t get it? Check your
+                  spam or promotions folder.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignupDone(false);
+                    setIsLogin(true);
+                  }}
+                  className="gradient-button mt-1 inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.99]"
+                >
+                  Back to sign in
+                </button>
+              </div>
+            ) : (
+              <>
             {/* Google */}
             <button
               type="button"
@@ -340,6 +377,8 @@ const AuthPage = () => {
                 {isLogin ? "Create an account" : "Sign in"}
               </button>
             </p>
+              </>
+            )}
 
             {/* Mobile stats (desktop stats live in the left panel) */}
             <div className="mt-10 border-t border-white/[0.07] pt-6 lg:hidden">

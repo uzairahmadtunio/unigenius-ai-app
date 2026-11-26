@@ -68,6 +68,15 @@ export function downloadName(title: string, fileName?: string | null, url?: stri
  * in place — no navigation to any Drive page either way).
  */
 export async function downloadFile(url: string, fileName: string): Promise<void> {
+  // Web-page resources are not files — there is nothing to download.
+  // The old path fetched the page, failed (CORS), and fell back to a
+  // same-tab anchor click that ejected the user from the app onto the
+  // source site (D-2). Open web resources in a NEW TAB instead; the
+  // app tab never navigates away.
+  if (fileKind(url, fileName) === "web") {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
   const target = directDownloadUrl(url, fileName);
   try {
     const resp = await fetch(target);
@@ -82,9 +91,13 @@ export async function downloadFile(url: string, fileName: string): Promise<void>
     a.remove();
     setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
   } catch {
+    // Fallback: a programmatic click on the direct-download URL. It
+    // targets a new tab so even this path can never replace the app
+    // tab with an external page.
     const a = document.createElement("a");
     a.href = target;
     a.download = fileName;
+    a.target = "_blank";
     a.rel = "noopener";
     document.body.appendChild(a);
     a.click();

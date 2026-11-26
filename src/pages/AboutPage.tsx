@@ -85,7 +85,7 @@ const AboutPage = () => {
               <div className="flex-1 text-center md:text-left">
                 <h3 className="font-display text-2xl font-bold">Uzair Ahmad</h3>
                 <p className="text-sm text-primary font-medium mt-1">Software Engineering Student</p>
-                <p className="text-xs text-muted-foreground">University of Larkana</p>
+                <p className="text-xs text-muted-foreground">The University of Larkano</p>
                 <p className="text-sm text-muted-foreground mt-4 leading-relaxed">
                   UniGenius AI was created by Uzair Ahmad to solve real problems faced by university students
                   including assignments, quizzes, viva preparation, coding practice, attendance tracking, and exam preparation.
