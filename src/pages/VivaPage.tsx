@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import PageShell from "@/components/PageShell";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSignInPrompt } from "@/components/SignInPrompt";
 import { useDepartment } from "@/contexts/DepartmentContext";
 import { getSubjects } from "@/data/subjects";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +29,7 @@ const VIVA_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-session
 
 const VivaPage = () => {
   const { user } = useAuth();
+  const { promptSignIn } = useSignInPrompt();
   const { department } = useDepartment();
   const [semester, setSemester] = useState(1);
 
@@ -245,7 +247,7 @@ const VivaPage = () => {
               </div>
             </div>
 
-            <Button onClick={startViva} className="w-full rounded-xl h-12 font-semibold gradient-button text-primary-foreground gap-2" disabled={!selectedSubject || !user}>
+            <Button onClick={() => { if (!user) { promptSignIn("Viva Prep"); return; } startViva(); }} className="w-full rounded-xl h-12 font-semibold gradient-button text-primary-foreground gap-2" disabled={!selectedSubject}>
               <Mic className="w-4 h-4" />
               {!user ? "Sign in to start" : "Start Viva"}
             </Button>

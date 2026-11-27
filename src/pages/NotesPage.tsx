@@ -13,8 +13,10 @@ import { useMySubjects } from "@/hooks/use-my-subjects";
 import { useCurrentSemester } from "@/hooks/use-current-semester";
 import { supabase } from "@/integrations/supabase/client";
 import PageShell from "@/components/PageShell";
+import SeoIntro from "@/components/SeoIntro";
 import FileViewerDialog from "@/components/FileViewerDialog";
 import { downloadFile, downloadName, sourceFromTitle, fileKind } from "@/lib/file-delivery";
+import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { toast } from "sonner";
 
 interface Note {
@@ -45,6 +47,8 @@ const normSubject = (s: string) =>
 
 const NotesPage = () => {
   const { user } = useAuth();
+  const { settings: appSettings } = useAppSettings();
+  const downloadsEnabled = appSettings.features.downloads;
   const { department } = useDepartment();
   const { semester: currentSemester, loaded: semesterLoaded } = useCurrentSemester();
 
@@ -274,6 +278,9 @@ const NotesPage = () => {
   return (
     <PageShell
       title="Notes"
+      seoTitle="Study Notes for CS, SE & AI Subjects — UniGenius AI"
+      seoDescription="Read and share study notes for Computer Science, Software Engineering and AI subjects — student-shared and curated notes for every semester, in one place."
+      seoPath="/notes"
       subtitle="Share notes with everyone — or keep your own private ones"
       icon={
         <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -434,11 +441,11 @@ const NotesPage = () => {
                     <Button size="sm" variant="outline" className="rounded-lg gap-1.5 text-xs" onClick={() => setViewing(note)}>
                       <Globe className="w-3 h-3" /> Open
                     </Button>
-                  ) : (
+                  ) : downloadsEnabled ? (
                     <Button size="sm" variant="outline" className="rounded-lg gap-1.5 text-xs" onClick={() => handleDownload(note)}>
                       <Download className="w-3 h-3" /> Download
                     </Button>
-                  )}
+                  ) : null}
                 </div>
               </motion.div>
             ))
@@ -542,6 +549,15 @@ const NotesPage = () => {
         url={viewing?.file_url ?? null}
         fileName={viewing?.file_name}
       />
+      <div className="px-1">
+        <SeoIntro
+          heading="Notes that match your syllabus"
+          paragraphs={[
+            "These notes are shared by students and curated for the subjects taught in CS, SE and AI degree programs — the same subjects you will find in the topic pages and question bank. Search by subject, open a note right here in the app, and use it alongside the matching topic page: the topic page gives you the structured summary and key points, the notes give you the classroom detail.",
+            "You can also keep your own private notes here, so your handwritten scans, typed summaries and important PDFs live in one place instead of being lost in your phone gallery. Found a note genuinely helpful? Upvote it so other students find the best material first.",
+          ]}
+        />
+      </div>
     </PageShell>
   );
 };

@@ -96,6 +96,9 @@ const LeaderboardPage = () => {
   return (
     <PageShell
       title="Leaderboard"
+      seoTitle="Leaderboard — Top Students on UniGenius AI"
+      seoDescription="See the top-performing students on UniGenius AI — study streaks, quiz scores and XP rankings across CS, SE & AI programs."
+      seoPath="/leaderboard"
       subtitle="Compete across UniGenius"
       icon={
         <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">

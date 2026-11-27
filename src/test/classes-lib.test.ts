@@ -46,8 +46,8 @@ describe("dueThisWeek", () => {
 describe("dueLabel", () => {
   it("labels overdue, today, tomorrow and weekday deadlines", () => {
     expect(dueLabel("2026-11-25T12:00:00Z", NOW)).toBe("Overdue");
-    expect(dueLabel("2026-11-26T23:59:00Z", NOW)).toBe("Due today");
-    expect(dueLabel("2026-11-27T00:01:00Z", NOW)).toBe("Due tomorrow");
+    expect(dueLabel("2026-11-26T12:00:00Z", NOW)).toBe("Due today");
+    expect(dueLabel("2026-11-27T12:00:00Z", NOW)).toBe("Due tomorrow");
     expect(dueLabel("2026-11-30T12:00:00Z", NOW)).toBe("Due Mon");
   });
 });

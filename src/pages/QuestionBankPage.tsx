@@ -28,6 +28,7 @@ import { useRole } from "@/hooks/use-role";
 import { useCurrentSemester } from "@/hooks/use-current-semester";
 import { toast } from "sonner";
 import PageShell from "@/components/PageShell";
+import SeoIntro from "@/components/SeoIntro";
 
 interface QuestionRow {
   id: string;
@@ -418,6 +419,9 @@ const QuestionBankPage = () => {
   return (
     <PageShell
       title="Question Bank"
+      seoTitle="Question Bank — 2,500+ MCQs & Practice Questions | UniGenius AI"
+      seoDescription="Practise 2,500+ teacher-curated MCQs and exam questions for CS, SE & AI subjects, organised by subject and topic with instant answers and explanations."
+      seoPath="/question-bank"
       subtitle="Browse teacher-curated MCQs and practice for exams"
       icon={<Library className="w-6 h-6 text-primary" />}
     >
@@ -684,6 +688,13 @@ const QuestionBankPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <SeoIntro
+        heading="Practise the way the exam asks"
+        paragraphs={[
+          "The UniGenius question bank holds 2,500+ MCQs and practice questions curated by teachers for Computer Science, Software Engineering and AI subjects. Every question is organised by subject and topic, and comes with the correct answer and an explanation — so a wrong answer teaches you something instead of just costing you a mark. Filter by your semester to practise at exactly your level.",
+          "Short on time before an exam? Pick one topic, attempt its questions honestly, then read the topic page for everything you missed and try again. Students who practise topic by topic — instead of rereading notes passively — consistently walk into the exam hall calmer and score higher.",
+        ]}
+      />
     </PageShell>
   );
 };

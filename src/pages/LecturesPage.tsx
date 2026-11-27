@@ -613,9 +613,33 @@ const LecturesPage = () => {
     );
   };
 
+  // SEO (Full SEO program): Course ItemList built from the live playlists.
+  const lecturesJsonLd = lectures.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name: "UniGenius AI — Video Lectures by Subject",
+        numberOfItems: lectures.length,
+        itemListElement: lectures.slice(0, 50).map((l, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          item: {
+            "@type": "Course",
+            name: l.title,
+            description: `${l.subject} video lecture playlist by ${l.channel}, curated on UniGenius AI.`,
+            provider: { "@type": "Organization", name: "UniGenius AI", sameAs: "https://unigenius.vercel.app/" },
+          },
+        })),
+      }
+    : undefined;
+
   return (
     <PageShell
       title="Lectures"
+      seoTitle="Free Video Lectures for CS, SE & AI Students — UniGenius AI"
+      seoDescription="Watch 100+ curated video lecture playlists for every subject and semester — Programming, OOP, Data Structures, DLD, Databases and more, in Urdu/Hindi and English."
+      seoPath="/lectures"
+      seoJsonLd={lecturesJsonLd}
       subtitle="The best YouTube lectures for every subject of every semester — search any topic and find the video right here."
       icon={
         <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center">

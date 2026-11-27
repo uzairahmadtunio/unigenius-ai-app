@@ -154,6 +154,9 @@ const ProjectsPage = () => {
   return (
     <PageShell
       title="Projects"
+      seoTitle="Semester & Final Year Project Ideas for CS, SE & AI Students | UniGenius AI"
+      seoDescription="Ready project ideas for every semester — from beginner mini-projects to final year projects — with full details, features and real examples."
+      seoPath="/projects"
       subtitle="Ready project ideas for every semester — from beginner to final year project, with full details and real examples."
       icon={
         <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">

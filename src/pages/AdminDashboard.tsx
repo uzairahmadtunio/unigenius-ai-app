@@ -6,7 +6,8 @@ import {
   Plus, Trash2, Edit2, UserX, Search, AlertTriangle, X,
   Headset, Send, CheckCircle2, MessageCircle, CreditCard, Eye, XCircle,
   Tag, ToggleLeft, ToggleRight, Loader2, MessageSquareHeart, Star, Bug, Lightbulb,
-  Mail, RefreshCw, Inbox, KeyRound, FlaskConical, Download, Clock, Activity, CalendarDays
+  Mail, RefreshCw, Inbox, KeyRound, FlaskConical, Download, Clock, Activity, CalendarDays,
+  ShieldCheck, TrendingUp, ScrollText, Settings2, Ban, RotateCcw, Crown, Reply
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,15 +23,18 @@ import { toast } from "sonner";
 import { useAdmin } from "@/hooks/use-admin";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ModerationTab, GrowthTab, SystemTab, AuditLogTab } from "@/components/admin/Phase4Tabs";
+import { relativeTime, toCsv, downloadCsv } from "@/lib/app-settings";
 
 const categories = ["general", "fee", "exam", "academic", "event"];
 const priorities = ["normal", "high", "urgent"];
 
-type AdminTab = "overview" | "users" | "notices" | "groups" | "alerts" | "support" | "payments" | "promos" | "feedback" | "contact" | "apikeys" | "exams";
+type AdminTab = "overview" | "users" | "moderation" | "notices" | "groups" | "alerts" | "support" | "payments" | "promos" | "feedback" | "contact" | "apikeys" | "exams" | "growth" | "system" | "audit";
 
 const tabItems = [
   { id: "overview" as AdminTab, label: "Overview", icon: BarChart3 },
   { id: "users" as AdminTab, label: "Users", icon: Users },
+  { id: "moderation" as AdminTab, label: "Moderation", icon: ShieldCheck },
   { id: "notices" as AdminTab, label: "Notices", icon: Megaphone },
   { id: "exams" as AdminTab, label: "Exam Dates", icon: CalendarDays },
   { id: "groups" as AdminTab, label: "Groups", icon: FolderOpen },
@@ -41,6 +45,9 @@ const tabItems = [
   { id: "apikeys" as AdminTab, label: "API Keys", icon: KeyRound },
   { id: "feedback" as AdminTab, label: "Feedback", icon: MessageSquareHeart },
   { id: "contact" as AdminTab, label: "Contact Inbox", icon: Inbox },
+  { id: "growth" as AdminTab, label: "Growth", icon: TrendingUp },
+  { id: "system" as AdminTab, label: "System", icon: Settings2 },
+  { id: "audit" as AdminTab, label: "Audit Log", icon: ScrollText },
 ];
 
 const AdminDashboard = () => {
@@ -197,8 +204,9 @@ const AdminDashboard = () => {
             </Button>
           </div>
 
-          {activeTab === "overview" && <OverviewTab />}
+          {activeTab === "overview" && <OverviewTab onJump={setActiveTab} />}
           {activeTab === "users" && <UsersTab />}
+          {activeTab === "moderation" && <ModerationTab />}
           {activeTab === "notices" && <NoticesTab />}
           {activeTab === "exams" && <ExamDatesTab />}
           {activeTab === "groups" && <GroupsTab />}
@@ -209,20 +217,31 @@ const AdminDashboard = () => {
           {activeTab === "feedback" && <FeedbackTab onCountChange={setFeedbackUnread} />}
           {activeTab === "contact" && <ContactInboxTab />}
           {activeTab === "apikeys" && <ApiKeysTab />}
+          {activeTab === "growth" && <GrowthTab />}
+          {activeTab === "system" && <SystemTab />}
+          {activeTab === "audit" && <AuditLogTab />}
         </div>
       </main>
     </div>
   );
 };
 
-/* ===== OVERVIEW TAB ===== */
-const OverviewTab = () => {
+/* ===== OVERVIEW TAB — Live Dashboard (Phase 4, B2.1) ===== */
+const OverviewTab = ({ onJump }: { onJump: (t: AdminTab) => void }) => {
   const [stats, setStats] = useState<any>(null);
+  const [live, setLive] = useState<any>(null);
 
   useEffect(() => {
     supabase.rpc("admin_get_stats").then(({ data }) => {
       if (data && data.length > 0) setStats(data[0]);
     });
+    const loadLive = () =>
+      supabase.rpc("admin_live_dashboard" as any).then(({ data }) => {
+        if (data) setLive(data);
+      });
+    loadLive();
+    const t = setInterval(loadLive, 30_000);
+    return () => clearInterval(t);
   }, []);
 
   // One violet line-icon system for all five stats (was five colours).
@@ -250,6 +269,62 @@ const OverviewTab = () => {
         <h2 className="text-xl font-display font-bold text-foreground">System Overview</h2>
         <p className="text-xs text-muted-foreground">The University of Larkano — UniGenius AI Platform</p>
       </div>
+
+      {/* Live Dashboard — refreshes every 30 seconds */}
+      {live && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3">
+            {[
+              { label: "Students", value: Math.max(live.total_users - live.teachers - live.admins, 0), sub: `${live.total_users} total users` },
+              { label: "Teachers", value: live.teachers, sub: `${live.admins} admin${live.admins === 1 ? "" : "s"}` },
+              { label: "Pro Users", value: live.pro_users, sub: `${live.lifetime_users} lifetime` },
+              { label: "Signups Today", value: live.signups_today, sub: `${live.signups_7d} in 7 days` },
+              { label: "AI Calls Today", value: live.ai_calls_today, sub: `${live.ai_failures_today} failed` },
+              { label: "Quizzes Today", value: live.quizzes_today, sub: `${live.classes_total} classes` },
+            ].map((c) => (
+              <Card key={c.label} className="border-border/30 bg-card">
+                <CardContent className="p-3 md:p-4">
+                  <p className="text-xl md:text-2xl font-bold text-foreground">{c.value}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{c.label}</p>
+                  <p className="text-[10px] text-muted-foreground/70">{c.sub}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="border-border/30 bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-display flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                </span>
+                Needs Your Attention
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {[
+                { label: "Payments waiting for approval", count: live.pending_payments, tab: "payments" as AdminTab },
+                { label: "Content waiting for moderation", count: live.pending_moderation, tab: "moderation" as AdminTab },
+                { label: "New feedback to read", count: live.new_feedback, tab: "feedback" as AdminTab },
+                { label: "Open support tickets", count: live.open_support, tab: "support" as AdminTab },
+                { label: "Suspended accounts", count: live.suspended_users, tab: "users" as AdminTab },
+              ].map((row) => (
+                <button
+                  key={row.label}
+                  onClick={() => onJump(row.tab)}
+                  className="w-full flex items-center justify-between py-1.5 px-1 rounded-lg hover:bg-muted/40 transition-colors text-left"
+                >
+                  <span className="text-xs text-foreground">{row.label}</span>
+                  <Badge variant={row.count > 0 ? "default" : "secondary"} className="text-[10px]">
+                    {row.count}
+                  </Badge>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {stats ? (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 md:gap-3">
@@ -321,32 +396,193 @@ const OverviewTab = () => {
   );
 };
 
-/* ===== USERS TAB ===== */
+/* ===== USERS TAB — Management + User 360 (Phase 4, B2.3 + B2.4) ===== */
+const planBadge = (plan: string) => {
+  if (plan === "lifetime")
+    return <Badge className="text-[9px] bg-amber-500/15 text-amber-600 hover:bg-amber-500/15 shrink-0"><Crown className="w-2.5 h-2.5 mr-0.5" />Lifetime</Badge>;
+  if (plan === "pro")
+    return <Badge className="text-[9px] bg-primary/15 text-primary hover:bg-primary/15 shrink-0">Pro</Badge>;
+  return <Badge variant="outline" className="text-[9px] shrink-0">Free</Badge>;
+};
+
+const User360Dialog = ({ userId, onClose, onChanged }: { userId: string | null; onClose: () => void; onChanged: () => void }) => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [planBusy, setPlanBusy] = useState(false);
+
+  useEffect(() => {
+    if (!userId) { setData(null); return; }
+    setLoading(true);
+    supabase.rpc("admin_get_user_360" as any, { _user_id: userId }).then(({ data, error }) => {
+      if (error) toast.error("Failed to load user: " + error.message);
+      setData(data);
+      setLoading(false);
+    });
+  }, [userId]);
+
+  const changePlan = async (plan: string) => {
+    if (!userId) return;
+    setPlanBusy(true);
+    const { error } = await supabase.rpc("admin_set_user_plan" as any, { _target_user_id: userId, _plan: plan });
+    setPlanBusy(false);
+    if (error) {
+      toast.error("Plan change failed: " + error.message);
+    } else {
+      toast.success(`Plan updated to ${plan}`);
+      setData((d: any) => (d ? { ...d, profile: { ...d.profile, plan, is_pro: plan !== "free" } } : d));
+      onChanged();
+    }
+  };
+
+  const p = data?.profile;
+
+  return (
+    <Dialog open={!!userId} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-lg max-h-[88vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display">User 360</DialogTitle>
+          <DialogDescription className="text-xs">Everything about this user in one place</DialogDescription>
+        </DialogHeader>
+        {loading || !data ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div>
+        ) : !data.found ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">User not found.</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Avatar className="w-12 h-12 border border-border">
+                <AvatarImage src={p.avatar_url} />
+                <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                  {(p.display_name || p.email || "?").charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground truncate">{p.display_name || "No Name"}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{p.email}</p>
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {planBadge(p.plan)}
+                  {(p.roles || []).map((r: string) => (
+                    <Badge key={r} variant="secondary" className="text-[9px]">{r}</Badge>
+                  ))}
+                  {p.suspended && <Badge variant="destructive" className="text-[9px]">Suspended</Badge>}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {[
+                ["Roll number", p.roll_number || "—"],
+                ["Semester", p.current_semester ? `Semester ${p.current_semester}` : "—"],
+                ["Department", p.department || "—"],
+                ["University", p.university || "—"],
+                ["Joined", new Date(p.joined_at).toLocaleDateString("en-PK", { dateStyle: "medium" })],
+                ["Classes joined", String(data.classes_joined)],
+                ["Notes uploaded", String(data.notes_uploaded)],
+                ["Materials uploaded", String(data.materials_uploaded)],
+                ["Badges earned", String(data.badges)],
+                ["Feedback sent", String(data.feedback_count)],
+              ].map(([k, v]) => (
+                <div key={k} className="rounded-xl bg-muted/40 px-3 py-2">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">{k}</p>
+                  <p className="font-medium text-foreground mt-0.5 truncate">{v}</p>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-foreground mb-1.5">Subjects</p>
+              {data.subjects?.length ? (
+                <div className="flex flex-wrap gap-1">
+                  {data.subjects.map((s: string) => (
+                    <Badge key={s} variant="outline" className="text-[10px] font-normal">{s}</Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No subjects selected yet.</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-foreground mb-1.5">Quiz Performance</p>
+              <p className="text-xs text-muted-foreground">
+                {data.quiz.attempts} attempts • average {data.quiz.avg_pct}%
+                {data.quiz.last_attempt_at ? ` • last attempt ${relativeTime(data.quiz.last_attempt_at)}` : ""}
+              </p>
+              {data.weak_subjects?.length > 0 && (
+                <div className="mt-1.5 space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Weakest subjects:</p>
+                  {data.weak_subjects.map((w: any) => (
+                    <div key={w.subject} className="flex justify-between text-xs">
+                      <span className="text-foreground truncate mr-2">{w.subject}</span>
+                      <span className="text-muted-foreground shrink-0">{w.avg_pct}% avg • {w.attempts} attempts</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-foreground mb-1.5">Change Plan</p>
+              <div className="flex items-center gap-2">
+                <Select value={p.plan} onValueChange={changePlan} disabled={planBusy}>
+                  <SelectTrigger className="rounded-xl w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="free">Free</SelectItem>
+                    <SelectItem value="pro">Pro</SelectItem>
+                    <SelectItem value="lifetime">Lifetime</SelectItem>
+                  </SelectContent>
+                </Select>
+                {planBusy && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-foreground mb-1.5">Purchase History</p>
+              {data.purchases?.length ? (
+                <div className="space-y-1.5">
+                  {data.purchases.map((r: any) => (
+                    <div key={r.id} className="flex items-center justify-between text-xs rounded-xl bg-muted/40 px-3 py-2">
+                      <span className="text-foreground capitalize">{r.plan || "pro"} • PKR {r.amount} • {r.payment_method || ""}</span>
+                      <span className="flex items-center gap-2 shrink-0">
+                        <span className="text-muted-foreground">{new Date(r.created_at).toLocaleDateString("en-PK", { dateStyle: "medium" })}</span>
+                        <Badge variant={r.status === "approved" ? "default" : r.status === "rejected" ? "destructive" : "secondary"} className="text-[9px]">
+                          {r.status}
+                        </Badge>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No purchases yet.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const UsersTab = () => {
   const [users, setUsers] = useState<any[]>([]);
-  const [userRoles, setUserRoles] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [suspendTarget, setSuspendTarget] = useState<any>(null);
+  const [view360, setView360] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [roleLoading, setRoleLoading] = useState<string | null>(null);
+  const [suspendBusy, setSuspendBusy] = useState(false);
 
   const fetchUsers = async () => {
-    const { data } = await supabase.rpc("admin_get_all_users");
-    setUsers(data || []);
+    const { data, error } = await supabase.rpc("admin_list_users_full" as any);
+    if (error) toast.error("Failed to load users: " + error.message);
+    setUsers((data as any[]) || []);
     setLoading(false);
   };
 
-  const fetchRoles = async () => {
-    const { data } = await supabase.from("user_roles" as any).select("user_id, role");
-    const map: Record<string, string[]> = {};
-    (data || []).forEach((r: any) => {
-      if (!map[r.user_id]) map[r.user_id] = [];
-      map[r.user_id].push(r.role);
-    });
-    setUserRoles(map);
-  };
-
-  useEffect(() => { fetchUsers(); fetchRoles(); }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
   const handleRoleChange = async (userId: string, action: "add" | "remove") => {
     setRoleLoading(userId);
@@ -358,23 +594,28 @@ const UsersTab = () => {
     if (error) {
       toast.error("Failed: " + error.message);
     } else {
-      const newRole = action === "add" ? "Teacher" : "Student";
-      toast.success(`User role updated to ${newRole} successfully`);
-      // Instant UI sync: update local state immediately
-      setUserRoles(prev => {
-        const updated = { ...prev };
-        const current = [...(updated[userId] || [])];
-        if (action === "add") {
-          if (!current.includes("teacher")) current.push("teacher");
-        } else {
-          const idx = current.indexOf("teacher");
-          if (idx !== -1) current.splice(idx, 1);
-        }
-        updated[userId] = current;
-        return updated;
-      });
+      toast.success(`User role updated to ${action === "add" ? "Teacher" : "Student"} successfully`);
+      fetchUsers();
     }
     setRoleLoading(null);
+  };
+
+  const handleSuspend = async () => {
+    if (!suspendTarget) return;
+    setSuspendBusy(true);
+    const target = suspendTarget;
+    const { error } = await supabase.rpc("admin_set_user_suspended" as any, {
+      _target_user_id: target.user_id,
+      _suspended: !target.suspended,
+    });
+    setSuspendBusy(false);
+    setSuspendTarget(null);
+    if (error) {
+      toast.error("Failed: " + error.message);
+    } else {
+      toast.success(target.suspended ? "Account restored" : "Account suspended — the user can no longer sign in");
+      fetchUsers();
+    }
   };
 
   const handleDelete = async () => {
@@ -389,6 +630,18 @@ const UsersTab = () => {
     setDeleteTarget(null);
   };
 
+  const handleExport = () => {
+    const rows = users.map((u) => [
+      u.display_name || "", u.email, u.roll_number || "", u.plan, (u.roles || []).join(" "),
+      u.current_semester || "", u.suspended ? "suspended" : "active",
+      new Date(u.joined_at).toISOString().slice(0, 10),
+      u.last_active_at ? new Date(u.last_active_at).toISOString().slice(0, 10) : "",
+    ]);
+    downloadCsv(`unigenius-users-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(["Name", "Email", "Roll Number", "Plan", "Roles", "Semester", "Status", "Joined", "Last Active"], rows));
+    toast.success("Users CSV downloaded");
+  };
+
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
     return (
@@ -398,8 +651,8 @@ const UsersTab = () => {
     );
   });
 
-  const getUserRole = (userId: string) => {
-    const roles = userRoles[userId] || [];
+  const getRole = (u: any) => {
+    const roles: string[] = u.roles || [];
     if (roles.includes("admin")) return "admin";
     if (roles.includes("teacher")) return "teacher";
     return "student";
@@ -407,11 +660,14 @@ const UsersTab = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h2 className="text-xl font-display font-bold text-foreground">Manage Users</h2>
           <p className="text-xs text-muted-foreground">{users.length} registered users</p>
         </div>
+        <Button variant="outline" size="sm" className="rounded-xl text-xs gap-1.5" onClick={handleExport} disabled={users.length === 0}>
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </Button>
       </div>
 
       <div className="relative">
@@ -429,31 +685,45 @@ const UsersTab = () => {
       ) : (
         <div className="space-y-2">
           {filtered.map((u) => {
-            const role = getUserRole(u.user_id);
+            const role = getRole(u);
             const isCurrentTeacher = role === "teacher";
             const isAdminUser = role === "admin";
             return (
-              <Card key={u.user_id} className="border-border/30 bg-card">
-                <CardContent className="p-3 flex items-center gap-3">
-                  <Avatar className="w-9 h-9 border border-border">
-                    <AvatarImage src={u.avatar_url} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                      {(u.display_name || u.email || "?").charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground truncate">{u.display_name || "No Name"}</p>
-                      <Badge variant={isAdminUser ? "default" : isCurrentTeacher ? "secondary" : "outline"} className="text-[9px] shrink-0">
-                        {role}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                      <span className="truncate">{u.email}</span>
-                      {u.roll_number && <><span>•</span><span>{u.roll_number}</span></>}
+              <Card key={u.user_id} className={`border-border/30 bg-card ${u.suspended ? "opacity-70 border-l-4 border-l-destructive" : ""}`}>
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-9 h-9 border border-border shrink-0">
+                      <AvatarImage src={u.avatar_url} />
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                        {(u.display_name || u.email || "?").charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-semibold text-foreground truncate">{u.display_name || "No Name"}</p>
+                        <Badge variant={isAdminUser ? "default" : isCurrentTeacher ? "secondary" : "outline"} className="text-[9px] shrink-0">
+                          {role}
+                        </Badge>
+                        {planBadge(u.plan)}
+                        {u.suspended && <Badge variant="destructive" className="text-[9px] shrink-0">Suspended</Badge>}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
+                        <span className="truncate">{u.email}</span>
+                        {u.roll_number && <><span>•</span><span>{u.roll_number}</span></>}
+                        <span>•</span><span>Joined {new Date(u.joined_at).toLocaleDateString("en-PK", { dateStyle: "medium" })}</span>
+                        <span>•</span><span>Active {relativeTime(u.last_active_at).toLowerCase()}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg text-[10px] h-7 px-2 gap-1"
+                      onClick={() => setView360(u.user_id)}
+                    >
+                      <Eye className="w-3 h-3" /> View 360
+                    </Button>
                     {!isAdminUser && (
                       <Button
                         variant={isCurrentTeacher ? "outline" : "default"}
@@ -467,11 +737,22 @@ const UsersTab = () => {
                         ) : isCurrentTeacher ? "Remove Teacher" : "Make Teacher"}
                       </Button>
                     )}
+                    {!isAdminUser && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`rounded-lg text-[10px] h-7 px-2 gap-1 ${u.suspended ? "" : "text-destructive border-destructive/30 hover:bg-destructive/10"}`}
+                        onClick={() => setSuspendTarget(u)}
+                      >
+                        {u.suspended ? <><RotateCcw className="w-3 h-3" /> Restore</> : <><Ban className="w-3 h-3" /> Suspend</>}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="rounded-lg w-8 h-8 text-destructive hover:bg-destructive/10"
+                      className="rounded-lg w-7 h-7 text-destructive hover:bg-destructive/10 ml-auto"
                       onClick={() => setDeleteTarget(u)}
+                      title="Delete user"
                     >
                       <UserX className="w-4 h-4" />
                     </Button>
@@ -485,6 +766,30 @@ const UsersTab = () => {
           )}
         </div>
       )}
+
+      <User360Dialog userId={view360} onClose={() => setView360(null)} onChanged={fetchUsers} />
+
+      <Dialog open={!!suspendTarget} onOpenChange={(o) => !o && setSuspendTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              {suspendTarget?.suspended ? <RotateCcw className="w-5 h-5" /> : <Ban className="w-5 h-5 text-destructive" />}
+              {suspendTarget?.suspended ? "Restore Account" : "Suspend Account"}
+            </DialogTitle>
+            <DialogDescription>
+              {suspendTarget?.suspended
+                ? <>Give <strong>{suspendTarget?.display_name || suspendTarget?.email}</strong> access to UniGenius again?</>
+                : <><strong>{suspendTarget?.display_name || suspendTarget?.email}</strong> will no longer be able to sign in or use UniGenius. Their data stays saved and you can restore the account any time.</>}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" className="rounded-xl" onClick={() => setSuspendTarget(null)}>Cancel</Button>
+            <Button variant={suspendTarget?.suspended ? "default" : "destructive"} className="rounded-xl" onClick={handleSuspend} disabled={suspendBusy}>
+              {suspendBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : suspendTarget?.suspended ? "Restore" : "Suspend"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-sm">
@@ -1331,6 +1636,7 @@ const PaymentsTab = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [revenue, setRevenue] = useState<any>(null);
 
   const fetchRequests = async () => {
     const { data } = await supabase.rpc("admin_get_payment_requests" as any);
@@ -1339,6 +1645,9 @@ const PaymentsTab = () => {
   };
 
   useEffect(() => { fetchRequests(); }, []);
+  useEffect(() => {
+    supabase.rpc("admin_revenue_report" as any).then(({ data }) => setRevenue(data));
+  }, [requests]);
 
   const handleAction = async (id: string, action: "approve" | "reject") => {
     const note = action === "reject" ? prompt("Rejection reason (optional):") : null;
@@ -1375,6 +1684,68 @@ const PaymentsTab = () => {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Sales totals + revenue (Phase 4, B2.5 + B3.13) */}
+      {revenue && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            {[
+              { label: "Total Sales (approved)", value: `PKR ${Number(revenue.approved_total).toLocaleString("en-PK")}` },
+              { label: "Approved Orders", value: revenue.approved_count },
+              { label: "Pro Users", value: revenue.pro_users },
+              { label: "Lifetime Users", value: revenue.lifetime_users },
+            ].map((c) => (
+              <Card key={c.label} className="border-border/30 bg-card">
+                <CardContent className="p-3.5">
+                  <p className="text-base md:text-lg font-bold text-foreground">{c.value}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{c.label}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card className="border-border/30 bg-card">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-display">Revenue by Month</CardTitle>
+                <Button
+                  variant="outline" size="sm" className="rounded-xl text-xs gap-1.5"
+                  disabled={requests.length === 0}
+                  onClick={() => {
+                    const rows = requests.map((r: any) => [
+                      r.user_name || "", r.user_email || "", r.plan || "", r.amount, r.status,
+                      r.payment_method || "", r.promo_code || "",
+                      new Date(r.created_at).toISOString().slice(0, 10),
+                    ]);
+                    downloadCsv(`unigenius-sales-${new Date().toISOString().slice(0, 10)}.csv`,
+                      toCsv(["Name", "Email", "Plan", "Amount (PKR)", "Status", "Method", "Promo", "Date"], rows));
+                    toast.success("Sales CSV downloaded");
+                  }}
+                >
+                  <Download className="w-3.5 h-3.5" /> Export Sales CSV
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              {(revenue.by_month || []).length === 0 && (
+                <p className="text-xs text-muted-foreground">No approved sales yet — revenue will appear here after the first approval.</p>
+              )}
+              {(revenue.by_month || []).map((m: any) => (
+                <div key={m.month} className="flex items-center justify-between text-xs">
+                  <span className="text-foreground">
+                    {new Date(`${m.month}-02T00:00:00`).toLocaleDateString("en-PK", { month: "long", year: "numeric" })}
+                  </span>
+                  <span className="text-muted-foreground">{m.sales} sales • PKR {Number(m.total).toLocaleString("en-PK")}</span>
+                </div>
+              ))}
+              {(revenue.by_plan || []).length > 0 && (
+                <p className="text-[10px] text-muted-foreground pt-1">
+                  By plan: {(revenue.by_plan as any[]).map((p) => `${p.plan}: ${p.sales} (PKR ${Number(p.total).toLocaleString("en-PK")})`).join(" • ")}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {loading ? (
         <div className="text-center py-12 text-muted-foreground text-sm">Loading payment requests...</div>
@@ -1683,6 +2054,9 @@ const FeedbackTab = ({ onCountChange }: { onCountChange: (n: number) => void }) 
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [replyBusy, setReplyBusy] = useState(false);
 
   const fetchFeedbacks = async () => {
     const { data } = await supabase
@@ -1701,6 +2075,24 @@ const FeedbackTab = ({ onCountChange }: { onCountChange: (n: number) => void }) 
     await supabase.from("feedbacks" as any).update({ status: "reviewed" } as any).eq("id", id);
     toast.success("Feedback Marked as Reviewed");
     fetchFeedbacks();
+  };
+
+  const handleSendReply = async (f: any) => {
+    if (!replyText.trim()) { toast.error("Write a reply first"); return; }
+    setReplyBusy(true);
+    const { error } = await supabase.rpc("admin_reply_feedback" as any, {
+      _feedback_id: f.id,
+      _reply: replyText.trim(),
+    });
+    setReplyBusy(false);
+    if (error) {
+      toast.error("Reply failed: " + error.message);
+    } else {
+      toast.success("Reply sent — the user gets a notification");
+      setReplyOpenId(null);
+      setReplyText("");
+      fetchFeedbacks();
+    }
   };
 
   const handleDelete = async () => {
@@ -1827,6 +2219,35 @@ const FeedbackTab = ({ onCountChange }: { onCountChange: (n: number) => void }) 
                         </div>
                       )}
                       <p className="text-xs text-foreground mt-2 whitespace-pre-wrap">{f.message}</p>
+                      {f.admin_reply && (
+                        <div className="mt-2.5 rounded-xl bg-primary/5 border border-primary/15 px-3 py-2">
+                          <p className="text-[9px] font-semibold text-primary uppercase tracking-wide">
+                            Your reply{f.replied_at ? ` • ${new Date(f.replied_at).toLocaleDateString("en-PK", { dateStyle: "medium" })}` : ""}
+                          </p>
+                          <p className="text-xs text-foreground mt-1 whitespace-pre-wrap">{f.admin_reply}</p>
+                        </div>
+                      )}
+                      {replyOpenId === f.id && (
+                        <div className="mt-2.5 space-y-2">
+                          <Textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Write your reply — the user will get it as a notification..."
+                            className="rounded-xl text-sm min-h-[72px]"
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" className="rounded-xl text-[10px] h-7 gap-1" disabled={replyBusy}
+                              onClick={() => handleSendReply(f)}>
+                              {replyBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                              Send Reply
+                            </Button>
+                            <Button variant="ghost" size="sm" className="rounded-xl text-[10px] h-7"
+                              onClick={() => { setReplyOpenId(null); setReplyText(""); }}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 mt-3">
                         {isNew && (
                           <Button
@@ -1839,6 +2260,15 @@ const FeedbackTab = ({ onCountChange }: { onCountChange: (n: number) => void }) 
                             Mark as Reviewed
                           </Button>
                         )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-[10px] h-7 gap-1"
+                          onClick={() => { setReplyOpenId(replyOpenId === f.id ? null : f.id); setReplyText(f.admin_reply || ""); }}
+                        >
+                          <Reply className="w-3 h-3" />
+                          {f.admin_reply ? "Edit Reply" : "Reply"}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -2044,22 +2474,36 @@ const OPENAI_COMPAT_PRESETS: Record<string, { label: string; baseUrl: string; mo
 };
 
 /* ── API Keys honesty helpers ──────────────────────────────────────────
-   State partition (every loaded key is counted EXACTLY once):
+   ONE source of truth for a key's state: the effective_status column
+   computed by the admin_list_api_keys RPC — the same CASE the AI
+   failover itself routes by:
+     invalid  = provider rejected the key (failover always skips it)
      disabled = NOT enabled
-     cooling  = enabled AND cooldown_until is in the future
-     active   = enabled AND NOT cooling
-   So active + cooling + disabled always equals the pool total. Keys the
-   provider rejected land in "disabled": report_api_key_result() flips
-   enabled=false when it marks a key invalid, so they are counted here —
-   never double-counted as a separate bucket. */
-const isCoolingKey = (k: any) =>
-  !!k.enabled && !!k.cooldown_until && new Date(k.cooldown_until).getTime() > Date.now();
+     cooldown = status 'cooldown' AND cooldown_until in the future
+     active   = everything else (an EXPIRED cooldown is active again —
+                the stored status text alone stays 'cooldown' until the
+                key is next used, which is exactly how the header once
+                disagreed with the DB: it counted timestamps one way and
+                the stored column said another)
+   Header counts and row badges both derive from this, so they can
+   never disagree with each other or with the router. The client-side
+   fallback below only runs if an older RPC response lacks the column. */
+const effectiveStatus = (k: any): "active" | "cooldown" | "disabled" | "invalid" => {
+  const rpc = String(k?.effective_status || "");
+  if (rpc === "active" || rpc === "cooldown" || rpc === "disabled" || rpc === "invalid") return rpc;
+  if (k?.status === "invalid") return "invalid";
+  if (!k?.enabled) return "disabled";
+  if (k?.status === "cooldown" && k?.cooldown_until && new Date(k.cooldown_until).getTime() > Date.now()) return "cooldown";
+  return "active";
+};
 
-// "Errors high": enabled, non-cooling, error rate ≥ 90% over ≥ 4 requests.
+const isCoolingKey = (k: any) => effectiveStatus(k) === "cooldown";
+
+// "Errors high": effectively active, error rate ≥ 90% over ≥ 4 requests.
 const isErrorsHighKey = (k: any) => {
   const total = Number(k.total_requests) || 0;
   const errors = Number(k.total_errors) || 0;
-  return !!k.enabled && !isCoolingKey(k) && total >= 4 && errors / total >= 0.9;
+  return effectiveStatus(k) === "active" && total >= 4 && errors / total >= 0.9;
 };
 
 // Human one-liner for a raw provider error; the raw text stays available
@@ -2222,20 +2666,26 @@ const ApiKeysTab = () => {
     fetchKeys();
   };
 
-  // Reconciled counts — derived ONLY from enabled + cooldown_until using
-  // the partition above, so the four numbers always sum to the total.
+  // Reconciled counts — every key counted exactly once by its
+  // effective status (the RPC's CASE, mirroring the failover router),
+  // so the four numbers always sum to the pool total. Invalid keys are
+  // counted with disabled: the router never uses them either way.
   const counts = {
     total: keys.length,
-    active: keys.filter((k) => !!k.enabled && !isCoolingKey(k)).length,
-    cooling: keys.filter((k) => isCoolingKey(k)).length,
-    disabled: keys.filter((k) => !k.enabled).length,
+    active: keys.filter((k) => effectiveStatus(k) === "active").length,
+    cooling: keys.filter((k) => effectiveStatus(k) === "cooldown").length,
+    disabled: keys.filter((k) => effectiveStatus(k) === "disabled" || effectiveStatus(k) === "invalid").length,
   };
 
   const statusBadge = (k: any) => {
-    if (!k.enabled) {
+    const eff = effectiveStatus(k);
+    if (eff === "invalid") {
+      return <Badge className="text-[9px] bg-destructive/15 text-destructive hover:bg-destructive/15">Invalid</Badge>;
+    }
+    if (eff === "disabled") {
       return <Badge variant="secondary" className="text-[9px]">Disabled</Badge>;
     }
-    if (isCoolingKey(k)) {
+    if (eff === "cooldown") {
       return <Badge className="text-[9px] bg-amber-500/15 text-amber-600 hover:bg-amber-500/15">Cooling down</Badge>;
     }
     if (isErrorsHighKey(k)) {
@@ -2465,18 +2915,19 @@ const ApiKeysTab = () => {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-lg w-8 h-8"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-lg h-8 px-2.5 text-[11px] gap-1.5"
                     onClick={() => handleTestStored(k)}
                     disabled={testingId === k.id}
                     title="Test this key"
                   >
                     {testingId === k.id
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
-                      : <FlaskConical className="w-4 h-4 text-muted-foreground" />}
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <FlaskConical className="w-3.5 h-3.5" />}
+                    Test
                   </Button>
                   <Switch
                     checked={!!k.enabled}

@@ -98,7 +98,7 @@ const StudyMaterialsPage = () => {
   const isLibraryEmpty = !isLoading && materials.length === 0 && !hasActiveFilter;
 
   return (
-    <PageShell title="Study Materials" icon={<BookOpen className="h-6 w-6 text-primary" />} subtitle="Browse and download shared study materials">
+    <PageShell title="Study Materials" seoTitle="Study Materials — Handouts, Slides & Files | UniGenius AI" seoDescription="Browse and download shared study materials for CS, SE & AI subjects — handouts, slides and files shared by students and teachers." seoPath="/study-materials" icon={<BookOpen className="h-6 w-6 text-primary" />} subtitle="Browse and download shared study materials">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">

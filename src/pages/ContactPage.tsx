@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Mail, Send, MessageCircle, User, PenLine } from "lucide-react";
 import { z } from "zod";
 import PageShell from "@/components/PageShell";
+import SeoIntro from "@/components/SeoIntro";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,7 +49,7 @@ const ContactPage = () => {
   };
 
   return (
-    <PageShell title="Contact Us" subtitle="We'd love to hear from you" icon={<MessageCircle className="w-5 h-5 text-primary" />}>
+    <PageShell title="Contact Us" seoTitle="Contact UniGenius AI — Support & Feedback" seoDescription="Get in touch with the UniGenius AI team — questions, feedback, bug reports and suggestions for the AI study platform for CS, SE & AI students." seoPath="/contact" subtitle="We'd love to hear from you" icon={<MessageCircle className="w-5 h-5 text-primary" />}>
       <div className="max-w-2xl mx-auto space-y-6 pb-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -142,6 +143,13 @@ const ContactPage = () => {
             </form>
           </Card>
         </motion.div>
+        <SeoIntro
+          heading="How can we help?"
+          paragraphs={[
+            "UniGenius AI is built by a small student team, and feedback from students genuinely shapes what gets built next. Use this page for anything: a bug you spotted, a subject or topic page you want added, a lecture playlist you think belongs here, or an idea that would make studying easier for you. Questions about your account, Pro plans and payments are welcome too.",
+            "We read every message. If your note is about a specific page or question, mentioning the subject and topic name helps us find it quickly and fix it faster.",
+          ]}
+        />
       </div>
     </PageShell>
   );

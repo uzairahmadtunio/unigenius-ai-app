@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Ban, GraduationCap, Loader2, LogOut, Plus } from "lucide-react";
+import { Ban, GraduationCap, Loader2, LogOut, Plus, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ModeSwitcher from "@/components/ModeSwitcher";
+import { useSmartBack } from "@/hooks/use-smart-back";
 import ClassCard from "@/components/classes/ClassCard";
 import NewClassDialog from "@/components/classes/NewClassDialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +32,7 @@ const ClassesPage = () => {
   const { user } = useAuth();
   const { mode } = useViewMode();
   const navigate = useNavigate();
+  const goBack = useSmartBack();
   const [teaching, setTeaching] = useState<ClassRow[]>([]);
   const [joined, setJoined] = useState<ClassRow[]>([]);
   const [pending, setPending] = useState<ClassRow[]>([]);
@@ -140,13 +142,18 @@ const ClassesPage = () => {
       <Navbar />
       <main className="flex-1 container mx-auto px-4 md:px-6 lg:px-10 py-6 space-y-6 pb-28 md:pb-10 max-w-5xl w-full">
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="font-display font-bold text-2xl md:text-3xl text-foreground flex items-center gap-2">
-              <GraduationCap className="w-7 h-7 text-primary" /> {teacherMode ? "My Classes" : "Classes"}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {teacherMode ? "Classes you teach — tap one to open it." : "Your classes, all in one place."}
-            </p>
+          <div className="flex items-start gap-2">
+            <Button variant="ghost" size="icon" onClick={() => goBack("/")} className="rounded-xl shrink-0 mt-0.5" aria-label="Go back">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="font-display font-bold text-2xl md:text-3xl text-foreground flex items-center gap-2">
+                <GraduationCap className="w-7 h-7 text-primary" /> {teacherMode ? "My Classes" : "Classes"}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {teacherMode ? "Classes you teach — tap one to open it." : "Your classes, all in one place."}
+              </p>
+            </div>
           </div>
           <ModeSwitcher />
         </div>

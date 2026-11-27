@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PageShell from "@/components/PageShell";
+import SeoIntro from "@/components/SeoIntro";
 import { supabase } from "@/integrations/supabase/client";
 
 type Course = {
@@ -645,7 +646,7 @@ const CoursesPage = () => {
                 className="text-left glass rounded-2xl border border-border p-3 flex gap-3 hover:border-primary/40 transition-colors"
               >
                 <div className="relative w-32 aspect-video rounded-xl overflow-hidden shrink-0 bg-gradient-to-br from-red-500/15 via-muted/40 to-primary/10">
-                  {listImg && <img src={listImg} alt={course.title} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />}
+                  {listImg && <img src={listImg} alt={course.title} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display = "none"; }} className="absolute inset-0 w-full h-full object-cover" />}
                   <span className="absolute inset-0 bg-black/20" />
                   {premium && course.section !== "ai" && (
                     <span className="absolute top-1.5 left-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-black flex items-center gap-1">
@@ -704,7 +705,7 @@ const CoursesPage = () => {
       <div className="glass rounded-3xl border border-border overflow-hidden">
         <div className="relative aspect-[16/7] sm:aspect-[16/5] bg-gradient-to-br from-red-500/15 via-muted/40 to-primary/10">
           {coursePoster(course) && (
-            <img src={coursePoster(course)!} alt={course.title} className="absolute inset-0 w-full h-full object-cover" />
+            <img src={coursePoster(course)!} alt={course.title} onError={(e) => { e.currentTarget.style.display = "none"; }} className="absolute inset-0 w-full h-full object-cover" />
           )}
           <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
           {isPremium(course) && (
@@ -864,6 +865,25 @@ const CoursesPage = () => {
   return (
     <PageShell
       title="Courses"
+      seoTitle="Free & Premium Courses for CS, SE & AI Students — UniGenius AI"
+      seoDescription="Complete video courses for Computer Science, Software Engineering and AI students — free, premium and AI-recommended courses with full playlists, in one place."
+      seoPath="/courses"
+      seoJsonLd={courses.length ? {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name: "UniGenius AI — Courses",
+        numberOfItems: courses.length,
+        itemListElement: courses.slice(0, 50).map((c, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          item: {
+            "@type": "Course",
+            name: c.title,
+            description: c.description || `${c.title} — a ${c.category} course on UniGenius AI.`,
+            provider: { "@type": "Organization", name: "UniGenius AI", sameAs: "https://unigenius.vercel.app/" },
+          },
+        })),
+      } : undefined}
       subtitle="Complete courses with full detail — like YouTube, in one place."
       icon={
         <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
@@ -884,6 +904,14 @@ const CoursesPage = () => {
       ) : (
         renderSection()
       )}
+      <SeoIntro
+        heading="Courses for every semester of your degree"
+        paragraphs={[
+          "UniGenius brings complete video courses for Computer Science, Software Engineering and Artificial Intelligence students into one organised place. Instead of searching YouTube course by course and losing track of where you stopped, every course here is a full playlist with its videos in order, so you can start a subject and finish it properly. Courses are grouped into free courses you can watch right away, premium courses with deeper coverage, and AI-recommended courses matched to your subjects.",
+          "Each course shows its language, category and video count before you begin, and your progress is remembered — leave halfway through a playlist and you can pick up exactly where you stopped. Whether you are learning programming fundamentals in your first semester, data structures and databases in the middle of your degree, or advanced AI topics near the end, there is a structured course path waiting for you.",
+          "Not sure where to start? Pair a course with the matching topic pages and question bank inside UniGenius: watch the lectures, read the short summary and key points, then practise real questions on the same topic. That loop — watch, read, practise — is how toppers prepare, and it is built into every subject here.",
+        ]}
+      />
     </PageShell>
   );
 };

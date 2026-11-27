@@ -167,8 +167,12 @@ serve(async (req) => {
         generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
       },
       corsHeaders,
-      attemptTimeoutMs: 40_000,
-      deadlineMs: 60_000,
+      // Total budget for the WHOLE failover chain (the tiers now share
+      // it — see ai-failover): 75s worst case with at most 25s per
+      // single attempt, so a dead key can never eat most of the budget
+      // before the rotation moves on (audit fix 2026-11-27).
+      attemptTimeoutMs: 25_000,
+      deadlineMs: 75_000,
       meter: { userId: auth.userId, feature: "analyze-code" },
     });
 

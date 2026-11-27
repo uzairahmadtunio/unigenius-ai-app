@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { fetchWithRetry } from "@/lib/fetch-with-retry";
 import { authHeader } from "@/lib/auth-header";
 import { parseAiTaskText, buildDeterministicTasks, type DailyTaskDraft } from "@/lib/planner-tasks";
-import { CalendarDays, Sparkles, Loader2, RefreshCw, Save, Clock, Trash2, FolderOpen, Plus, ListChecks } from "lucide-react";
+import { CalendarDays, Sparkles, Loader2, RefreshCw, Save, Clock, Trash2, FolderOpen, Plus, ListChecks, Download, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +11,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMySubjects } from "@/hooks/use-my-subjects";
 import { supabase } from "@/integrations/supabase/client";
 import PageShell from "@/components/PageShell";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { downloadPlanPdf } from "@/lib/plan-pdf";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import ThinkingAnimation from "@/components/ThinkingAnimation";
 import { toast } from "sonner";
@@ -63,6 +67,11 @@ const PlannerPage = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedPlans, setSavedPlans] = useState<any[]>([]);
+  // Plan naming (2026-11-27): the student names their own plan when
+  // saving; the same dialog renames a saved plan.
+  const [planTitle, setPlanTitle] = useState("");
+  const [nameDialog, setNameDialog] = useState<null | { mode: "save" } | { mode: "rename"; id: string }>(null);
+  const [nameInput, setNameInput] = useState("");
   // Daily Tasks (plan_tasks)
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
   const [planTasks, setPlanTasks] = useState<any[]>([]);
@@ -226,6 +235,7 @@ const PlannerPage = () => {
   const loadPlan = (p: any) => {
     selectionTouchedRef.current = true;
     setCurrentPlanId(p.id || null);
+    setPlanTitle(p.title || "");
     setSemester(p.semester);
     setSelected(p.subjects || []);
     setWeeklyHours(p.weekly_hours || 14);
@@ -255,6 +265,7 @@ const PlannerPage = () => {
           console.log("[Planner] Loaded saved plan from database");
           selectionTouchedRef.current = true;
           setCurrentPlanId(p.id || null);
+          setPlanTitle(p.title || "");
           setSemester(p.semester);
           setSelected(p.subjects || []);
           setWeeklyHours(p.weekly_hours || 14);
@@ -290,6 +301,7 @@ const PlannerPage = () => {
     }
     setLoading(true);
     setSchedule("");
+    setPlanTitle("");
 
     const examInfo = examDate
       ? `\n\nExam date: ${examDate} (${Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000)} days away). Prioritize topics for highest weightage subjects.`
@@ -365,13 +377,33 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
     }
   };
 
-  const savePlan = async () => {
+  // Save asks for a name first (2026-11-27): the student names their
+  // own plan. The same dialog (rename mode) renames a saved plan.
+  const openSaveDialog = () => {
+    if (!schedule) return;
+    setNameInput(planTitle || `Semester ${semester} Study Plan`);
+    setNameDialog({ mode: "save" });
+  };
+
+  const confirmNameDialog = async () => {
+    const name = nameInput.trim();
+    if (nameDialog?.mode === "rename") {
+      const { error } = await supabase.from("study_plans" as any)
+        .update({ title: name || null } as any).eq("id", nameDialog.id);
+      if (error) { toast.error(`Couldn't rename plan: ${error.message}`); return; }
+      if (currentPlanId === nameDialog.id) setPlanTitle(name);
+      toast.success("Plan renamed");
+      setNameDialog(null);
+      loadSavedPlans();
+      return;
+    }
     if (!user || !schedule) return;
     setSaving(true);
     console.log("[Planner] Save to database start");
     const { data: savedRow, error } = await supabase.from("study_plans" as any).insert({
       user_id: user.id, semester, subjects: selected,
       exam_date: examDate || null, weekly_hours: weeklyHours, schedule,
+      title: name || null,
     } as any).select("id").single();
     setSaving(false);
     if (error) {
@@ -380,8 +412,10 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
       return;
     }
     if ((savedRow as any)?.id) setCurrentPlanId((savedRow as any).id);
+    setPlanTitle(name);
     console.log("[Planner] Save success");
     toast.success("Plan saved!");
+    setNameDialog(null);
     loadSavedPlans();
   };
 
@@ -469,9 +503,19 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
                 <Button onClick={generatePlan} variant="outline" className="rounded-xl gap-2">
                   <RefreshCw className="w-4 h-4" /> Regenerate
                 </Button>
-                <Button onClick={savePlan} disabled={saving} variant="outline" className="rounded-xl gap-2">
+                <Button onClick={openSaveDialog} disabled={saving} variant="outline" className="rounded-xl gap-2">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Save Plan
+                </Button>
+                <Button
+                  onClick={() => downloadPlanPdf({
+                    title: planTitle, semester, subjects: selected,
+                    weeklyHours, examDate: examDate || null, schedule, tasks: planTasks,
+                  })}
+                  variant="outline"
+                  className="rounded-xl gap-2"
+                >
+                  <Download className="w-4 h-4" /> Download PDF
                 </Button>
               </>
             )}
@@ -486,13 +530,23 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
             {savedPlans.map((p) => (
               <div key={p.id} className="flex items-center gap-3 bg-muted/40 rounded-xl px-3 py-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">
-                    {`Semester ${p.semester} • ${(p.subjects || []).length} subjects • ${p.weekly_hours}h/week`}
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {p.title || `Semester ${p.semester} • ${(p.subjects || []).length} subjects • ${p.weekly_hours}h/week`}
                   </p>
                   <p className="text-xs text-muted-foreground">
+                    {p.title ? `Semester ${p.semester} • ${(p.subjects || []).length} subjects • ${p.weekly_hours}h/week • ` : ""}
                     {fmtDate(p.created_at)}{p.exam_date ? ` • Exam: ${fmtDate(p.exam_date)}` : ""}
                   </p>
                 </div>
+                <Button size="sm" variant="ghost" className="rounded-xl shrink-0" aria-label="Download plan as PDF" onClick={() => downloadPlanPdf({
+                  title: p.title, semester: p.semester, subjects: p.subjects,
+                  weeklyHours: p.weekly_hours, examDate: p.exam_date, schedule: p.schedule || "",
+                })}>
+                  <Download className="w-3.5 h-3.5" />
+                </Button>
+                <Button size="sm" variant="ghost" className="rounded-xl shrink-0" aria-label="Rename plan" onClick={() => { setNameInput(p.title || ""); setNameDialog({ mode: "rename", id: p.id }); }}>
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
                 <Button size="sm" variant="outline" className="rounded-xl gap-1.5 shrink-0" onClick={() => loadPlan(p)}>
                   <FolderOpen className="w-3.5 h-3.5" /> Load
                 </Button>
@@ -609,6 +663,43 @@ Distribute time fairly with extra slots for lab subjects. Include morning, after
           )}
         </div>
       </div>
+
+      {/* Name-your-plan dialog — used by Save (name first, then save)
+          and by the pencil on a saved plan (rename). */}
+      <Dialog open={nameDialog !== null} onOpenChange={(o) => { if (!o) setNameDialog(null); }}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              {nameDialog?.mode === "rename" ? "Rename plan" : "Save your plan"}
+            </DialogTitle>
+            <DialogDescription>
+              Give this plan a name, so you can find it easily later.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder={`Semester ${semester} Study Plan`}
+            className="rounded-xl"
+            maxLength={60}
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") confirmNameDialog(); }}
+          />
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl" onClick={() => setNameDialog(null)}>
+              Cancel
+            </Button>
+            <Button
+              className="rounded-xl gradient-primary text-primary-foreground gap-2"
+              onClick={confirmNameDialog}
+              disabled={saving}
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {nameDialog?.mode === "rename" ? "Save name" : "Save plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
 };

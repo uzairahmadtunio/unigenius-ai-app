@@ -61,21 +61,21 @@ const ExamCountdown = ({ semester }: { semester: number }) => {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="font-display font-semibold text-xs text-foreground">Next Exam</p>
-                <Badge variant="outline" className="text-[9px]">{nextExam.exam_type}</Badge>
+                <p className="font-display font-semibold text-xs text-foreground whitespace-nowrap">Next Exam</p>
+                <Badge variant="outline" className="text-[9px] flex-shrink-0">{nextExam.exam_type}</Badge>
               </div>
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                <BookOpen className="w-3 h-3" /> {nextExam.subject}
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 min-w-0">
+                <BookOpen className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{nextExam.subject}</span>
               </p>
             </div>
-            <div className="flex gap-1.5 text-center">
+            <div className="flex gap-1.5 text-center flex-shrink-0">
               {[
                 { val: timeLeft.days, label: "D" },
                 { val: timeLeft.hours, label: "H" },
                 { val: timeLeft.minutes, label: "M" },
                 { val: timeLeft.seconds, label: "S" },
               ].map((t, i) => (
-                <div key={i} className="w-10 rounded-lg bg-muted/80 p-1.5">
+                <div key={i} className="w-9 sm:w-10 rounded-lg bg-muted/80 p-1.5">
                   <p className={`text-sm font-bold font-mono ${urgency}`}>{String(t.val).padStart(2, "0")}</p>
                   <p className="text-[8px] text-muted-foreground">{t.label}</p>
                 </div>

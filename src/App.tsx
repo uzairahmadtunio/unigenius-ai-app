@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
+import { AppGate, FeatureGate } from "@/components/AppGate";
+import { SignInPromptProvider } from "@/components/SignInPrompt";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { DepartmentProvider } from "@/contexts/DepartmentContext";
 import Index from "./pages/Index";
@@ -49,6 +52,11 @@ const ClassPage = lazyWithRetry(() => import("./pages/ClassPage"));
 const StudyMaterialsPage = lazyWithRetry(() => import("./pages/StudyMaterialsPage"));
 const QuestionBankPage = lazyWithRetry(() => import("./pages/QuestionBankPage"));
 const LecturesPage = lazyWithRetry(() => import("./pages/LecturesPage"));
+const TopicsIndexPage = lazyWithRetry(() => import("./pages/TopicsIndexPage"));
+const SubjectTopicsPage = lazyWithRetry(() => import("./pages/SubjectTopicsPage"));
+const TopicPreviewPage = lazyWithRetry(() => import("./pages/TopicPreviewPage"));
+const BlogIndexPage = lazyWithRetry(() => import("./pages/BlogIndexPage"));
+const BlogPostPage = lazyWithRetry(() => import("./pages/BlogPostPage"));
 const LibraryPage = lazyWithRetry(() => import("./pages/LibraryPage"));
 const CoursesPage = lazyWithRetry(() => import("./pages/CoursesPage"));
 const ProjectsPage = lazyWithRetry(() => import("./pages/ProjectsPage"));
@@ -99,6 +107,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
+        <AppSettingsProvider>
         <ViewModeProvider>
         <DepartmentProvider>
           <DarkModeInit>
@@ -106,20 +115,22 @@ const App = () => (
             <Sonner />
             <GlobalAlertBanner />
             <BrowserRouter>
+              <SignInPromptProvider>
               <ScrollToTop />
               <Suspense fallback={<PageFallback />}>
               <LocationBoundary>
+              <AppGate>
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/ai-tutor" element={<ChatPage />} />
-                <Route path="/chat" element={<ChatPage />} />
+                <Route path="/ai-tutor" element={<FeatureGate flag="ai_tutor" label="AI Tutor"><ChatPage /></FeatureGate>} />
+                <Route path="/chat" element={<FeatureGate flag="ai_tutor" label="AI Tutor"><ChatPage /></FeatureGate>} />
                 <Route path="/practice" element={<PracticePage />} />
-                <Route path="/code-lab" element={<CodeLabPage />} />
+                <Route path="/code-lab" element={<FeatureGate flag="code_lab" label="Code Lab"><CodeLabPage /></FeatureGate>} />
                 <Route path="/docs-gen" element={<DocsGenPage />} />
                 <Route path="/exam-prep" element={<ExamPrepPage />} />
-                <Route path="/viva-prep" element={<VivaPage />} />
+                <Route path="/viva-prep" element={<FeatureGate flag="viva" label="Viva Prep"><VivaPage /></FeatureGate>} />
                 <Route path="/past-papers" element={<PastPapersPage />} />
-                <Route path="/flashcards" element={<RequireAuth><FlashcardsPage /></RequireAuth>} />
+                <Route path="/flashcards" element={<RequireAuth><FeatureGate flag="flashcards" label="Flashcards"><FlashcardsPage /></FeatureGate></RequireAuth>} />
                 <Route path="/career" element={<CareerPage />} />
                 <Route path="/subject/:subjectId" element={<SubjectHubPage />} />
                 <Route path="/subject/:subjectId/topic/:topicSlug" element={<TopicPage />} />
@@ -127,8 +138,8 @@ const App = () => (
                 <Route path="/my-subjects" element={<RequireAuth><MySubjectsPage /></RequireAuth>} />
                 <Route path="/attendance" element={<RequireAuth><AttendancePage /></RequireAuth>} />
                 <Route path="/leaderboard" element={<LeaderboardPage />} />
-                <Route path="/groups" element={<RequireAuth><GroupsPage /></RequireAuth>} />
-                <Route path="/groups/:groupId" element={<RequireAuth><GroupDetailPage /></RequireAuth>} />
+                <Route path="/groups" element={<RequireAuth><FeatureGate flag="groups" label="Study Groups"><GroupsPage /></FeatureGate></RequireAuth>} />
+                <Route path="/groups/:groupId" element={<RequireAuth><FeatureGate flag="groups" label="Study Groups"><GroupDetailPage /></FeatureGate></RequireAuth>} />
                 <Route path="/u/:rollNumber" element={<PublicProfilePage />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/premium" element={<PremiumPage />} />
@@ -136,10 +147,15 @@ const App = () => (
                 <Route path="/progress" element={<RequireAuth><ProgressPage /></RequireAuth>} />
                 <Route path="/calendar" element={<RequireAuth><CalendarPage /></RequireAuth>} />
                 <Route path="/notes" element={<NotesPage />} />
-                <Route path="/presentations" element={<PresentationPage />} />
+                <Route path="/presentations" element={<FeatureGate flag="presentations" label="Presentations"><PresentationPage /></FeatureGate>} />
                 <Route path="/study-materials" element={<StudyMaterialsPage />} />
                 <Route path="/question-bank" element={<QuestionBankPage />} />
                 <Route path="/lectures" element={<LecturesPage />} />
+                <Route path="/topics" element={<TopicsIndexPage />} />
+                <Route path="/topics/:subjectSlug" element={<SubjectTopicsPage />} />
+                <Route path="/topics/:subjectSlug/:topicSlug" element={<TopicPreviewPage />} />
+                <Route path="/blog" element={<BlogIndexPage />} />
+                <Route path="/blog/:slug" element={<BlogPostPage />} />
                 <Route path="/library" element={<LibraryPage />} />
                 {/* The books index lives at /library; /books used to 404. */}
                 <Route path="/books" element={<Navigate to="/library" replace />} />
@@ -162,14 +178,17 @@ const App = () => (
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-              </LocationBoundary>
-              </Suspense>
               <MobileBottomNav />
               <SupportChatWidget />
+              </AppGate>
+              </LocationBoundary>
+              </Suspense>
+              </SignInPromptProvider>
             </BrowserRouter>
           </DarkModeInit>
         </DepartmentProvider>
         </ViewModeProvider>
+        </AppSettingsProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

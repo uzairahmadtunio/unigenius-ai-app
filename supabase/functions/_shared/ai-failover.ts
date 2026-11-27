@@ -781,11 +781,12 @@ async function callOpenAICompatAsGemini(
   geminiBody: Record<string, unknown>,
   modelPath: string,
   attemptTimeoutMs?: number,
+  deadlineMs?: number,
 ): Promise<any | null> {
   const payload = geminiBodyToOpenAI(geminiBody, modelPath);
   const resp = await callOpenAICompatWithRotation(
     payload,
-    { attemptTimeoutMs: attemptTimeoutMs ?? 45_000 },
+    { attemptTimeoutMs: attemptTimeoutMs ?? 45_000, deadlineMs },
   );
   if (!resp) return null;
   try {
@@ -1225,9 +1226,15 @@ function geminiBodyToOpenAI(geminiBody: any, modelPath = "gemini-3.5-flash"): Re
 async function callLovableGatewayAsGemini(
   geminiBody: Record<string, unknown>,
   modelPath: string,
+  timeoutMs?: number,
 ): Promise<any | null> {
   const key = Deno.env.get("LOVABLE_API_KEY");
   if (!key) return null;
+  // The gateway used to get a fixed 45s on top of whatever the earlier
+  // tiers had already burned. When the caller runs on a shared budget
+  // it now gets only the time that is actually left (audit fix
+  // 2026-11-27); no budget passed → the historic 45s.
+  const effectiveTimeoutMs = timeoutMs ? Math.max(3_000, Math.min(45_000, timeoutMs)) : 45_000;
   try {
     const payload = geminiBodyToOpenAI(geminiBody, modelPath);
     const resp = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -1238,7 +1245,7 @@ async function callLovableGatewayAsGemini(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
-    }, 45_000);
+    }, effectiveTimeoutMs);
     if (!resp.ok) {
       console.warn("Lovable Gateway (gen) returned", resp.status, await resp.text().catch(() => ""));
       return null;
@@ -1290,11 +1297,27 @@ async function generateContentWithFailoverImpl({
 }): Promise<
   { data: any; tier: "gemini" | "lovable" | "openai_compat"; keyIndex: number } | Response
 > {
-  const budget = { attemptTimeoutMs, deadlineMs };
-  let result = await callGeminiWithRotation(modelPath, geminiBody, false, budget);
+  // SHARED TOTAL BUDGET (audit fix 2026-11-27, item #45): when the
+  // caller passes deadlineMs it is the TOTAL time for the whole
+  // failover chain — not a fresh allowance per tier. Previously the
+  // primary rotation could burn the full deadline, the fallback-model
+  // rotation got ANOTHER full deadline, the compat tier ran with no
+  // deadline at all and Lovable added a fixed 45s on top, so one
+  // analyze call could hang ~190s. Now every tier gets only what is
+  // left, and a tier is skipped when too little time remains to be
+  // worth an attempt. Callers that pass no deadlineMs keep the old
+  // per-tier behavior.
+  const startedAt = Date.now();
+  const remainingMs = (): number | undefined =>
+    deadlineMs ? Math.max(0, deadlineMs - (Date.now() - startedAt)) : undefined;
+
+  let result = await callGeminiWithRotation(modelPath, geminiBody, false, { attemptTimeoutMs, deadlineMs });
   if (!result?.response?.ok && modelPath !== GEMINI_FALLBACK_MODEL && isCapacityFailure(result)) {
-    const fb = await callGeminiWithRotation(GEMINI_FALLBACK_MODEL, geminiBody, false, budget);
-    if (fb) result = fb;
+    const rem = remainingMs();
+    if (rem === undefined || rem > 5_000) {
+      const fb = await callGeminiWithRotation(GEMINI_FALLBACK_MODEL, geminiBody, false, { attemptTimeoutMs, deadlineMs: rem });
+      if (fb) result = fb;
+    }
   }
 
   // Success on Gemini
@@ -1310,12 +1333,18 @@ async function generateContentWithFailoverImpl({
     console.error("Gemini final error:", result.response.status, errText);
   }
 
-  const compatData = await callOpenAICompatAsGemini(geminiBody, modelPath, attemptTimeoutMs);
+  const remCompat = remainingMs();
+  const compatData = remCompat === undefined || remCompat > 5_000
+    ? await callOpenAICompatAsGemini(geminiBody, modelPath, attemptTimeoutMs, remCompat)
+    : null;
   if (compatData) {
     return { data: compatData, tier: "openai_compat", keyIndex: -1 };
   }
 
-  const lovableData = await callLovableGatewayAsGemini(geminiBody, modelPath);
+  const remLovable = remainingMs();
+  const lovableData = remLovable === undefined || remLovable > 3_000
+    ? await callLovableGatewayAsGemini(geminiBody, modelPath, remLovable)
+    : null;
   if (lovableData) {
     return { data: lovableData, tier: "lovable", keyIndex: -1 };
   }

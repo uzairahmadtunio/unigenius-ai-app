@@ -17,6 +17,7 @@ import { useDepartment, departmentInfo } from "@/contexts/DepartmentContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
+import Seo from "@/components/Seo";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
 import { authHeader } from "@/lib/auth-header";
@@ -226,6 +227,9 @@ TEACHING STYLE:
   useEffect(() => {
     if (!user || !subjectId) return;
     const loadLastSession = async () => {
+      // maybeSingle, not single: a student opening this subject's tutor
+      // for the first time has no session yet, and .single() on zero
+      // rows makes PostgREST answer 406 (console noise on every visit).
       const { data } = await supabase
         .from("chat_sessions")
         .select("id")
@@ -233,7 +237,7 @@ TEACHING STYLE:
         .eq("subject", subjectId)
         .order("updated_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       if (data) {
         loadChat(data.id);
       }
@@ -649,6 +653,11 @@ TEACHING STYLE:
 
   return (
     <div className="min-h-screen flex flex-col gradient-hero" onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
+      <Seo
+        title={`${subjectName} — Notes, Lectures & Practice | UniGenius AI`}
+        description={`Study ${subjectName} on UniGenius AI: structured topic pages, video lectures, notes, past papers and practice questions for this subject, all in one hub.`}
+        path={`/subject/${subjectId}`}
+      />
       <Navbar onMenuToggle={() => setMobileSidebarOpen(prev => !prev)} showMenu />
       {isDragOver && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
@@ -771,6 +780,7 @@ TEACHING STYLE:
                             src={`https://i.ytimg.com/vi/${lec.thumb_video_id}/hqdefault.jpg`}
                             alt={lec.title}
                             loading="lazy"
+                            onError={(e) => { e.currentTarget.style.display = "none"; }}
                             className="absolute inset-0 w-full h-full object-cover"
                           />
                         )}

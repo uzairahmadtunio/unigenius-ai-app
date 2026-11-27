@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ModeSwitcher from "@/components/ModeSwitcher";
+import FeedbackWidget from "@/components/FeedbackWidget";
 import ClassCard from "@/components/classes/ClassCard";
 import NewClassDialog from "@/components/classes/NewClassDialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -192,6 +193,12 @@ const TeacherHome = () => {
             </p>
           </>
         )}
+        {/* Feedback lives on the student home only — teachers had no
+            way to send it from Teacher Mode (audit 2026-11-27). Same
+            widget, same destination (Admin → Feedback). */}
+        <div className="flex justify-end">
+          <FeedbackWidget />
+        </div>
       </main>
       <Footer />
       {user && (

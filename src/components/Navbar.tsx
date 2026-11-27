@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/use-admin";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import ModeSwitcher from "@/components/ModeSwitcher";
+import { VIEW_MODE_LABELS } from "@/lib/view-mode";
 import { useDepartment, departmentInfo } from "@/contexts/DepartmentContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +31,7 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
-  const { mode } = useViewMode();
+  const { mode, viewingAs, modes } = useViewMode();
   const { department, clearDepartment } = useDepartment();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -381,6 +382,22 @@ const Navbar = ({ onMenuToggle, showMenu }: NavbarProps) => {
           </Sheet>
         </div>
       </div>
+      {/* Mobile "viewing as" strip: the header switcher pill is
+          desktop-only (hidden below md), so without this a teacher or
+          admin browsing in a lower mode on a phone had NO persistent
+          on-screen sign of it — the badge only existed inside the
+          slide menu. This strip keeps the state visible on every
+          screen at phone widths (audit 2026-11-27, item #10). */}
+      {user && viewingAs && mode && (
+        <div className="md:hidden border-t border-amber-400/30 bg-amber-400/10 px-4 py-1 text-center">
+          <span className="text-[10px] font-bold tracking-wide text-amber-500 dark:text-amber-300">
+            VIEWING AS: {VIEW_MODE_LABELS[mode].toUpperCase()}
+            {modes[0] && modes[0] !== mode
+              ? ` — YOUR ROLE IS ${VIEW_MODE_LABELS[modes[0]].toUpperCase()}`
+              : ""}
+          </span>
+        </div>
+      )}
     </nav>
   );
 };

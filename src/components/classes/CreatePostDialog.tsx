@@ -44,6 +44,7 @@ export const CreatePostDialog = ({ open, onOpenChange, classId, teacherId, defau
   // Test fields
   const [subjects, setSubjects] = useState<string[]>([]);
   const [subject, setSubject] = useState("");
+  const [subjectQuery, setSubjectQuery] = useState("");
   const [topic, setTopic] = useState("");
   const [topics, setTopics] = useState<string[]>([]);
   const [qCount, setQCount] = useState("10");
@@ -156,7 +157,23 @@ export const CreatePostDialog = ({ open, onOpenChange, classId, teacherId, defau
                 <Select value={subject} onValueChange={setSubject}>
                   <SelectTrigger className="rounded-xl"><SelectValue placeholder="Pick a subject" /></SelectTrigger>
                   <SelectContent>
-                    {subjects.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    {/* 54 bank subjects are too many to scroll blind —
+                        filter box on top (audit 2026-11-27, item #12). */}
+                    <div className="px-2 pb-2 pt-1 sticky top-0 bg-popover z-10">
+                      <Input
+                        placeholder="Search subjects…"
+                        value={subjectQuery}
+                        onChange={(e) => setSubjectQuery(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        className="h-8 rounded-lg text-xs"
+                      />
+                    </div>
+                    {subjects
+                      .filter((s) => s.toLowerCase().includes(subjectQuery.trim().toLowerCase()))
+                      .map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    {subjects.length > 0 && subjects.every((s) => !s.toLowerCase().includes(subjectQuery.trim().toLowerCase())) && (
+                      <p className="px-2 py-2 text-xs text-muted-foreground">No subjects match your search.</p>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

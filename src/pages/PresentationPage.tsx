@@ -615,6 +615,9 @@ const PresentationPage = () => {
   return (
     <PageShell
       title="AI Slide Maker"
+      seoTitle="AI Slide Maker — Create Presentations with AI | UniGenius AI"
+      seoDescription="Turn any topic into a polished presentation with the UniGenius AI Slide Maker — Gamma-style slides with AI images, ready for class in minutes."
+      seoPath="/presentations"
       subtitle="Gamma-style AI Presentations with AI Images"
       icon={<div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center"><Presentation className="w-5 h-5 text-primary-foreground" /></div>}
     >

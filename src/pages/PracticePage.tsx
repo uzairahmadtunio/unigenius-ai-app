@@ -16,6 +16,10 @@ import { notifyAiTier } from "@/lib/ai-tier-notifier";
 import { useAdmin } from "@/hooks/use-admin";
 import PageShell from "@/components/PageShell";
 import WeakAreas from "@/components/WeakAreas";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { quizPercent } from "@/lib/utils";
 import { deriveLevel, extractWeakTopics, bumpLevel, type Difficulty } from "@/lib/adaptive-difficulty";
 
@@ -187,6 +191,7 @@ const PracticePage = () => {
   const [loading, setLoading] = useState(false);
   const [quizDone, setQuizDone] = useState(false);
   const [answers, setAnswers] = useState<AnswerRecord[]>([]);
+  const [finishConfirmOpen, setFinishConfirmOpen] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; type: string; dataUrl: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -751,6 +756,23 @@ const PracticePage = () => {
     }
   };
 
+  // Early finish (audit 2026-11-27, item #23): a student who has to
+  // stop mid-session used to lose everything — there was no way to end
+  // early, and the result only saved on a full finalize. Now the
+  // session can be finished at any point: the answers recorded so far
+  // are saved immediately (exactly like the timer auto-submit path)
+  // and the scorecard shows at once. Unanswered questions count as not
+  // attempted — the confirm dialog says so plainly before it happens.
+  const finishKindRef = useRef<"mcq" | "sa">("mcq");
+  const confirmFinishEarly = () => {
+    setFinishConfirmOpen(false);
+    if (finishKindRef.current === "sa") {
+      void submitSubjective();
+    } else {
+      void finishAndSave(null);
+    }
+  };
+
   const nextQuestion = async () => {
     bankCurrentTime();
     setSelected(null);
@@ -821,6 +843,7 @@ const PracticePage = () => {
 
   const resetQuiz = () => {
     quizSessionRef.current++;
+    setFinishConfirmOpen(false);
     setSelectedSubject(null);
     setQuizTopic(null);
     setQuestions([]);
@@ -862,6 +885,29 @@ const PracticePage = () => {
     >
       <Timer className="w-3.5 h-3.5" /> {fmtClock(timeLeft)}
     </span>
+  );
+
+  // Shared early-finish confirmation (MCQ phase + written phase). The
+  // wording is plain about what happens to unanswered questions.
+  const finishDialog = (
+    <AlertDialog open={finishConfirmOpen} onOpenChange={setFinishConfirmOpen}>
+      <AlertDialogContent className="rounded-2xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="font-display">Finish practice now?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {finishKindRef.current === "sa"
+              ? "Your written answers will be graded as they are — blank answers score 0 — and your result will be saved now."
+              : `You answered ${answers.length} of ${questions.length} questions. Unanswered questions count as not attempted. Your result will be saved now and your scorecard will open.`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="rounded-xl">Keep Practicing</AlertDialogCancel>
+          <AlertDialogAction className="rounded-xl gradient-primary text-primary-foreground" onClick={confirmFinishEarly}>
+            Finish & Save
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 
   // End-of-quiz topic report, rebuilt from the same data that was saved.
@@ -1210,7 +1256,16 @@ const PracticePage = () => {
             </div>
             <span className="text-xs text-muted-foreground font-medium">{saIndex + 1}/{saQuestions.length}</span>
             <TimerChip />
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full h-7 text-[11px] px-3 flex-shrink-0"
+              onClick={() => { finishKindRef.current = "sa"; setFinishConfirmOpen(true); }}
+            >
+              Finish & Grade Now
+            </Button>
           </div>
+          {finishDialog}
 
           <AnimatePresence mode="wait">
             <motion.div key={saIndex} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
@@ -1274,7 +1329,27 @@ const PracticePage = () => {
             </div>
             <span className="text-xs text-muted-foreground font-medium">{currentQ + 1}/{questions.length}</span>
             <TimerChip />
+            {answers.length > 0 ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full h-7 text-[11px] px-3 flex-shrink-0"
+                onClick={() => { finishKindRef.current = "mcq"; setFinishConfirmOpen(true); }}
+              >
+                Finish & See Scorecard
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-full h-7 text-[11px] px-3 flex-shrink-0 text-muted-foreground"
+                onClick={resetQuiz}
+              >
+                Exit
+              </Button>
+            )}
           </div>
+          {finishDialog}
 
           {(bankMeta || pendingFill) && (
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">

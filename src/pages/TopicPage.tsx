@@ -20,6 +20,8 @@ import {
   type TopicPageData,
 } from "@/lib/notes-reader";
 import { toast } from "sonner";
+import Seo from "@/components/Seo";
+import { metaDescription } from "@/lib/seo";
 
 const QUIZ_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-quiz`;
 
@@ -223,6 +225,13 @@ const TopicPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col gradient-hero">
+      {page && (
+        <Seo
+          title={`${page.title} — ${subjectName} | UniGenius AI`}
+          description={metaDescription(`${page.title} in ${subjectName}: ${page.key_points[0] || "study notes with key points, code examples and common mistakes."}`)}
+          path={`/subject/${subjectId}/topic/${topicSlug}`}
+        />
+      )}
       <Navbar />
       <div className="flex-1 w-full max-w-3xl mx-auto px-4 py-4">
         <div className="flex items-center gap-3 mb-4">

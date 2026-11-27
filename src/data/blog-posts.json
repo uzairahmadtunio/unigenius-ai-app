@@ -1,0 +1,987 @@
+{
+ "articles": [
+  {
+   "datePublished": "2026-11-26",
+   "description": "A realistic 4-week final exam study plan for CS, SE and AI students: map your syllabus, learn actively, drill past papers and walk in prepared.",
+   "intro": "Most students do not fail exams because the syllabus was impossible. They fail because they started late, studied passively, and discovered their weak topics in the exam hall. This 4-week plan fixes all three problems — and it works even if your semester so far has been a mess.",
+   "links": [
+    {
+     "href": "/topics",
+     "label": "Browse topic pages for your subjects"
+    },
+    {
+     "href": "/past-papers",
+     "label": "Practise with past papers"
+    },
+    {
+     "href": "/question-bank",
+     "label": "Test yourself in the question bank"
+    }
+   ],
+   "readingMinutes": 6,
+   "sections": [
+    {
+     "heading": "Why last-night cramming fails",
+     "paragraphs": [
+      "Reading the same notes five times feels like studying, but your brain is only recognising the words, not learning to produce them. In the exam you are asked to produce — definitions, derivations, code, diagrams — from an empty page. The only study methods that work are the ones that practise producing: answering questions, solving problems, and explaining topics out loud.",
+      "The good news: four weeks is plenty of time if those weeks are structured. You do not need 10-hour days. You need a map, daily active sessions, and honest testing."
+     ]
+    },
+    {
+     "heading": "Week 1: Map the syllabus, honestly",
+     "list": [
+      "Write the topic list for every subject (UniGenius topic pages follow the same structure)",
+      "Mark each topic red, yellow or green — honestly",
+      "Fix daily slots: hardest subject first, lighter subject last",
+      "Keep one buffer day per week for whatever slipped"
+     ],
+     "paragraphs": [
+      "List every subject and every topic in it — your course outline or the topic list of the subject is the map. Next to each topic, mark yourself red (never understood it), yellow (seen it, shaky) or green (can explain it today). This one exercise tells you where your marks are hiding: usually 60–70% of the paper comes from topics students rate yellow.",
+      "Now build your timetable backwards from the exam dates. Give red topics the morning slots when your brain is fresh, and never schedule two heavy subjects back to back. Two focused hours per subject per day beats six distracted ones."
+     ]
+    },
+    {
+     "heading": "Week 2: Learn actively, topic by topic",
+     "paragraphs": [
+      "Work through red and yellow topics one at a time. For each topic: read the summary, study the key points, work through the examples, and then — this is the step everyone skips — close everything and write down what you remember. What you cannot write down, you have not learned yet.",
+      "For programming subjects, typing the code yourself is non-negotiable. For maths and theory subjects, solve the worked examples with the solution covered, then compare. Struggle first, solution second: that order is what builds memory."
+     ]
+    },
+    {
+     "heading": "Week 3: Past papers under exam conditions",
+     "paragraphs": [
+      "Now switch from learning mode to exam mode. Take a past paper, sit with a timer, and attempt it without notes. This feels uncomfortable — that discomfort is exactly the training. When time is up, mark your answers strictly and write every mistake into a single 'weak list' document.",
+      "Universities repeat question styles and favourite topics year after year. After three or four papers you will start seeing the pattern of what your teachers love to ask, and your week 4 revision list writes itself."
+     ]
+    },
+    {
+     "heading": "Week 4: Weak areas, revision, and the final pass",
+     "paragraphs": [
+      "Spend this week only on your weak list and on re-attempting the questions you got wrong. Re-read the matching topic pages, practise the matching question-bank questions, and explain each weak topic out loud once — if you can teach it, you know it.",
+      "In the last two days, stop learning new things. Light revision, formula and definition sheets, proper sleep. A rested brain recalls far more than an exhausted one that 'covered' two extra chapters at 3 a.m."
+     ]
+    },
+    {
+     "heading": "Exam day rules",
+     "list": [
+      "First 5 minutes: read the full paper, pick your order",
+      "Roughly equal time per question — set checkpoints",
+      "Attempt everything; partial structure earns partial marks",
+      "Last 10 minutes: re-read your answers for silly mistakes"
+     ],
+     "paragraphs": [
+      "Read the whole paper in the first five minutes and start with the question you know best — early marks calm the nerves and build momentum. Watch the clock per question, and never leave a question blank: a structured partial answer (definition, diagram, first steps) earns real marks in every marking scheme."
+     ]
+    }
+   ],
+   "slug": "final-exam-study-plan",
+   "tags": [
+    "Exams",
+    "Study Skills"
+   ],
+   "title": "How to Prepare for Final Exams: A 4-Week Study Plan That Actually Works"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "Study OOP in Java the right way: classes, encapsulation, inheritance, polymorphism, abstraction and interfaces — plus how OOP exam and viva questions are asked.",
+   "intro": "Object Oriented Programming is the subject that decides whether programming 'clicks' for you or stays a mystery for the rest of your degree. The secret is that OOP is not a list of definitions — it is one idea (organising code around objects) seen from a few angles. Learn it in the right order and the exam becomes predictable.",
+   "links": [
+    {
+     "href": "/topics/object-oriented-programming",
+     "label": "OOP topic pages"
+    },
+    {
+     "href": "/lectures",
+     "label": "Watch OOP lecture playlists"
+    },
+    {
+     "href": "/question-bank",
+     "label": "Practise OOP questions"
+    }
+   ],
+   "readingMinutes": 7,
+   "sections": [
+    {
+     "heading": "Start with the one big idea",
+     "paragraphs": [
+      "Procedural code is a list of instructions; object-oriented code is a small world of objects that hold their own data and behaviour. A class is the blueprint, an object is a thing built from it. Every OOP topic after this is just an answer to a practical question: how do objects protect their data, reuse code, and swap behaviours?",
+      "Before touching the four pillars, be fluent in the basics: declaring a class, fields vs methods, constructors, the this keyword, and static vs instance members. Most exam mistakes happen here, not in the advanced topics."
+     ]
+    },
+    {
+     "heading": "Encapsulation and constructors",
+     "paragraphs": [
+      "Encapsulation means an object guards its own data: private fields, public getters and setters that can validate. Examiners love asking 'why not just make fields public?' — the answer is control: validation, invariants, and the freedom to change internals later without breaking other code.",
+      "Constructors deserve deliberate practice: default vs parameterised, constructor chaining with this() and super(), and copy constructors. Write each variant once by hand and predict the output before running it."
+     ]
+    },
+    {
+     "heading": "Inheritance and polymorphism — the exam favourites",
+     "list": [
+      "Overloading = same name, different parameters (compile time)",
+      "Overriding = same signature in child class (runtime dispatch)",
+      "Parent constructors always run before child constructors",
+      "A parent reference can hold a child object — the child's overridden method runs"
+     ],
+     "paragraphs": [
+      "Inheritance is reuse with an 'is-a' relationship; polymorphism is one interface, many behaviours. The highest-weight exam questions live here: method overriding vs overloading, dynamic method dispatch, upcasting, and what actually happens at runtime when a parent reference holds a child object.",
+      "Train with output-prediction questions: small code snippets where you must write the exact output. They expose whether you truly understand dispatch, constructors running parent-first, and field hiding — and they are exactly what viva examiners ask too."
+     ]
+    },
+    {
+     "heading": "Abstraction and interfaces",
+     "paragraphs": [
+      "Abstract classes say 'every child must implement this'; interfaces say 'whoever signs this contract can be used here'. Learn when to use which, Java's rules for each (multiple inheritance of type via interfaces, single class inheritance), and default methods. Comparison tables are guaranteed exam material — prepare your own and revise from it."
+     ]
+    },
+    {
+     "heading": "How to study OOP on UniGenius",
+     "paragraphs": [
+      "Go topic by topic through the Object Oriented Programming topic pages: read the short summary, note the key points, and type out every code example yourself in the Code Lab instead of just reading it. Then attempt the topic's practice questions, and finish by explaining the topic out loud in one minute — the viva test. Topics you cannot explain in a minute go back on the revision list."
+     ]
+    }
+   ],
+   "slug": "oop-java-study-guide",
+   "tags": [
+    "OOP",
+    "Java",
+    "Subject Guides"
+   ],
+   "title": "Object Oriented Programming in Java: A Complete Study Guide for Semester Exams"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "A step-by-step DLD study guide: number systems, Boolean algebra, K-maps, combinational and sequential circuits — and how to survive the DLD lab viva.",
+   "intro": "Digital Logic Design scares students because it mixes maths, diagrams and hardware vocabulary in one subject. But DLD has a hidden kindness: it is a chain. Each topic uses only the one before it, and the exam paper follows the same chain. Study it in order, with a pen in hand, and it becomes one of the most scoring subjects of the semester.",
+   "links": [
+    {
+     "href": "/topics/digital-logic-design",
+     "label": "Digital Logic Design topic pages"
+    },
+    {
+     "href": "/viva-prep",
+     "label": "Practise viva questions"
+    },
+    {
+     "href": "/lectures",
+     "label": "DLD lecture playlists"
+    }
+   ],
+   "readingMinutes": 7,
+   "sections": [
+    {
+     "heading": "The map of the whole subject",
+     "paragraphs": [
+      "Everything in DLD sits on one staircase: number systems and codes → logic gates → Boolean algebra → Karnaugh maps → combinational circuits (adders, multiplexers, decoders) → sequential circuits (flip-flops, counters, registers). If a later topic feels impossible, you are almost certainly missing a step below it — go down one step, fix that, and climb again."
+     ]
+    },
+    {
+     "heading": "Number systems: the free marks at the start",
+     "paragraphs": [
+      "Binary, octal, decimal and hexadecimal conversions, complements (1's and 2's), and codes like BCD and Gray are pure practice marks. They appear in every paper and in the lab viva. Drill conversions until they are boring: decimal to binary by repeated division, binary to hex by grouping in fours, and signed arithmetic with 2's complement."
+     ]
+    },
+    {
+     "heading": "Boolean algebra and K-maps: the marks machine",
+     "list": [
+      "Groups must be powers of two: 1, 2, 4, 8, 16",
+      "The map wraps around — left edge touches right edge",
+      "Bigger groups = simpler expression, so group as large as possible",
+      "Every 1 must be covered at least once; overlaps are allowed"
+     ],
+     "paragraphs": [
+      "Boolean laws (identity, complement, distributive, De Morgan) plus Karnaugh maps are where mid-semester marks are won. For K-maps, the method never changes: plot the minterms, group in powers of two, wrap around the edges, and read off the simplest expression. Practise 3-variable and 4-variable maps until grouping becomes visual, not thoughtful.",
+      "Common trap: forgetting that K-map edges wrap, and that groups must be rectangles of 1, 2, 4, 8 or 16 cells — never 3 or 6."
+     ]
+    },
+    {
+     "heading": "Combinational circuits: build from truth tables",
+     "paragraphs": [
+      "Adders (half, full, ripple-carry), subtractors, multiplexers, demultiplexers, encoders and decoders all follow one exam pattern: truth table → Boolean expression → circuit diagram. Learn each block's truth table cold, and practise drawing the diagram from the expression without looking. Questions often chain blocks together — a multiplexer built from gates, a full adder built from two half adders."
+     ]
+    },
+    {
+     "heading": "Sequential circuits: time enters the picture",
+     "paragraphs": [
+      "Flip-flops (SR, JK, D, T) are memory: their output depends on history, not just current inputs. Master the characteristic table of each type, then conversion between flip-flops, then counters and shift registers. Timing diagrams are favourite exam questions — practise reading a clock waveform and filling in Q outputs edge by edge."
+     ]
+    },
+    {
+     "heading": "The lab viva: what they actually ask",
+     "paragraphs": [
+      "DLD lab vivas are famously predictable: gate truth tables, IC pin numbers of the common 74xx chips you used, what your circuit does, and one 'what if' variation. Before the viva, re-derive each experiment's truth table once and be able to say in one sentence what the circuit computes. UniGenius viva prep lets you practise these out loud."
+     ]
+    }
+   ],
+   "slug": "dld-study-guide",
+   "tags": [
+    "DLD",
+    "Subject Guides"
+   ],
+   "title": "Digital Logic Design: How to Study DLD from Zero to Exam-Ready"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "Understand applied calculus as three connected ideas — limits, derivatives and integrals — with a practical method for solving exam problems step by step.",
+   "intro": "Calculus has a reputation problem. Students memorise dozens of formulas and still freeze in the exam, because nobody told them the subject is only three ideas wearing different clothes: what a function approaches (limits), how fast it changes (derivatives), and how much accumulates (integrals). Understand the three ideas and the formulas finally have somewhere to live.",
+   "links": [
+    {
+     "href": "/topics/applied-calculus",
+     "label": "Applied Calculus topic pages"
+    },
+    {
+     "href": "/lectures",
+     "label": "Calculus lecture playlists"
+    },
+    {
+     "href": "/blog",
+     "label": "More study guides"
+    }
+   ],
+   "readingMinutes": 6,
+   "sections": [
+    {
+     "heading": "Idea one: limits — what the function is heading towards",
+     "paragraphs": [
+      "A limit asks: as x gets closer and closer to a value, what does f(x) approach? Most exam limits surrender to three moves: direct substitution, factorising and cancelling, and the standard results like sin(x)/x → 1. When substitution gives 0/0, the function is not 'broken' — it is asking you to simplify first.",
+      "Continuity is simply the limit agreeing with the actual value. Learn to check the left-hand and right-hand limits separately for piecewise functions; that is the standard exam question in disguise."
+     ]
+    },
+    {
+     "heading": "Idea two: derivatives — the speed of change",
+     "list": [
+      "Power rule first, then product and quotient, then chain — in that learning order",
+      "Chain rule: differentiate the outside, multiply by the derivative of the inside",
+      "Maxima/minima: f'(x) = 0 gives candidates; the second derivative or sign test decides",
+      "Always simplify before differentiating when you can"
+     ],
+     "paragraphs": [
+      "The derivative is the slope of the curve at a point, and physically it is a rate: velocity is the derivative of position, growth rate the derivative of population. The rules (power, product, quotient, chain) are a toolbox, and the chain rule is the one that appears inside almost every harder problem — practise recognising the 'function inside a function' shape.",
+      "Applications carry heavy exam weight: maxima and minima (set the derivative to zero, test the sign), increasing/decreasing intervals, and related rates. For maxima/minima word problems, the method is always: write the quantity as one function, differentiate, solve, verify."
+     ]
+    },
+    {
+     "heading": "Idea three: integrals — adding up infinitely many small pieces",
+     "paragraphs": [
+      "Integration is differentiation run backwards, and geometrically it measures area under a curve. The Fundamental Theorem of Calculus is the bridge: to find an accumulated total, find an antiderivative and evaluate it at the ends. Substitution is the reverse chain rule — spotting what to call u is a pattern you build by solving twenty problems, not by reading about it."
+     ]
+    },
+    {
+     "heading": "How to practise maths so it survives until the exam",
+     "paragraphs": [
+      "Maths is not read, it is done. For every topic: study one worked example slowly, then solve three problems with the book closed, checking only at the end. Keep an error log — every mistake gets one line ('forgot +C', 'chain rule missed inner derivative'). Before the exam, your error log is the highest-value revision document you own, because exam mistakes are almost always repeats of practice mistakes."
+     ]
+    }
+   ],
+   "slug": "applied-calculus-guide",
+   "tags": [
+    "Calculus",
+    "Maths",
+    "Subject Guides"
+   ],
+   "title": "Applied Calculus Made Simple: Limits, Derivatives and Integrals Explained"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "Prepare for your lab viva voce with a simple 3-layer method: core concepts, your own code and experiments, and one-line definitions — plus what to do when you don't know an answer.",
+   "intro": "The viva is the shortest exam of your semester and the one students fear most — five minutes of questions that decide a surprising share of your lab marks. The relief is that vivas are deeply predictable. Examiners ask from a small, repeatable pool: what you built, why it works, and the definitions underneath it. Prepare those three layers and the viva becomes a conversation, not an interrogation.",
+   "links": [
+    {
+     "href": "/viva-prep",
+     "label": "Practise viva questions"
+    },
+    {
+     "href": "/topics",
+     "label": "Revise topic pages"
+    },
+    {
+     "href": "/blog/dld-study-guide",
+     "label": "DLD study guide"
+    }
+   ],
+   "readingMinutes": 6,
+   "sections": [
+    {
+     "heading": "What the examiner is really testing",
+     "paragraphs": [
+      "A viva examiner is answering one question: did this student actually do and understand this work, or did they copy it? Every question they ask serves that check. That is why the most common viva questions are not the hardest theory — they are 'explain what your code/circuit does', 'why did you use this component/approach', and 'what happens if we change this?'"
+     ]
+    },
+    {
+     "heading": "Layer 1: The concepts under your work",
+     "paragraphs": [
+      "For every experiment or project, list the three or four concepts it rests on — for a sorting program: the algorithm, its complexity, when it is used; for a logic circuit: the gates, the truth table, the Boolean expression. Revise those concepts from the topic pages until you can state each in two sentences without notes."
+     ]
+    },
+    {
+     "heading": "Layer 2: Your own code and experiments, line by line",
+     "list": [
+      "Can you explain every line of your submitted code?",
+      "Why this data structure / this IC / this formula?",
+      "What breaks if the input is empty, negative, or huge?",
+      "How would you extend it with one more feature?"
+     ],
+     "paragraphs": [
+      "Examiners pick a random line and ask what it does. Walk through your own submissions once before the viva and annotate any line you cannot explain — that line is a guaranteed question. Also prepare the 'what if' answers: edge cases and one variation of the problem."
+     ]
+    },
+    {
+     "heading": "Layer 3: One-line definitions, ready to fire",
+     "paragraphs": [
+      "Half of all viva questions are pure definitions: what is a constructor, a flip-flop, a primary key, Big O notation. Prepare a personal list of 20–30 one-line definitions for your subject and rehearse them until they come out in one breath. Short, correct, and immediate beats long and wandering."
+     ]
+    },
+    {
+     "heading": "When you don't know the answer",
+     "paragraphs": [
+      "It will happen, and it is survivable. Never bluff wildly and never freeze silently. Say what you do know that is closest: 'I have not studied that exact case, but I know X, so my reasoning would be…' Examiners reward honest partial knowledge and punish confident nonsense, because nonsense proves the copying they were checking for."
+     ]
+    },
+    {
+     "heading": "Practise out loud, not in your head",
+     "paragraphs": [
+      "Reading answers silently feels like knowing them; speaking them exposes every gap. Do at least two spoken rehearsals — with a friend firing random questions, or with the UniGenius viva prep simulator — before the real thing. The first spoken attempt is always rough; you want that roughness to happen in practice, not in front of the examiner."
+     ]
+    }
+   ],
+   "slug": "viva-preparation-guide",
+   "tags": [
+    "Viva",
+    "Exams"
+   ],
+   "title": "Viva Voce Preparation: How to Answer Confidently in Your Lab Viva"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "Past papers are the closest thing to the real exam. Learn the 4-step method: finish the topic, attempt under time, mark honestly, and turn mistakes into your revision list.",
+   "intro": "Ask any topper what changed their results and past papers come up again and again. But most students use them wrong — they read the paper, nod along, and check the solution after two minutes. That is entertainment, not preparation. Used properly, past papers are a rehearsal, a diagnostic test, and a prediction of your next exam in one document.",
+   "links": [
+    {
+     "href": "/past-papers",
+     "label": "Open the Past Paper Vault"
+    },
+    {
+     "href": "/topics",
+     "label": "Repair weak topics"
+    },
+    {
+     "href": "/blog/final-exam-study-plan",
+     "label": "Read the 4-week exam plan"
+    }
+   ],
+   "readingMinutes": 5,
+   "sections": [
+    {
+     "heading": "Why past papers beat re-reading notes",
+     "paragraphs": [
+      "Universities are creatures of habit. The same teachers set papers year after year, with the same favourite topics, the same question styles, and often near-identical numericals with changed values. Five years of past papers tell you more about your coming exam than any guess — and attempting them trains the exact skill the exam tests: producing answers under time pressure."
+     ]
+    },
+    {
+     "heading": "Step 1: Finish the topic first",
+     "paragraphs": [
+      "A past paper attempted before studying is wasted paper. First complete the topic — topic page, key points, one round of practice questions — then use the paper to test whether the learning stuck. The paper is the exam, not the textbook."
+     ]
+    },
+    {
+     "heading": "Step 2: Attempt under real exam conditions",
+     "list": [
+      "Full paper or one full question set — no pausing",
+      "Timer set to the real exam duration",
+      "No notes, no phone, no 'quick peek'",
+      "Write answers fully, as you would in the hall"
+     ],
+     "paragraphs": [
+      "The discomfort is the point. Struggling to recall under time pressure is precisely the training your brain needs, and every struggle in practice is a mistake that will not happen in the hall."
+     ]
+    },
+    {
+     "heading": "Step 3: Mark honestly and build the mistake list",
+     "paragraphs": [
+      "Now check your answers strictly — no charity marks. Every error goes into one document with a label: concept gap (never understood it), recall gap (knew it, could not produce it), or careless error (sign, unit, missed condition). Each type has a different cure, and the list becomes your personalised revision plan for the final week."
+     ]
+    },
+    {
+     "heading": "Step 4: Let repetition reveal the pattern",
+     "paragraphs": [
+      "After three or four papers, highlight questions that repeat across years. These are your teacher's signature topics — in most subjects, 50–60% of the next paper is forecastable this way. Revise those topics to full-answer standard: definition, diagram or derivation, one worked example, written from memory."
+     ]
+    },
+    {
+     "heading": "How many papers, and when?",
+     "paragraphs": [
+      "Aim for the last four to five years per subject, spread across your final two to three weeks — not all in the last two days. UniGenius collects past papers subject by subject in the Past Paper Vault, and the matching topic pages and question bank let you repair every weakness a paper exposes, the same day you find it."
+     ]
+    }
+   ],
+   "slug": "past-papers-strategy",
+   "tags": [
+    "Exams",
+    "Past Papers"
+   ],
+   "title": "How to Use Past Papers the Right Way: The Revision Method Toppers Use"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "A realistic first-year programming roadmap: fundamentals, OOP, then DSA basics — with the daily coding habit, debugging skills and the tutorial-hell trap explained.",
+   "intro": "Every first-year student asks the same question: 'How do I actually learn programming?' The internet answers with 40-hour roadmaps and ten languages at once. Here is the honest version, matched to what your degree actually teaches: one language at a time, fundamentals first, code every day, and projects before certificates.",
+   "links": [
+    {
+     "href": "/topics/programming-fundamentals",
+     "label": "Programming Fundamentals topics"
+    },
+    {
+     "href": "/code-lab",
+     "label": "Write and run code in the Code Lab"
+    },
+    {
+     "href": "/lectures",
+     "label": "Programming lecture playlists"
+    }
+   ],
+   "readingMinutes": 7,
+   "sections": [
+    {
+     "heading": "The truth nobody puts on the roadmap",
+     "paragraphs": [
+      "Programming is a skill, like driving — it is learned by doing it badly, then less badly, for months. Watching tutorials feels like learning and produces almost none. The students who 'suddenly' become good in semester three are simply the ones who wrote code most days from semester one. Consistency beats intensity: 45 minutes daily will outperform a 7-hour Sunday binge within two months."
+     ]
+    },
+    {
+     "heading": "Phase 1 (Semester 1): Programming fundamentals, one language",
+     "paragraphs": [
+      "Your Programming Fundamentals course — usually C or C++ — is your foundation. Master variables, conditions, loops, functions, arrays and strings until you can solve small problems without thinking about syntax. Solve problems, not chapters: sum and average, patterns, prime checks, string reversal, simple searching. Fifty small problems teach more than five long tutorials."
+     ]
+    },
+    {
+     "heading": "Phase 2 (Semester 2): OOP in Java or C++",
+     "paragraphs": [
+      "Object Oriented Programming converts your procedural basics into how real software is organised: classes, objects, encapsulation, inheritance, polymorphism. Build tiny projects — a student management console, a bank account system, a library tracker. Small and finished beats large and abandoned, every time."
+     ]
+    },
+    {
+     "heading": "Phase 3 (Semester 3 onwards): Data structures begin",
+     "paragraphs": [
+      "With OOP comfortable, DSA stops being scary: arrays and linked lists are just new ways to organise the data your classes hold. Start with Big O intuition and the basic structures; competitive-level depth can come later. The roadmap continues for years — your only job this year is a foundation that does not wobble."
+     ]
+    },
+    {
+     "heading": "Debugging is the real skill",
+     "list": [
+      "Read the error message — it usually names the line and the problem",
+      "Reproduce the bug with the smallest possible input",
+      "Print intermediate values instead of guessing",
+      "Change one thing at a time"
+     ],
+     "paragraphs": [
+      "Beginners think good programmers write code that works first time. In reality, professionals debug faster. Practise debugging deliberately — when your code breaks, resist deleting and restarting; hunt the fault systematically. The Code Lab's AI analysis, which lists your mistakes and shows corrected code, is a good training partner for exactly this."
+     ]
+    },
+    {
+     "heading": "Avoid tutorial hell",
+     "paragraphs": [
+      "The trap: watching course after course, feeling productive, retaining nothing. The rule that escapes it — after every tutorial video, close it and rebuild the same thing from memory; after every course section, build one small thing of your own. If you cannot rebuild it, you did not learn it yet, and that is useful information, not failure."
+     ]
+    }
+   ],
+   "slug": "learn-programming-first-year",
+   "tags": [
+    "Programming",
+    "Roadmap"
+   ],
+   "title": "Learn Programming in Your First Year: A Realistic Roadmap for CS Students"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "Study discrete structures topic by topic: logic and proofs, sets and relations, counting, and graph theory — with an exam strategy that turns definitions into marks.",
+   "intro": "Discrete Structures has a split personality: half of it feels like maths, half like programming theory, and students often do not know how to study either half. The fix is to see the subject for what it is — the language of computer science. Logic, sets, relations and graphs are the vocabulary your later subjects (databases, automata, algorithms, AI) are written in.",
+   "links": [
+    {
+     "href": "/topics/discrete-structures",
+     "label": "Discrete Structures topic pages"
+    },
+    {
+     "href": "/question-bank",
+     "label": "Practise discrete structures questions"
+    },
+    {
+     "href": "/blog",
+     "label": "More study guides"
+    }
+   ],
+   "readingMinutes": 6,
+   "sections": [
+    {
+     "heading": "Logic and proof: where the marks start",
+     "paragraphs": [
+      "Propositional logic — connectives, truth tables, equivalence laws, implication — is the foundation everything else uses. Learn to build a truth table mechanically and to simplify statements with the standard laws. Then the proof methods: direct proof, contrapositive, contradiction, and induction. Induction is the single most repeated exam topic in this subject; practise its three-step skeleton (base, hypothesis, step) until it is automatic."
+     ]
+    },
+    {
+     "heading": "Sets, relations and functions",
+     "paragraphs": [
+      "Set operations and Venn diagrams are visual marks — draw, do not memorise. Relations need the property checklist: reflexive, symmetric, transitive, and their combinations (equivalence relations and partial orders are the exam pairing). For functions, one-to-one and onto questions follow a fixed algebraic method: assume f(a) = f(b) and chase a = b."
+     ]
+    },
+    {
+     "heading": "Counting and recurrence: the thinking topics",
+     "list": [
+      "Permutations: order matters. Combinations: it does not",
+      "Pigeonhole principle: if items exceed boxes, a box repeats",
+      "Recurrences: write the base case first, always",
+      "Solve by unrolling small cases and spotting the pattern"
+     ],
+     "paragraphs": [
+      "Combinatorics questions look different every time, which is why students fear them — but they decompose into a few shapes: arrangements with or without repetition, selections, and distributions. Name the shape before calculating. Recurrence relations (like the Fibonacci pattern) reward the unrolling method: compute T(1), T(2), T(3) by hand and let the closed form reveal itself."
+     ]
+    },
+    {
+     "heading": "Graph theory: definitions that draw themselves",
+     "paragraphs": [
+      "Graphs are the friendliest topic in the subject because everything can be drawn: vertices, edges, degree, paths, cycles, trees, and traversals (BFS and DFS) that you will meet again in DSA. Exam questions are definition-driven — learn each term with a tiny drawn example, and practise Euler and Hamiltonian path conditions, which are pure checklist questions."
+     ]
+    },
+    {
+     "heading": "Exam strategy for discrete structures",
+     "paragraphs": [
+      "This subject rewards precision: a definition stated exactly is full marks, stated vaguely is half. Keep a definition notebook as you study — one line per term, in your own words but mathematically exact — and revise from it in the final week. Pair every definition with one small example; in the exam, example-first answers are both easier to write and easier for the examiner to mark."
+     ]
+    }
+   ],
+   "slug": "discrete-structures-guide",
+   "tags": [
+    "Discrete Structures",
+    "Subject Guides"
+   ],
+   "title": "Discrete Structures Without the Fear: Logic, Sets, Relations and Graphs"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "Learn DSA in the right order — arrays to graphs — with Big O made simple, the dry-run habit, and a study loop that covers both theory exams and coding practice.",
+   "intro": "Data Structures and Algorithms is the subject your whole career leans on — interviews test it, later subjects assume it, and it separates students who 'did programming courses' from students who can think in code. It is also genuinely learnable, provided you respect the order: each structure exists to fix a problem with the previous one.",
+   "links": [
+    {
+     "href": "/topics/data-structures-and-algorithms-dsa",
+     "label": "DSA topic pages"
+    },
+    {
+     "href": "/code-lab",
+     "label": "Implement structures in the Code Lab"
+    },
+    {
+     "href": "/blog/learn-programming-first-year",
+     "label": "First-year programming roadmap"
+    }
+   ],
+   "readingMinutes": 7,
+   "sections": [
+    {
+     "heading": "Learn the structures in story order",
+     "paragraphs": [
+      "Do not study structures alphabetically; study them as a story of problems. Arrays are fast to read but slow to insert into — so linked lists trade read speed for flexible insertion. Stacks and queues restrict access on purpose, which makes them perfect for undo, parsing and scheduling. Trees organise data hierarchically so searching becomes logarithmic; hash tables trade order for near-instant lookup; graphs model relationships nothing else can. When you can say what problem each structure solves, the comparisons write themselves in the exam."
+     ]
+    },
+    {
+     "heading": "Big O without the panic",
+     "list": [
+      "O(1) constant — one step, however big the input",
+      "O(log n) — the problem halves each step, like binary search",
+      "O(n) — one pass through the data",
+      "O(n²) — every item meets every other item, like naive sorting"
+     ],
+     "paragraphs": [
+      "Big O is just a growth story: how does the work grow when the input grows? Ignore constants, keep the biggest term. Learn to count the loops: one loop is O(n), nested loops are O(n²), a halving loop is O(log n). Complexity questions in exams are pattern recognition, and twenty practised examples build the pattern."
+     ]
+    },
+    {
+     "heading": "Dry-run everything on paper",
+     "paragraphs": [
+      "The single most effective DSA habit: trace algorithms by hand. Draw the array, the pointers, the stack frames. Insertion sort on [5, 2, 9, 1] with your own pen teaches more than three watched videos, because the exam will ask you to do exactly this — show the state after each pass, each push, each traversal level."
+     ]
+    },
+    {
+     "heading": "Theory and code: you need both",
+     "paragraphs": [
+      "University exams test DSA twice: as theory (definitions, comparisons, dry-runs, complexity proofs) and as code (implement the structure, often in C++ or Java). Study both tracks in parallel — implement every structure you study, in the Code Lab, at least once from scratch without looking. The implementation exposes the edge cases (empty list, single node, full stack) that theory questions love to target."
+     ]
+    },
+    {
+     "heading": "Sorting and searching: the guaranteed chapter",
+     "paragraphs": [
+      "Bubble, selection, insertion, merge and quick sort; linear and binary search. For each: the idea in one line, a dry-run, best/average/worst complexity, and stability. Comparison tables across all five sorts are a permanent exam fixture — build yours early and keep adding to it all semester."
+     ]
+    }
+   ],
+   "slug": "dsa-study-guide",
+   "tags": [
+    "DSA",
+    "Programming",
+    "Subject Guides"
+   ],
+   "title": "Data Structures and Algorithms: How to Actually Understand DSA"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "Use AI tutors and generators without outsourcing your learning: the attempt-hint-explain-test loop that turns AI help into real exam marks.",
+   "intro": "AI study tools are the biggest advantage your generation has — and the easiest trap. Used one way, an AI tutor makes difficult topics click in minutes. Used the other way, it produces beautiful assignments and an empty brain that the viva exposes in thirty seconds. The difference is a simple loop.",
+   "links": [
+    {
+     "href": "/ai-tutor",
+     "label": "Open the AI Tutor"
+    },
+    {
+     "href": "/topics",
+     "label": "Study topic pages"
+    },
+    {
+     "href": "/viva-prep",
+     "label": "Practise viva questions"
+    }
+   ],
+   "readingMinutes": 5,
+   "sections": [
+    {
+     "heading": "The trap: answers without learning",
+     "paragraphs": [
+      "Copying an AI answer into your assignment feels efficient, but nothing in your brain changed. The exam and the viva do not ask the AI — they ask you. Students discover this in the worst week of the semester. The tool is not the problem; the order of operations is."
+     ]
+    },
+    {
+     "heading": "The loop that works: attempt, hint, explain, test",
+     "list": [
+      "Attempt the problem yourself first — even a failed attempt primes your brain",
+      "Ask for a hint, not the full solution",
+      "Read the explanation and close it — then redo the problem alone",
+      "Finish with a self-test: a fresh question on the same topic"
+     ],
+     "paragraphs": [
+      "Struggle first, help second. A failed attempt makes the explanation stick ten times better, because your brain already knows exactly where it got stuck. UniGenius's AI Tutor is built around this: it explains in simple words with an example, then asks you a small check question instead of just handing over answers."
+     ]
+    },
+    {
+     "heading": "What AI is genuinely great at",
+     "paragraphs": [
+      "Explaining the same concept five different ways until one clicks. Generating practice questions matched to your semester and weak areas. Debugging your code by naming the exact mistake and showing the corrected version. Simulating a viva examiner at midnight before the real one. Turning your weak-area list into a revision plan. Used for these, AI is a patient private tutor that never sleeps."
+     ]
+    },
+    {
+     "heading": "What never to outsource",
+     "paragraphs": [
+      "The first attempt at any problem. Definitions you must be able to say out loud. Code you will be asked to explain line by line. And any graded work where the learning is the point — the marks you 'earn' without learning are borrowed from your own future, at viva interest rates."
+     ]
+    },
+    {
+     "heading": "One rule to remember",
+     "paragraphs": [
+      "If you cannot reproduce it with the AI closed, you have not learned it yet. Keep that single test in mind and AI becomes what it should be: the best study partner you have ever had, instead of the most expensive shortcut."
+     ]
+    }
+   ],
+   "slug": "ai-study-tools-guide",
+   "tags": [
+    "AI",
+    "Study Skills"
+   ],
+   "title": "How to Use AI Study Tools Without Cheating Yourself"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "Expository writing made simple for university students: how to plan, structure and write assignments, lab reports and essays that are clear, formal and high-scoring.",
+   "intro": "Expository writing is the writing you do most at university — assignments, lab reports, essays and long exam answers — and its job is simple: explain something clearly to the reader. Most students lose marks in it not because their English is weak, but because their writing has no structure. The good news is that structure is a skill, not a talent, and it can be learned in an afternoon.",
+   "links": [
+    {
+     "href": "/topics",
+     "label": "Browse topic pages for your subjects"
+    },
+    {
+     "href": "/notes",
+     "label": "Read shared study notes"
+    },
+    {
+     "href": "/blog/final-exam-study-plan",
+     "label": "Final exam study plan"
+    }
+   ],
+   "readingMinutes": 6,
+   "sections": [
+    {
+     "heading": "What expository writing actually means",
+     "paragraphs": [
+      "To expose means to present and explain. Expository writing informs, describes and explains — it does not argue, advertise or entertain. Your personal opinion stays out; facts, reasons, examples and evidence do the work. A lab report explaining how an experiment works, an assignment describing the architecture of a database system, and an exam answer explaining the causes of an event are all expository writing.",
+      "Once you see the job clearly — 'my reader should understand this topic better after reading me' — every decision becomes easier: what to include, in what order, and in what words."
+     ]
+    },
+    {
+     "heading": "The structure that never fails",
+     "list": [
+      "Introduction: what the topic is, why it matters, and what you will cover — in that order",
+      "Body paragraphs: one main idea per paragraph, stated in the first sentence, then explained with facts and an example",
+      "Conclusion: restate the main point in fresh words and end with the takeaway — never introduce new points here"
+     ],
+     "paragraphs": [
+      "Every strong piece of expository writing has the same skeleton. Examiners and teachers recognise it instantly, and they reward it because it makes their reading effortless."
+     ]
+    },
+    {
+     "heading": "Plan before you write",
+     "paragraphs": [
+      "Ten minutes of planning saves an hour of wandering. Before writing a single sentence, list the points you will cover as rough bullets, gather the facts, dates, definitions and examples each point needs, and then arrange the bullets in a logical order — general to specific, simple to complex, or step by step for a process.",
+      "This outline is your map. While writing, you simply turn each bullet into a paragraph. If you get stuck mid-assignment, the problem is almost always a missing point in the outline, not a lack of English."
+     ]
+    },
+    {
+     "heading": "Write in simple, formal English",
+     "paragraphs": [
+      "Formal does not mean difficult. The clearest academic writing uses short sentences, common words and precise terms. Define every technical term the first time you use it. Use headings and subheadings in longer assignments so the structure is visible. Connect your ideas with honest signposts — first, however, therefore, for example, in conclusion — so the reader always knows where the explanation is going.",
+      "Avoid slang, contractions and chat-style shortcuts in submitted work. They make careful content look careless, and teachers grade what they see."
+     ]
+    },
+    {
+     "heading": "Mistakes that quietly cost marks",
+     "list": [
+      "Copy-pasting paragraphs from the internet — teachers recognise the style change instantly",
+      "One giant block of text with no headings or paragraph breaks",
+      "Mixing personal opinion into an explanation that should stay factual",
+      "A conclusion that introduces brand-new points instead of closing the topic",
+      "Ignoring the teacher's assigned format, headings or word limit"
+     ],
+     "paragraphs": [
+      "None of these mistakes is about knowledge. Students who know the topic well still lose marks to every one of them — which is why fixing them is the fastest marks improvement available in any subject."
+     ]
+    },
+    {
+     "heading": "A 20-minute revision checklist",
+     "paragraphs": [
+      "Before submitting, read your work aloud once — your ears catch broken sentences your eyes skip. Check that each paragraph carries exactly one idea and starts with its main point. Confirm names, dates and technical terms are spelled correctly. Finally, compare your format against the teacher's instructions one last time: title page, headings, margins, references. Twenty honest minutes of revision routinely separate an average assignment from a top one."
+     ]
+    }
+   ],
+   "slug": "expository-writing-guide",
+   "tags": [
+    "Writing",
+    "Study Skills"
+   ],
+   "title": "Expository Writing: How to Write University Assignments and Reports That Score"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "A practical Pakistan Studies preparation guide: the timeline method for history, how to write high-scoring answers, and how to handle ideology and geography questions.",
+   "intro": "Pakistan Studies has a reputation as a pure ratta subject — memorise the book, reproduce the book. But the students who score highest do not memorise more; they organise better. Almost everything in this subject hangs on one timeline and a handful of cause-and-effect chains. Build those two things and the whole subject becomes smaller, logical and genuinely interesting.",
+   "links": [
+    {
+     "href": "/topics",
+     "label": "Browse topic pages for your subjects"
+    },
+    {
+     "href": "/past-papers",
+     "label": "Practise with past papers"
+    },
+    {
+     "href": "/blog/past-papers-strategy",
+     "label": "How to use past papers the right way"
+    }
+   ],
+   "readingMinutes": 6,
+   "sections": [
+    {
+     "heading": "Build one master timeline",
+     "paragraphs": [
+      "Draw a single line from 1857 to today and place every major event on it: the War of Independence, Sir Syed's movement, the founding of the Muslim League in 1906, the Lucknow Pact, Khilafat, the Nehru Report, Jinnah's Fourteen Points, the Lahore Resolution of 1940, Independence in 1947, the constitutions, 1971, and the decades after. When an event has a position on your timeline, its date stops being a random number and becomes a fact with neighbours — and neighbours are what memory holds onto.",
+      "Revise from this one page daily in the final weeks. It is the highest-value single page in the whole subject."
+     ]
+    },
+    {
+     "heading": "Learn causes and effects, not just events",
+     "paragraphs": [
+      "Examiners rarely ask only 'what happened?' — they ask 'why did it happen?' and 'what did it change?' For every major event, prepare a simple triple: the causes behind it, the event itself, and its effects. Why did the Muslim League form? What did the Lahore Resolution demand, and what did it set in motion? A student who can answer in cause-event-effect form can handle almost any question wording, including ones they have never seen before."
+     ]
+    },
+    {
+     "heading": "How to write answers that score",
+     "paragraphs": [
+      "A high-scoring Pakistan Studies answer has a recognisable shape: a two-line introduction that answers the question directly, three to four developed points in the body, and a short conclusion. Each point should carry evidence — exact dates, names of personalities, places and documents. 'The Lahore Resolution was passed on 23 March 1940 at Minto Park, Lahore' earns more than a paragraph of vague praise.",
+      "Use headings or clear paragraph breaks for each point. Examiners mark many scripts; the answer that is easy to follow collects the marks it deserves."
+     ]
+    },
+    {
+     "heading": "Ideology and Pakistan Movement questions",
+     "paragraphs": [
+      "A small set of questions returns in almost every paper: the Two-Nation Theory, the ideology of Pakistan, the Objectives Resolution, and Quaid-e-Azam's vision in his speeches and addresses. Prepare proper model answers for these — definition, historical background, key points, and a concluding line. Because they repeat so reliably, these prepared answers are the closest thing to guaranteed marks in the subject."
+     ]
+    },
+    {
+     "heading": "Geography and the Pakistan today portion",
+     "paragraphs": [
+      "Do not neglect the second half of the book: rivers and dams, climate, population, agriculture, industry and projects like CPEC. These questions are factual and short, which makes them efficient marks if prepared — and painful losses if skipped, because there is nothing to bluff with. Prepare them as lists and small maps rather than paragraphs: where things are, and one line on why each matters."
+     ]
+    },
+    {
+     "heading": "The last-two-weeks plan",
+     "list": [
+      "Revise the master timeline once every day — ten minutes is enough",
+      "Solve past papers and note which questions repeat; prepare those first",
+      "Write two full answers by hand daily — writing speed and structure only improve by writing",
+      "Keep a one-page list of exact dates and names for the final morning"
+     ],
+     "paragraphs": [
+      "Pakistan Studies rewards steady, organised preparation more than last-night panic. Two honest weeks with a timeline and past papers will outperform a month of unstructured reading."
+     ]
+    }
+   ],
+   "slug": "pakistan-studies-exam-guide",
+   "tags": [
+    "Pakistan Studies",
+    "Exams"
+   ],
+   "title": "Pakistan Studies: How to Prepare and Score High in the Exam"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "Forget perfect timetables. A realistic time-management system for university students: weekly planning, focused sessions, and how to stay consistent without burning out.",
+   "intro": "Every student has made a beautiful colour-coded timetable that died by Wednesday. The problem was never discipline — it was design. An hourly timetable assumes your life is predictable, and a student's life is not: family work appears, the bus is late, the light goes, friends call. A system that only works on perfect days works on no days. This one is built for real life.",
+   "links": [
+    {
+     "href": "/blog/final-exam-study-plan",
+     "label": "Final exam study plan"
+    },
+    {
+     "href": "/topics",
+     "label": "Browse topic pages for your subjects"
+    },
+    {
+     "href": "/question-bank",
+     "label": "Test yourself in the question bank"
+    }
+   ],
+   "readingMinutes": 6,
+   "sections": [
+    {
+     "heading": "Why timetables fail and weekly plans don't",
+     "paragraphs": [
+      "An hourly timetable breaks the first time anything unexpected happens, and one broken block makes the whole day feel ruined — so you abandon it. A weekly plan is tougher: it says 'this week I will give OOP four sessions, Calculus three, DLD three' without chaining each session to an exact hour. If Tuesday collapses, the sessions move to Wednesday. The week survives even when a day does not."
+     ]
+    },
+    {
+     "heading": "The Sunday 20-minute planning ritual",
+     "list": [
+      "Write down every subject and what is due or difficult in it this week",
+      "Choose only three priorities for the week; everything else is bonus",
+      "Count your real free blocks around classes, travel and family time",
+      "Assign study sessions to those blocks — fewer than you hope, more than zero"
+     ],
+     "paragraphs": [
+      "Once a week — Sunday evening works well — sit with your subjects and do just this:"
+     ]
+    },
+    {
+     "heading": "Focused sessions beat long hours",
+     "paragraphs": [
+      "Two genuinely focused hours teach more than six hours of sitting with a book and a phone. Work in sessions of 25 to 50 minutes with a clear single goal — 'finish these ten questions', 'understand this one topic' — then take a real break. During a session the phone goes in another room, not face-down beside you; a visible phone taxes your attention even when it never rings.",
+      "End every session by writing one line: what you covered and what comes next. Tomorrow's start becomes effortless because yesterday already decided it."
+     ]
+    },
+    {
+     "heading": "Protect the plan from the phone",
+     "paragraphs": [
+      "Most study time is not stolen by laziness; it leaks away in five-minute scrolls that become forty. Keep it simple: notifications off during sessions, social apps only after the day's sessions are done, and no phone in bed for the last half hour — sleep is a study tool, and the students who protect it remember more of everything they read."
+     ]
+    },
+    {
+     "heading": "When the week collapses",
+     "paragraphs": [
+      "Some weeks will collapse — guests, illness, a family emergency, three assignments at once. The rule for a collapsed week is: shrink the plan, never abandon it. One session a day, even twenty minutes, keeps every subject warm and keeps your self-trust intact. Restarting from zero every Monday is what actually kills consistency; a small unbroken chain beats a heroic fresh start."
+     ]
+    },
+    {
+     "heading": "Track, don't trust your feelings",
+     "paragraphs": [
+      "Feelings lie about studying: a hard session feels unproductive even when it taught the most. Keep a simple log — date, subject, minutes — or use a study planner that tracks it for you. After a month, the log shows your real pattern: which subjects you avoid, which hours work best, and how much you truly study. Managing time starts with seeing it honestly."
+     ]
+    }
+   ],
+   "slug": "time-management-for-students",
+   "tags": [
+    "Study Skills",
+    "Productivity"
+   ],
+   "title": "Time Management for University Students: A System That Survives Real Life"
+  },
+  {
+   "datePublished": "2026-11-26",
+   "description": "How to pick a semester project idea that is original, useful and finishable: the problem-first method, scope control, and how to demo it so it stands out.",
+   "intro": "Most semester project ideas fail in one of two ways. They are copied from the internet, so the teacher has already seen them fifty times — or they are so ambitious that they are still half-built on submission day. The projects that impress live in the sweet spot between the two: a real problem, a small scope, and a demo that actually works. Here is how to find one.",
+   "links": [
+    {
+     "href": "/projects",
+     "label": "Browse project ideas with details"
+    },
+    {
+     "href": "/topics",
+     "label": "Browse topic pages for your subjects"
+    },
+    {
+     "href": "/blog/learn-programming-first-year",
+     "label": "Learn programming in your first year"
+    }
+   ],
+   "readingMinutes": 6,
+   "sections": [
+    {
+     "heading": "Start from a problem, not a technology",
+     "paragraphs": [
+      "'I will build something with AI' is not an idea; it is a tool looking for work. Ideas come from problems, and problems are everywhere around a student: the university office that loses forms, the hostel mess whose menu and complaints live on paper, the class whose notes are scattered across five group chats, the local shop that tracks stock in a notebook. Spend two days simply listing small, real problems you personally see. The best semester projects are usually hiding in that list."
+     ]
+    },
+    {
+     "heading": "The finishability test",
+     "paragraphs": [
+      "Before committing, put your idea through three questions. Can you explain it in one line? Can the core feature work within two weeks? Can you demo it in ninety seconds? If any answer is no, the scope — not the idea — is wrong. Cut features until all three answers are yes. A small finished system beats a grand unfinished one in marks, in demos and in what you learn, every single time."
+     ]
+    },
+    {
+     "heading": "Make it yours with one smart feature",
+     "paragraphs": [
+      "A simple, useful base plus one smart feature is the most reliable formula for standing out. A class notes app is ordinary; a class notes app that generates a quiz from the uploaded notes is memorable. A mess-menu app is ordinary; one that predicts tomorrow's demand from past wastage gets questions from the judges. Choose technology you can actually run and learn — a project built on tools you understand will survive any viva question, which is where copied projects fall apart."
+     ]
+    },
+    {
+     "heading": "Plan the demo from day one",
+     "paragraphs": [
+      "Teachers and judges remember the demo, not the feature list. On the first day, write the ninety-second story: what problem appears on screen, what your system does about it, and what result it shows. Then build towards that story, in that order. If a feature does not appear in the demo story, it is a bonus — build it last, or not at all. This single habit prevents the classic disaster of a huge system with nothing presentable working."
+     ]
+    },
+    {
+     "heading": "Work in weekly slices, document as you go",
+     "list": [
+      "Week 1: the core feature working, even if it is ugly",
+      "Week 2: real data in, main screens complete",
+      "Week 3: polish, edge cases, and the demo flow rehearsed",
+      "Final days: report and presentation — built from your weekly notes, not from memory"
+     ],
+     "paragraphs": [
+      "Take screenshots and write two or three lines after every work session. It feels like overhead; it is actually your project report writing itself, your viva preparation, and your proof of work, all at once."
+     ]
+    },
+    {
+     "heading": "What to avoid",
+     "list": [
+      "Cloning a famous app feature-for-feature — teachers spot it and viva questions expose it",
+      "Downloading or buying a ready-made project — you cannot explain what you did not build",
+      "Choosing a stack your laptop or phone cannot run smoothly",
+      "Starting the written report on the last night",
+      "Adding features in the final week instead of polishing what works"
+     ],
+     "paragraphs": [
+      "A semester project is your first portfolio piece. Choose a real problem, keep it finishable, and build every part yourself — the marks, the demo and your own confidence will all show it."
+     ]
+    }
+   ],
+   "slug": "semester-project-ideas-guide",
+   "tags": [
+    "Projects",
+    "Career"
+   ],
+   "title": "Semester Project Ideas: How to Choose a Project That Impresses — and Actually Finish It"
+  }
+ ]
+}

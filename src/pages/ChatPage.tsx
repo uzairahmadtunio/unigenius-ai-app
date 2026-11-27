@@ -6,6 +6,7 @@ import { Send, Bot, User, Sparkles, BookOpen, Code, ListChecks, FileQuestion, Ar
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useSmartBack } from "@/hooks/use-smart-back";
+import { useSignInPrompt } from "@/components/SignInPrompt";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
@@ -96,6 +97,7 @@ const ChatPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const goBack = useSmartBack();
+  const { promptSignIn } = useSignInPrompt();
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
   const { isDragOver, onDragOver, onDragLeave, onDrop } = useFileDrop(attachedFiles, setAttachedFiles, MAX_FILES, isStreaming);
@@ -133,6 +135,9 @@ const ChatPage = () => {
       setSpeakingMsgId(null);
       return;
     }
+    // Read Aloud uses the Gemini voice, which needs an account — guests
+    // get the sign-in prompt instead of a silent failure (2026-11-27).
+    if (!user) { promptSignIn("Read Aloud"); return; }
     const clean = text.replace(/```[\s\S]*?```/g, " code block ").replace(/[*#_`~>|]/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
     setSpeakingMsgId(msgId);
     speakTts(clean, {
@@ -140,7 +145,7 @@ const ChatPage = () => {
       onend: () => setSpeakingMsgId(null),
       onerror: () => setSpeakingMsgId(null),
     });
-  }, [speakingMsgId, voiceName]);
+  }, [speakingMsgId, voiceName, user, promptSignIn]);
 
   // Stop any speech when leaving the page
   useEffect(() => {
@@ -246,6 +251,9 @@ const ChatPage = () => {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Uploads are stored per account — guests get the sign-in prompt
+    // instead of files that silently never upload (2026-11-27).
+    if (!user) { promptSignIn("File uploads"); e.target.value = ""; return; }
     const files = Array.from(e.target.files || []);
     if (attachedFiles.length + files.length > MAX_FILES) {
       toast.error("Maximum 20 files allowed per message.");
@@ -396,6 +404,7 @@ const ChatPage = () => {
   const handleSend = async (text?: string) => {
     const msg = text || input.trim();
     if ((!msg && attachedFiles.length === 0) || isStreaming) return;
+    if (!user) { promptSignIn("AI Tutor"); return; }
     setUserScrolledUp(false);
 
     const fileNames = attachedFiles.map(f => f.name);
@@ -612,7 +621,7 @@ const ChatPage = () => {
                           <select
                             value={voiceName}
                             onChange={(e) => { setVoiceName(e.target.value); persistVoiceName(e.target.value); }}
-                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded-md border border-border/50 bg-transparent cursor-pointer"
+                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded-md border border-border/50 bg-popover cursor-pointer"
                             title="Choose the read-aloud voice"
                             aria-label="Read-aloud voice"
                           >

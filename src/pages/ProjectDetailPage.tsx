@@ -38,6 +38,9 @@ const ProjectDetailPage = () => {
   return (
     <PageShell
       title={project ? project.title : "Project"}
+      seoTitle={project ? `${project.title} — Project Details | UniGenius AI` : undefined}
+      seoDescription={project ? `${project.title}: a ${project.level_name} project for ${project.semesters}. Features, tech stack and full details on UniGenius AI.` : undefined}
+      seoPath={projectId ? `/projects/${projectId}` : "/projects"}
       subtitle={
         project ? `${project.level_name} · ${project.semesters}` : "Full details of this project"
       }

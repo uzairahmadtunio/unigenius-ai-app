@@ -97,6 +97,9 @@ const PrivacyPage = () => {
   return (
     <PageShell
       title="Privacy Policy"
+      seoTitle="Privacy Policy — UniGenius AI"
+      seoDescription="How UniGenius AI collects, uses and protects your data — the privacy policy of the AI study platform for CS, SE & AI students."
+      seoPath="/privacy"
       subtitle="Last updated · May 2026"
       icon={<Shield className="w-5 h-5 text-primary" />}
     >

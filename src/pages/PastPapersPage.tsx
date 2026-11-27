@@ -8,6 +8,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import PageShell from "@/components/PageShell";
+import SeoIntro from "@/components/SeoIntro";
 import FileViewerDialog from "@/components/FileViewerDialog";
 import { downloadFile, downloadName, fileKind } from "@/lib/file-delivery";
 import { useAuth } from "@/contexts/AuthContext";
@@ -132,6 +133,9 @@ const PastPapersPage = () => {
   return (
     <PageShell
       title="Past Paper Vault"
+      seoTitle="Past Papers for CS, SE & AI Exams — UniGenius AI"
+      seoDescription="Download past exam papers for Computer Science, Software Engineering and AI subjects — see exactly what your university asks and prepare with real papers."
+      seoPath="/past-papers"
       subtitle="Community Past Papers"
       icon={<div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center"><FileText className="w-5 h-5 text-primary" /></div>}
     >
@@ -319,6 +323,13 @@ const PastPapersPage = () => {
           </Button>
           {!user && <p className="text-xs text-muted-foreground">Sign in to upload a paper.</p>}
         </div>
+        <SeoIntro
+          heading="Why practise with past papers?"
+          paragraphs={[
+            "Past papers are the closest thing to the real exam you will ever get. Universities repeat question styles, favourite topics and marking patterns year after year, so working through previous papers shows you exactly what your teachers love to ask — and how much detail a full-marks answer needs. The UniGenius Past Paper Vault collects papers shared by students for CS, SE and AI subjects in one searchable place, organised by subject and paper type.",
+            "Use them the smart way: finish a topic from the topic pages, then attempt its past-paper questions under timed conditions before checking any solution. The questions you miss become your revision list. If you have a paper your juniors would thank you for, sign in and upload it — the vault grows because students share.",
+          ]}
+        />
       </div>
     </PageShell>
   );

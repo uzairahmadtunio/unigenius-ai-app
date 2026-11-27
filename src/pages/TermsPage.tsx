@@ -108,6 +108,9 @@ const TermsPage = () => {
   return (
     <PageShell
       title="Terms of Service"
+      seoTitle="Terms of Service — UniGenius AI"
+      seoDescription="The terms of service for UniGenius AI — the rules for using the AI study platform for CS, SE & AI university students."
+      seoPath="/terms"
       subtitle="Last updated · May 2026"
       icon={<FileText className="w-5 h-5 text-primary" />}
     >

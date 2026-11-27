@@ -6,12 +6,18 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useSmartBack } from "@/hooks/use-smart-back";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import Seo from "./Seo";
 
 interface PageShellProps {
   title: string;
   subtitle?: string;
   icon?: ReactNode;
   children: ReactNode;
+  /** Full SEO program: per-route head (title/description/canonical/OG/JSON-LD). */
+  seoTitle?: string;
+  seoDescription?: string;
+  seoPath?: string;
+  seoJsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 
 // Route hierarchy map for smart breadcrumb navigation
@@ -79,7 +85,7 @@ function getBreadcrumbs(pathname: string, dynamicLabel?: string): { label: strin
   return crumbs;
 }
 
-const PageShell = ({ title, subtitle, icon, children }: PageShellProps) => {
+const PageShell = ({ title, subtitle, icon, children, seoTitle, seoDescription, seoPath, seoJsonLd }: PageShellProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const goBack = useSmartBack();
@@ -89,6 +95,9 @@ const PageShell = ({ title, subtitle, icon, children }: PageShellProps) => {
 
   return (
     <div className="min-h-screen flex flex-col gradient-hero">
+      {(seoTitle || seoDescription || seoPath || seoJsonLd) && (
+        <Seo title={seoTitle} description={seoDescription} path={seoPath ?? location.pathname} jsonLd={seoJsonLd} />
+      )}
       <Navbar />
       <main className="flex-1 container mx-auto px-4 md:px-6 lg:px-10 py-4 md:py-6 space-y-4 md:space-y-6 pb-32 md:pb-6">
         <motion.div

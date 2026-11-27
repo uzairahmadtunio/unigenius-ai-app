@@ -116,6 +116,24 @@
     scrollbar-color: transparent transparent;
   }
 
+  /* Native <select> popups follow the app theme — without this, mobile
+     browsers render the open list white while the option text inherits
+     the dark theme's light color (white-on-white; seen on the chat
+     read-aloud voice picker, 2026-11-27). */
+  select {
+    color-scheme: light;
+  }
+
+  .dark select {
+    color-scheme: dark;
+  }
+
+  select option,
+  select optgroup {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
+
   *:hover {
     scrollbar-color: hsla(var(--muted-foreground) / 0.25) transparent;
   }

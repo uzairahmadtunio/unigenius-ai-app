@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import PageShell from "@/components/PageShell";
 import MarkdownMessage from "@/components/MarkdownMessage";
+import { useSignInPrompt } from "@/components/SignInPrompt";
 import { fireCelebration, recordCareerActivity, checkAndAwardBadges, PRESET_DSA_PROBLEMS, type DSAProblem } from "@/lib/career-points";
 import { formatFileSize } from "@/lib/utils";
 
@@ -318,6 +319,7 @@ const InterviewPrep = () => {
 // ─── DSA Practice ─────────────────────────────────────────────────
 const DSAPractice = () => {
   const { user } = useAuth();
+  const { promptSignIn } = useSignInPrompt();
   const [selectedProblem, setSelectedProblem] = useState<DSAProblem | null>(null);
   const [code, setCode] = useState("");
   const [analysis, setAnalysis] = useState("");
@@ -401,6 +403,7 @@ const DSAPractice = () => {
   };
 
   const analyzeSolution = async () => {
+    if (!user) { promptSignIn("DSA Practice"); return; }
     if (!code.trim() || code.trim() === "// Write your solution here") {
       toast.error("Write your solution first!");
       return;
@@ -661,6 +664,7 @@ const DSAPractice = () => {
 // ─── CV Optimizer ─────────────────────────────────────────────────
 const CVOptimizer = () => {
   const { user } = useAuth();
+  const { promptSignIn } = useSignInPrompt();
   const [file, setFile] = useState<File | null>(null);
   const [fileDataUrl, setFileDataUrl] = useState<string>("");
   const [analysis, setAnalysis] = useState("");
@@ -680,6 +684,7 @@ const CVOptimizer = () => {
   };
 
   const analyzeCV = async () => {
+    if (!user) { promptSignIn("CV Analyzer"); return; }
     if (!file || !fileDataUrl) { toast.error("Upload a CV first"); return; }
     setIsAnalyzing(true);
     setAnalysis("");
@@ -829,6 +834,9 @@ const CareerPage = () => {
   return (
     <PageShell
       title="Career Hub"
+      seoTitle="Career Hub — Roadmaps, Skills & Interview Prep | UniGenius AI"
+      seoDescription="Career roadmaps, in-demand skills, DSA practice and interview preparation for CS, SE & AI students — plan your path from semester one to your first job."
+      seoPath="/career"
       subtitle="Built by Uzair Ahmad"
       icon={
         <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">

@@ -31,6 +31,8 @@ import CodeLintWarnings from "@/components/CodeLintWarnings";
 import ThinkingAnimation from "@/components/ThinkingAnimation";
 import { notifyAiTier } from "@/lib/ai-tier-notifier";
 import { useAdmin } from "@/hooks/use-admin";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSignInPrompt } from "@/components/SignInPrompt";
 
 // ---------------------------------------------------------------------------
 // Languages — every entry here is verified against the execution backend
@@ -87,6 +89,8 @@ const normOutput = (s: string) => s.replace(/\r\n/g, "\n").split("\n").map((l) =
 const CodeLabPage = () => {
   const { department } = useDepartment();
   const { isAdmin } = useAdmin();
+  const { user } = useAuth();
+  const { promptSignIn } = useSignInPrompt();
   const dept = department || "se";
   const deptDefaultLang = dept === "ai" ? "python" : "cpp";
 
@@ -100,6 +104,17 @@ const CodeLabPage = () => {
   const [language, setLanguage] = useState(initial.lang);
   const [stdinInput, setStdinInput] = useState(initial.stdin);
   const [phase, setPhase] = useState<Phase>("idle");
+  // Honest wait feedback (audit fix 2026-11-27, item #45): while the AI
+  // is busy, show how long it has actually been working, and say
+  // plainly when the service is slow — instead of a silent spinner
+  // that can sit for minutes with no information.
+  const [elapsedSec, setElapsedSec] = useState(0);
+  useEffect(() => {
+    if (phase === "idle") { setElapsedSec(0); return; }
+    const started = Date.now();
+    const id = setInterval(() => setElapsedSec(Math.floor((Date.now() - started) / 1000)), 500);
+    return () => clearInterval(id);
+  }, [phase]);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [verifyState, setVerifyState] = useState<VerifyState | null>(null);
   const [serviceError, setServiceError] = useState<string | null>(null);
@@ -279,6 +294,7 @@ const CodeLabPage = () => {
 
   // ---- Main flow -------------------------------------------------------------
   const runAndAnalyze = async (imageData?: string) => {
+    if (!user) { promptSignIn("Code Lab"); return; }
     if (!code.trim() && !imageData) { toast.error("Write some code or upload an error image!"); return; }
     if (language === "cpp" && lintErrors.length > 0 && !imageData) {
       setLintDismissed(false);
@@ -606,7 +622,19 @@ const CodeLabPage = () => {
                       </Button>
                     </div>
                   ) : isBusy && !analysisResult ? (
-                    <ThinkingAnimation message={phaseMessage || "Working..."} />
+                    <div className="flex flex-col items-center gap-2">
+                      <ThinkingAnimation message={phaseMessage || "Working..."} />
+                      {elapsedSec >= 3 && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Working for {elapsedSec}s…
+                        </p>
+                      )}
+                      {elapsedSec >= 15 && (
+                        <p className="text-[11px] text-amber-500 dark:text-amber-300 max-w-xs text-center">
+                          This is taking longer than usual — the AI service is busy right now. Please keep this tab open; the analysis is still running.
+                        </p>
+                      )}
+                    </div>
                   ) : analysisResult ? (
                     <div className="space-y-4">
                       {analysisResult.status === "clean" ? (

@@ -1,0 +1,36 @@
+# UniGenius AI
+
+> UniGenius AI is a free AI-powered study platform for Computer Science (CS), Software Engineering (SE) and Artificial Intelligence (AI) university students. It brings together structured topic pages, an AI tutor, video lectures, notes, past papers, a question bank, viva preparation, a code lab, courses and a study planner in one place — matched to the student's degree program and semester.
+
+Founded by Uzair Ahmad Tunio. Free for students; optional Pro plan (Rs 300/month or one-time Lifetime) unlocks higher AI limits and premium features.
+
+## Key pages
+
+- [Home](https://unigenius.vercel.app/): Overview, features and FAQ
+- [Study Topics & Notes](https://unigenius.vercel.app/topics): All 615 topic pages across 54 subjects, free previews
+- [Video Lectures](https://unigenius.vercel.app/lectures): 100+ curated lecture playlists by subject (Urdu/Hindi and English)
+- [Courses](https://unigenius.vercel.app/courses): Free, premium and AI-recommended courses
+- [Question Bank](https://unigenius.vercel.app/question-bank): 2,500+ MCQs and practice questions with explanations
+- [Notes](https://unigenius.vercel.app/notes): Student-shared and curated study notes
+- [Past Papers](https://unigenius.vercel.app/past-papers): Previous exam papers by subject
+- [Library](https://unigenius.vercel.app/library): Free, openly-licensed books readable in-app
+- [Projects](https://unigenius.vercel.app/projects): Semester and final-year project ideas with details
+- [Career Hub](https://unigenius.vercel.app/career): Roadmaps, skills and interview preparation
+- [Premium](https://unigenius.vercel.app/premium): Pro plans and pricing
+- [Study Guides (Blog)](https://unigenius.vercel.app/blog): Study guides and exam tips — final exam plans, subject guides (OOP, DLD, calculus, DSA, discrete structures), viva preparation, past-paper strategy, expository writing, Pakistan Studies preparation, time management and semester project ideas
+- [About](https://unigenius.vercel.app/about): About the platform and its founder
+- [Contact](https://unigenius.vercel.app/contact): Support and feedback
+
+## Popular subjects
+
+- [Object Oriented Programming](https://unigenius.vercel.app/topics/object-oriented-programming)
+- [Data Structures and Algorithms (DSA)](https://unigenius.vercel.app/topics/data-structures-and-algorithms-dsa)
+- [Digital Logic Design](https://unigenius.vercel.app/topics/digital-logic-design)
+- [Database Systems](https://unigenius.vercel.app/topics/database-systems)
+- [Operating Systems](https://unigenius.vercel.app/topics/operating-systems)
+- [Computer Networks](https://unigenius.vercel.app/topics/computer-networks)
+
+## Notes for AI agents
+
+- Topic preview pages (under /topics/…) are public and readable without an account; each shows the topic's short summary and key points. Full topic pages, the AI Tutor, practice questions and progress tracking are free with a student account.
+- Content language: English, with short summaries also in Roman Urdu.

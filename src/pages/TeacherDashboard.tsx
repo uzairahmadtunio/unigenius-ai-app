@@ -144,7 +144,7 @@ const TeacherOverview = ({ onNavigate }: { onNavigate: (tab: TeacherTab) => void
     { label: "Create Quiz", desc: "Add MCQs to question bank", icon: ClipboardList, tab: "create-quiz" as TeacherTab, color: "text-blue-400" },
     { label: "Upload Material", desc: "Share study resources", icon: Upload, tab: "upload-material" as TeacherTab, color: "text-emerald-400" },
     { label: "Question Bank", desc: `${questionCount} questions created`, icon: BookOpen, tab: "question-bank" as TeacherTab, color: "text-amber-400" },
-    { label: "Student Results", desc: "View quiz performance", icon: BarChart3, tab: "results" as TeacherTab, color: "text-purple-400" },
+    { label: "Student Results", desc: "Practice & bank quiz scores", icon: BarChart3, tab: "results" as TeacherTab, color: "text-purple-400" },
   ];
 
   return (
@@ -498,6 +498,7 @@ const QuestionBankTab = () => {
 
 /* ===== STUDENT RESULTS ===== */
 const StudentResultsTab = () => {
+  const navigate = useNavigate();
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -531,12 +532,20 @@ const StudentResultsTab = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-      <h2 className="text-xl font-display font-bold text-foreground">Student Results</h2>
+      <div>
+        <h2 className="text-xl font-display font-bold text-foreground">Student Results</h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          Practice Mode and Question Bank quiz results. Class test and homework results live inside
+          each class — open <button className="text-primary font-medium hover:underline" onClick={() => navigate("/classes")}>My Classes</button> → a class → Results.
+        </p>
+      </div>
 
       {loading ? (
         <div className="text-center py-12 text-muted-foreground text-sm">Loading results...</div>
       ) : results.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">No quiz results found yet.</div>
+        <div className="text-center py-12 text-muted-foreground text-sm">
+          No practice or bank quiz results yet. Class results are inside each class's Results tab.
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

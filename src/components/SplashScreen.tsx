@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { GraduationCap, Code2, BookOpen, Award, Briefcase, FlaskConical } from "lucide-react";
 import { useQuestionCount, formatCount } from "@/hooks/use-question-count";
+import PublicLanding from "@/components/PublicLanding";
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -57,13 +58,19 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     navigate("/auth");
   }, [onComplete, navigate]);
 
+  // Landing-section links: leave the welcome flow and go to the page.
+  const handleNavigate = useCallback((path: string) => {
+    onComplete();
+    navigate(path);
+  }, [onComplete, navigate]);
+
   // Typing animation text
   const headline = "Welcome to UniGenius AI";
 
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden auth-grain"
+        className="fixed inset-0 z-[60] overflow-y-auto overflow-x-hidden auth-grain"
         exit={{ opacity: 0 }}
         transition={{ duration: 0.6 }}
         style={{
@@ -71,6 +78,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
             "radial-gradient(900px 480px at 12% -5%, hsl(252 95% 68% / 0.16), transparent 60%), radial-gradient(820px 420px at 88% -10%, hsl(245 90% 66% / 0.12), transparent 60%), #07060F",
         }}
       >
+       <div className="relative flex min-h-screen w-full flex-col items-center justify-center py-16">
         {/* Faint grid overlay (auth world) */}
         <div className="auth-grid-overlay" />
 
@@ -288,6 +296,11 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
             Designed & Founded by Uzair Ahmad
           </p>
         </motion.div>
+       </div>
+
+        {/* Crawlable public landing content (Full SEO program) — the
+            welcome hero stays exactly as it was; this lives below it. */}
+        <PublicLanding onGetStarted={handleGetStarted} onSignIn={handleSignIn} onNavigate={handleNavigate} />
       </motion.div>
     </AnimatePresence>
   );

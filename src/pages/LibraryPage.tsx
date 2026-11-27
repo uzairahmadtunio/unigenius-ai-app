@@ -53,6 +53,9 @@ const LibraryPage = () => {
   return (
     <PageShell
       title="Library"
+      seoTitle="Free Library — Open Books for CS, SE & AI Students | UniGenius AI"
+      seoDescription="Read free, openly-licensed textbooks and books for Computer Science, Software Engineering and AI subjects right inside UniGenius AI — no downloads needed."
+      seoPath="/library"
       subtitle="Free, openly-licensed books — read them right here"
       icon={
         <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">

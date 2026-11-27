@@ -28,6 +28,34 @@ import { useViewMode } from "@/contexts/ViewModeContext";
 import { lazyWithRetry } from "@/lib/lazy-retry";
 import { Suspense } from "react";
 import MyClassesSection from "@/components/home/MyClassesSection";
+import Seo from "@/components/Seo";
+import { HOME_FAQS } from "@/components/PublicLanding";
+
+// Homepage structured data (Full SEO program): FAQPage mirrors the
+// visible FAQ in the public landing sections; Organization + WebSite
+// live statically in index.html.
+const HOME_JSON_LD = [
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: HOME_FAQS.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "UniGenius AI",
+    applicationCategory: "EducationalApplication",
+    operatingSystem: "Web",
+    url: "https://unigenius.vercel.app/",
+    description:
+      "AI study assistant for CS, SE & AI university students: notes, topic pages, lectures, question bank, viva prep and a code lab.",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "PKR" },
+  },
+];
 
 // Lazy so the teacher panel stays out of the student entry bundle.
 const TeacherHome = lazyWithRetry(() => import("@/pages/TeacherHome"));
@@ -63,7 +91,7 @@ const Index = () => {
     }
   }, [authLoading, user, showSplash]);
 
-  if (showSplash) return <SplashScreen onComplete={handleSplashComplete} />;
+  if (showSplash) return (<><Seo path="/" jsonLd={HOME_JSON_LD} /><SplashScreen onComplete={handleSplashComplete} /></>);
   // Panels Program (Part A): in Teacher Mode the home IS the teacher
   // dashboard — the app behaves like a teacher's app end to end. This
   // sits before the department gate on purpose: a teacher's classes do
@@ -75,12 +103,13 @@ const Index = () => {
       </Suspense>
     );
   }
-  if (!department) return <DepartmentSelector />;
+  if (!department) return (<><Seo path="/" /><DepartmentSelector /></>);
 
   const deptInfo = departmentInfo[department];
 
   return (
     <div className="min-h-screen flex flex-col gradient-hero">
+      <Seo path="/" jsonLd={HOME_JSON_LD} />
       <AttendanceAlert />
       <Navbar />
 

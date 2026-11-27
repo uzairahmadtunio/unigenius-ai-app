@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import PageShell from "@/components/PageShell";
+import SeoIntro from "@/components/SeoIntro";
 
 const FREE_FEATURES = [
   { icon: Layers, label: "2 Slides / day", limited: true },
@@ -139,18 +140,25 @@ const PremiumPage = () => {
 
   if (!user) {
     return (
-      <PageShell title="Premium" subtitle="Unlock every feature — one simple price." icon={<Crown className="w-5 h-5" />}>
+      <PageShell title="Premium" seoTitle="UniGenius Pro — Plans for Students | UniGenius AI" seoDescription="Go Pro on UniGenius AI: higher AI limits, premium courses and every feature unlocked. Pro is Rs 300/month, or get the one-time Lifetime plan and never pay again." seoPath="/premium" subtitle="Unlock every feature — one simple price." icon={<Crown className="w-5 h-5" />}>
         <div className="text-center py-16">
           <Crown className="w-12 h-12 text-primary mx-auto mb-4" />
           <p className="text-muted-foreground mb-4">Please sign in to upgrade to Premium</p>
           <Button onClick={() => navigate("/auth")} className="rounded-xl">Sign In</Button>
         </div>
+        <SeoIntro
+          heading="Free vs Pro — what changes?"
+          paragraphs={[
+            "UniGenius is free to use: topic pages, lectures, notes, past papers and a generous daily allowance of AI help are included for every student, because the platform exists to help students who cannot afford expensive coaching. Pro simply removes the limits — higher AI usage, premium courses and priority access to new features — for students who want more.",
+            "Pro costs Rs 300 per month, deliberately priced below a single tuition class. If you know you will use UniGenius for your whole degree, the one-time Lifetime plan pays for itself in a year and never asks again. Every Pro subscription directly funds the servers and AI costs that keep the free version running for everyone else.",
+          ]}
+        />
       </PageShell>
     );
   }
 
   return (
-    <PageShell title="Premium" subtitle="Unlock every feature — one simple price." icon={<Crown className="w-5 h-5" />}>
+    <PageShell title="Premium" seoTitle="UniGenius Pro — Plans for Students | UniGenius AI" seoDescription="Go Pro on UniGenius AI: higher AI limits, premium courses and every feature unlocked. Pro is Rs 300/month, or get the one-time Lifetime plan and never pay again." seoPath="/premium" subtitle="Unlock every feature — one simple price." icon={<Crown className="w-5 h-5" />}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto space-y-6 pb-24">
         {/* Pro confirmation — compact banner above the plans (was a
             full-screen takeover). Wording kept verbatim. */}
@@ -439,6 +447,13 @@ const PremiumPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <SeoIntro
+        heading="Free vs Pro — what changes?"
+        paragraphs={[
+          "UniGenius is free to use: topic pages, lectures, notes, past papers and a generous daily allowance of AI help are included for every student, because the platform exists to help students who cannot afford expensive coaching. Pro simply removes the limits — higher AI usage, premium courses and priority access to new features — for students who want more.",
+          "Pro costs Rs 300 per month, deliberately priced below a single tuition class. If you know you will use UniGenius for your whole degree, the one-time Lifetime plan pays for itself in a year and never asks again. Every Pro subscription directly funds the servers and AI costs that keep the free version running for everyone else.",
+        ]}
+      />
     </PageShell>
   );
 };
