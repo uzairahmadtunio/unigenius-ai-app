@@ -1,0 +1,23 @@
+name: CI
+
+# Audit F-01 / Roadmap C4 first step: the repo shipped with a red test
+# suite and no CI at all. This runs the typecheck and the unit tests
+# on every push/PR so a stale test or a type error is caught before
+# deploy instead of after.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsc -p tsconfig.app.json --noEmit
+      - run: npm test
